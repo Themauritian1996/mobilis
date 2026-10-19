@@ -374,5 +374,18 @@
 "langBeta": "Tradução recente: avise seu profissional se encontrar um erro.",
 "camAnalysis": "A câmera analisa seu movimento e corrige você em voz alta.",
 "guidedAnalysis": "Guiado: voz e cronômetro (movimento fino demais para a câmera).",
-"lcNone": "Série registrada. Vá com calma: a qualidade importa mais que a velocidade."
+"lcNone": "Série registrada. Vá com calma: a qualidade importa mais que a velocidade.",
+"demoShort": "Ver",
+"demoTitle": "Demonstração",
+"demoBack": "Voltar ao exercício",
+"videoOn": "Mostrar meu vídeo",
+"videoOff": "Ocultar meu vídeo",
+"videoOffNote": "Vídeo oculto: a câmera continua analisando e corrigindo",
+"selfView": "Me ver na tela (selfie)",
+"selfViewD": "Câmera frontal: você se vê ao vivo com as correções. Desative para ocultar a imagem (a análise continua).",
+"mirrorD": "Câmera frontal como espelho para você se ver durante o exercício (sem análise para este movimento).",
+"mirrorErr": "Câmera indisponível: mostrando o esquema.",
+"selfViewSetting": "Vídeo selfie durante os exercícios",
+"selfViewSettingD": "Você também pode mostrar ou ocultar durante a sessão (ícone de olho).",
+"exDemoBtn": "Ver como fazer o exercício"
 }

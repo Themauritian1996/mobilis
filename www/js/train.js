@@ -24,7 +24,7 @@ export function viewTrain(id, cleanup) {
   const path = P.pathologyById(prof.pathology) || { name: { fr: 'Exercice libre', en: 'Free exercise' }, painMax: 4 };
   const planes = ex.track ? Object.keys(ex.track.planes) : [];
   const totalSets = dose.type === 'hold' ? dose.sets * (dose.reps || 1) : dose.sets;
-  const T = { set: 0, sets: [], stream: null, raf: 0, tracker: null, mode: ex.track ? 'camera' : 'guided', facing: store.settings().camera, active: false, guidedTimer: null };
+  const T = { set: 0, sets: [], stream: null, raf: 0, tracker: null, mode: ex.track ? 'camera' : 'guided', facing: store.settings().camera, active: false, guidedTimer: null, selfView: store.settings().selfView !== false };
   const planeFor = (i) => planes[i % planes.length];
   const holdTarget = dose.type === 'hold' ? dose.hold : 0;
 
@@ -33,10 +33,14 @@ export function viewTrain(id, cleanup) {
   root.innerHTML = `<div class="stage"><video playsinline muted hidden poster="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"></video><canvas class="overlay"></canvas>
     <div class="hud-top"><button class="icon-btn" data-t="close" aria-label="${t('close')}">${icon('close', 20)}</button>
       <div class="hud-title"><b>${esc(tr(ex.name))}</b><small id="setlbl"></small><div id="pbadge"></div></div>
-      <button class="icon-btn" data-t="flip" aria-label="${t('camSwitch')}" ${ex.track ? '' : 'hidden'}>${icon('flip', 20)}</button></div>
+      <div class="hud-btns"><button class="icon-btn" data-t="demo" aria-label="${t('exDemoBtn')}" title="${t('exDemoBtn')}">${icon('demo', 20)}</button>
+      <button class="icon-btn" data-t="video" aria-pressed="true"></button>
+      <button class="icon-btn" data-t="flip" aria-label="${t('camSwitch')}" title="${t('camSwitch')}">${icon('flip', 20)}</button></div></div>
+    <div class="vid-off" hidden>${icon('eyeOff', 18)} <span>${t('videoOffNote')}</span></div>
     <div class="depth" hidden><i style="height:0"></i></div>
     <div class="counter" hidden><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="44" stroke="rgba(255,255,255,.18)" stroke-width="5" fill="none"/><circle id="ring" cx="50" cy="50" r="44" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round" stroke-dasharray="${RING}" stroke-dashoffset="${RING}"/></svg><div class="val"><div><b id="cnt">0</b><small id="cntlbl"></small></div></div></div>
-    <div class="mini-fig" hidden>${figSvg(id)}</div>
+    <button class="mini-fig" hidden aria-label="${t('exDemoBtn')}">${figSvg(id)}<span>${icon('demo', 12)} ${t('demoShort')}</span></button>
+    <div class="demo" hidden></div>
     <div class="cue" hidden><span></span></div>
     <div class="center-msg" hidden></div>
     <div class="setup" hidden></div></div>
@@ -55,6 +59,41 @@ export function viewTrain(id, cleanup) {
   }
   cleanup.push(close);
   $('[data-t="close"]').onclick = () => go('#/home');
+
+  // Vidéo selfie (on/off) : l'image du patient en direct ; l'analyse continue même si elle est masquée.
+  function paintVideoBtn() {
+    const b = $('[data-t="video"]');
+    b.innerHTML = icon(T.selfView ? 'eye' : 'eyeOff', 20);
+    b.setAttribute('aria-pressed', String(T.selfView)); b.setAttribute('aria-label', t(T.selfView ? 'videoOff' : 'videoOn')); b.title = b.getAttribute('aria-label');
+    b.classList.toggle('dim', !T.selfView);
+    video.classList.toggle('off', !T.selfView);
+    $('[data-t="flip"]').hidden = !T.stream || !T.selfView;
+    $('.vid-off').hidden = !(T.stream && !T.selfView && T.mode === 'camera' && T.active);
+    const sw = root.querySelector('[data-t="selfview"]'); if (sw) { sw.classList.toggle('on', T.selfView); sw.setAttribute('aria-checked', String(T.selfView)); }
+  }
+  async function setSelfView(on) {
+    T.selfView = on; store.saveSettings({ selfView: on });
+    // Mode guidé : la vidéo sert de miroir (sans analyse) ; on ouvre / ferme la caméra selon le choix.
+    if (T.mode === 'guided' && T.active) { if (on) await mirrorOn(); else { stopCam(); guidedLayout(); } }
+    paintVideoBtn();
+  }
+  $('[data-t="video"]').onclick = () => setSelfView(!T.selfView);
+
+  // Démonstration : schéma animé + points clés + étapes, par-dessus la séance
+  function openDemo() {
+    const d = $('.demo');
+    d.innerHTML = `<div class="demo-card"><div class="row between"><span class="eyebrow">${t('demoTitle')}</span><button class="icon-btn" data-t="demo-x" aria-label="${t('close')}">${icon('close', 18)}</button></div>
+      <h3 style="margin:4px 0 6px">${esc(tr(ex.name))}</h3>${figureBlock(id)}
+      <ul class="keylist small">${ex.keys.map((k, i) => `<li><span class="n">${i + 1}</span><span>${esc(tr(k))}</span></li>`).join('')}</ul>
+      <ol class="steplist small" style="margin:6px -16px 0">${tr(ex.steps).map((x) => `<li>${esc(x)}</li>`).join('')}</ol>
+      <button class="btn" data-t="demo-ok" style="margin-top:12px">${t(T.active ? 'demoBack' : 'close')}</button></div>`;
+    d.hidden = false; mountFigs(d);
+    const shut = () => { d.hidden = true; d.innerHTML = ''; };
+    d.querySelector('[data-t="demo-x"]').onclick = shut; d.querySelector('[data-t="demo-ok"]').onclick = shut;
+    d.onclick = (e) => { if (e.target === d) shut(); };
+  }
+  $('[data-t="demo"]').onclick = openDemo;
+  $('.mini-fig').onclick = openDemo;
 
   function setLabel() {
     $('#setlbl').textContent = `${t('set')} ${T.set + 1} ${t('of')} ${totalSets} · ${doseText(dose)}${item?.flare ? ' · ' + t('flareShort') : ''}`;
@@ -75,28 +114,45 @@ export function viewTrain(id, cleanup) {
       const pl = planeFor(T.set);
       s.innerHTML = `<span class="eyebrow">${t('setupTitle')}</span><h3 style="margin:6px 0 4px">${t(pl === 'side' ? 'setupSide' : 'setupFront')}</h3>
         ${figureBlock(id, { keys: false })}<p class="small muted">${t('setupTip')}</p>
+        ${selfRow('selfViewD')}
         <button class="btn" data-t="go">${icon('cam', 20)} ${t('camStart')}</button>`;
       $('[data-t="guided"]').hidden = false;
     } else {
       s.innerHTML = `<h3>${esc(tr(ex.name))}</h3>${figureBlock(id)}
         <ol class="steplist small" style="margin:6px -16px">${tr(ex.steps).map((x) => `<li>${esc(x)}</li>`).join('')}</ol>
+        ${navigator.mediaDevices?.getUserMedia ? selfRow('mirrorD') : ''}
         <button class="btn" data-t="go">${IC.play.replace('<svg', '<svg width="18" height="18"')} ${t('start')}</button>`;
       $('[data-t="guided"]').hidden = true;
     }
     mountFigs(s);
+    const sv = s.querySelector('[data-t="selfview"]'); if (sv) sv.onclick = () => setSelfView(!T.selfView);
+    paintVideoBtn();
     s.querySelector('[data-t="go"]').onclick = () => (T.mode === 'camera' ? startCamera() : startGuided());
   }
+  const selfRow = (d) => `<div class="toggle selfrow"><span><b>${icon('eye', 16)} ${t('selfView')}</b><br><small class="muted">${t(d)}</small></span><button class="switch ${T.selfView ? 'on' : ''}" data-t="selfview" role="switch" aria-checked="${T.selfView}" aria-label="${t('selfView')}"></button></div>`;
   $('[data-t="guided"]').onclick = () => { T.mode = 'guided'; stopCam(); setup(); };
   $('[data-t="flip"]').onclick = async () => {
     T.facing = T.facing === 'user' ? 'environment' : 'user'; store.saveSettings({ camera: T.facing });
     if (T.stream) { stopCam(); await openCam(); }
   };
-  function stopCam() { if (T.stream) T.stream.getTracks().forEach((tk) => tk.stop()); T.stream = null; video.srcObject = null; video.hidden = true; }
+  function stopCam() { if (T.stream) T.stream.getTracks().forEach((tk) => tk.stop()); T.stream = null; video.srcObject = null; video.hidden = true; paintVideoBtn(); }
   async function openCam() {
     T.stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: T.facing, width: { ideal: 960 }, height: { ideal: 720 } } });
     video.srcObject = T.stream; await video.play();
     video.hidden = false;
     video.classList.toggle('mirror', T.facing === 'user');
+    paintVideoBtn();
+  }
+  // Mode guidé avec vidéo : le patient se voit en miroir, le schéma passe en vignette
+  async function mirrorOn() {
+    try { if (!T.stream) await openCam(); } catch (e) { console.warn(e); toast(e && e.name === 'NotAllowedError' ? t('camDenied') : t('mirrorErr'), 4000); T.selfView = false; }
+    guidedLayout();
+  }
+  function guidedLayout() {
+    if (T.mode !== 'guided' || !T.active) return;
+    const live = !!(T.stream && T.selfView);
+    $('.mini-fig').hidden = !live;
+    if (live) center(''); else { center(`<div class="guided-fig">${figSvg(id, { keys: true })}</div>`); mountFigs(root.querySelector('.center-msg')); }
   }
 
   async function startCamera() {
@@ -129,7 +185,7 @@ export function viewTrain(id, cleanup) {
         if (dose.type !== 'hold' && T.tracker.reps >= dose.reps) setTimeout(endSet, 900);
       },
     });
-    $('.counter').hidden = false; $('.depth').hidden = dose.type === 'hold'; $('.mini-fig').hidden = false;
+    $('.counter').hidden = false; $('.depth').hidden = dose.type === 'hold'; $('.mini-fig').hidden = false; paintVideoBtn();
     $('[data-t="end"]').hidden = false; $('[data-t="guided"]').hidden = true;
     $('#cntlbl').textContent = dose.type === 'hold' ? `/ ${holdTarget} ${t('sec')}` : `/ ${dose.reps}`;
     T.active = true;
@@ -186,8 +242,8 @@ export function viewTrain(id, cleanup) {
 
   function startGuided() {
     $('.setup').hidden = true; $('.counter').hidden = false; $('[data-t="end"]').hidden = false; $('[data-t="guided"]').hidden = true;
-    center(`<div class="guided-fig">${figSvg(id, { keys: true })}</div>`); mountFigs(root.querySelector('.center-msg'));
     T.active = true;
+    if (T.selfView && navigator.mediaDevices?.getUserMedia) mirrorOn(); else guidedLayout();
     const tempo = (dose.tempo || '2-1-2').split('-').map(Number);
     const repSec = Math.max(3, tempo.reduce((a, b) => a + b, 0) + (dose.holdTop || 0));
     let el = 0, reps = 0;
@@ -210,7 +266,7 @@ export function viewTrain(id, cleanup) {
   }
   function endGuided() {
     if (!T.active) return;
-    T.active = false; clearInterval(T.guidedTimer); center('');
+    T.active = false; clearInterval(T.guidedTimer); center(''); $('.mini-fig').hidden = true;
     const { el, reps } = T.guidedEl();
     const sum = dose.type === 'hold' ? { mode: 'hold', holdSec: el, reps: 0, full: 0, partial: 0, quality: null, faults: {} } : { mode: 'reps', reps, full: reps, partial: 0, quality: null, faults: {} };
     T.sets.push({ plane: 'guided', ...sum });

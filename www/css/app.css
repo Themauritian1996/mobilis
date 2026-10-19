@@ -290,7 +290,7 @@ html.wide .sticky-cta { padding-left: 280px; }
 .train .center-msg .bignum { font-size: 110px; font-weight: 200; font-variant-numeric: tabular-nums; }
 .train .setup { position: absolute; left: max(12px, env(safe-area-inset-left, 0px)); right: max(12px, env(safe-area-inset-right, 0px)); bottom: 12px; background: var(--surface); color: var(--ink); border-radius: 22px; padding: 16px; max-height: calc(100% - 110px); overflow: auto; z-index: 4; border: 1px solid var(--line); }
 .train .setup .fig-wrap { max-width: 260px; margin: 8px auto; }
-.train .mini-fig { position: absolute; left: 30px; bottom: 118px; width: 112px; background: rgba(255, 255, 255, .92); border-radius: 14px; padding: 2px; z-index: 2; --fig-body: #15171a; --fig-far: #b4b6b9; --fig-joint: #fff; --fig-prop: #e4e4e1; --fig-mat: #dcdcd8; --line: #e2e2df; }
+.train .mini-fig { position: absolute; inset-inline-start: 30px; bottom: 118px; width: 118px; background: rgba(255, 255, 255, .94); border: 0; border-radius: 14px; padding: 2px 2px 6px; z-index: 2; color: #15171a; cursor: pointer; text-align: center; --fig-body: #15171a; --fig-far: #b4b6b9; --fig-joint: #fff; --fig-prop: #e4e4e1; --fig-mat: #dcdcd8; --line: #e2e2df; }
 .train .mini-fig svg { width: 100%; height: auto; display: block; }
 .train .guided-fig { width: min(380px, 88vw); background: #fff; border-radius: 22px; padding: 6px; --fig-body: #15171a; --fig-far: #b4b6b9; --fig-joint: #fff; --fig-prop: #e4e4e1; --fig-mat: #dcdcd8; --line: #e2e2df; --ink: #15171a; --on-ink: #fff; --surface: #fff; }
 .train .guided-fig svg { width: 100%; height: auto; display: block; }
@@ -371,3 +371,19 @@ html[dir="rtl"] .switch::after { left: auto; right: 2px; }
 .test-opt small { color: var(--muted); }
 html[dir="rtl"] .switch.on::after { transform: translateX(-20px); }
 .spinner.sm { width: 14px; height: 14px; margin: 0; display: inline-block; border-color: color-mix(in srgb, var(--ink) 25%, transparent); border-top-color: var(--ink); vertical-align: -2px; }
+
+/* 1.3 : vidéo selfie on/off + démonstration */
+.train .hud-btns { display: flex; gap: 8px; flex: none; }
+.train .hud-top .icon-btn.dim { background: rgba(255, 90, 79, .22); border-color: rgba(255, 90, 79, .5); }
+.train video.off { opacity: 0; }
+.train .vid-off { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; gap: 8px; align-items: center; color: rgba(255, 255, 255, .55); font-size: 13px; font-weight: 600; z-index: 1; pointer-events: none; text-align: center; max-width: 80%; }
+.train .vid-off svg { width: 18px; height: 18px; flex: none; }
+.train .mini-fig span { display: inline-flex; gap: 4px; align-items: center; font-size: 11px; font-weight: 700; }
+.train .mini-fig span svg { width: 12px; height: 12px; }
+.train .demo { position: absolute; inset: 0; z-index: 6; background: rgba(0, 0, 0, .55); display: flex; align-items: flex-end; padding: max(12px, env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px)) 12px max(12px, env(safe-area-inset-left, 0px)); animation: fade .15s; }
+.train .demo-card { width: 100%; max-width: 560px; margin: 0 auto; max-height: 100%; overflow: auto; background: var(--surface); color: var(--ink); border-radius: 22px; padding: 16px; border: 1px solid var(--line); }
+.train .demo-card .fig-wrap { max-width: 320px; margin: 6px auto; }
+.train .demo-card .keylist { margin: 8px 0 0; }
+.train .selfrow { padding: 10px 0; margin: 4px 0 10px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.train .selfrow b { display: inline-flex; gap: 6px; align-items: center; }
+.train .selfrow b svg { width: 16px; height: 16px; }

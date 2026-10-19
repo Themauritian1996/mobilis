@@ -13,6 +13,12 @@ Application web + APK Android qui filme le patient pendant ses exercices, analys
 | Comptes et données | Firebase `mobilis-6828b` : Google + courriel, Firestore à Montréal, règles « chaque patient voit seulement ses données » |
 | Coach Gemini | clé personnelle entrée dans **Profil → Coach IA** (GitHub Pages n'a pas de serveur). Pour une clé cachée côté serveur, voir l'option Cloudflare plus bas. |
 
+## Nouveautés 1.3
+
+- **Vidéo selfie en direct** : la caméra avant filme le patient, qui se voit en miroir avec le squelette et les corrections en couleur (rouge = articulation à corriger) pendant que la voix le guide. Pour les exercices guidés (mouvements trop fins pour l'analyse), la caméra avant sert de miroir.
+- **Vidéo on/off** : icône œil pendant la séance, interrupteur sur l'écran de préparation et réglage par défaut dans Profil. Vidéo masquée = l'image disparaît, mais l'analyse et les corrections continuent.
+- **Icône « Voir comment faire »** (toujours visible) : ouvre la démonstration animée de l'exercice, ses points clés et ses étapes, sans quitter la séance. La vignette du schéma ouvre aussi la démonstration.
+
 ## Nouveautés 1.2
 
 - **Affichage mobile corrigé** : la page reçue par le patient (lien ou QR) s'affichait en tout petit sur Chrome mobile. La mise en page « ordinateur » ne s'active plus sur un téléphone, même en mode « site pour ordinateur », et aucun contenu ne déborde de l'écran.

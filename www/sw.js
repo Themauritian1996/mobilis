@@ -1,5 +1,5 @@
 // Cache hors ligne : réseau d'abord, cache en secours (l'app reste utilisable sans réseau).
-const CACHE = 'mobilis-v3';
+const CACHE = 'mobilis-v4';
 const CORE = ['./', 'index.html', 'css/app.css', 'js/app.js', 'js/i18n.js', 'js/config.js', 'js/figure.js', 'js/pose.js', 'js/coach.js',
   'js/program.js', 'js/store.js', 'js/state.js', 'js/ui.js', 'js/onboarding.js', 'js/train.js', 'js/calendar.js', 'js/clinic.js',
   'js/data/exercises.js', 'js/data/pathologies.js', 'js/data/triage.js', 'js/data/anatomy.js', 'js/lang/es.js', 'js/lang/pt.js', 'js/lang/ar.js', 'js/lang/zh.js', 'icon.svg', 'manifest.webmanifest'];

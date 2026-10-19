@@ -385,6 +385,7 @@ function viewProfile() {
       <div class="toggle"><span>${t('theme')}</span><div class="seg" style="width:210px">${['auto', 'light', 'dark'].map((v) => `<button data-theme-set="${v}" class="${st.theme === v ? 'on' : ''}">${t('theme_' + v)}</button>`).join('')}</div></div>
       <div class="toggle" style="display:block"><span>${t('voice')}</span><div class="seg" style="margin-top:8px">${['local', 'gemini', 'off'].map((v) => `<button data-voice="${v}" class="${st.voice === v ? 'on' : ''}">${t(v === 'local' ? 'voiceLocal' : v === 'gemini' ? 'voiceGemini' : 'voiceOff')}</button>`).join('')}</div></div>
       <div class="toggle"><span>${t('countAloud')}</span>${sw('countAloud', st.countAloud)}</div>
+      <div class="toggle"><span>${t('selfViewSetting')}<br><small class="muted">${t('selfViewSettingD')}</small></span>${sw('selfView', st.selfView !== false)}</div>
       <div class="toggle"><span>${t('anatomyDefault')}</span>${sw('anatomy', st.anatomy)}</div>
     </div>
     <h2>${t('aiCoach')}</h2><div class="card">
