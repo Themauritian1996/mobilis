@@ -80,7 +80,7 @@ export function viewSession() {
     <div class="list">${items.map(row).join('')}</div>
     <p class="note">${t('sessOverNote')}</p>
     <div class="sticky-cta"><div>${todo.length ? `<button class="btn" data-a="start">${IC.play.replace('<svg', '<svg width="16" height="16"')} ${t(done.size ? 'continueSession' : 'startSession')} · ~${mins(total)} min</button>` : `<button class="btn soft" disabled>${t('sessionDone')}</button>`}</div></div>
-  </section>${nav('home', navRole())}`;
+  </section>`;
   mountFigs($app());
 
   const q = (s) => $app().querySelector(s);
