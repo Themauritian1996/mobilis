@@ -13,6 +13,13 @@ Application web + APK Android qui filme le patient pendant ses exercices, analys
 | Comptes et données | Firebase `mobilis-6828b` : Google + courriel, Firestore à Montréal, règles « chaque patient voit seulement ses données » |
 | Coach Gemini | clé personnelle entrée dans **Profil → Coach IA** (GitHub Pages n'a pas de serveur). Pour une clé cachée côté serveur, voir l'option Cloudflare plus bas. |
 
+## Nouveautés 1.2
+
+- **Affichage mobile corrigé** : la page reçue par le patient (lien ou QR) s'affichait en tout petit sur Chrome mobile. La mise en page « ordinateur » ne s'active plus sur un téléphone, même en mode « site pour ordinateur », et aucun contenu ne déborde de l'écran.
+- **Tester comme patient** (clinicien) : bouton **Tester** sur chaque programme et onglet **Vue patient**. Le clinicien voit exactement l'app du patient (caméra, voix, questions) ; rien n'est envoyé au patient. Bandeau « Mode test » pour revenir aux patients.
+- **Retour du patient écrit ou dicté** : après chaque exercice, la question est posée à voix haute ; le patient répond au clavier ou avec **Dicter** (reconnaissance vocale du téléphone dans l'APK, du navigateur sur le web, sinon Gemini). Le coach répond au commentaire, et le clinicien le voit dans le suivi et le rapport.
+- **6 langues** : français, anglais, espagnol, portugais, arabe (de droite à gauche) et chinois. Le clinicien choisit la langue du patient dans le programme ; écrans, consignes vocales, coach IA et diagnostic écrit suivent cette langue. Traductions : `i18n-src/` → `node scripts/build-lang.mjs`.
+
 ## Nouveautés 1.1
 
 - **Départ sans jargon** : le patient écrit son diagnostic dans ses mots (reconnu automatiquement), sinon il répond à des questions simples par région. Les problèmes sont affichés avec un nom compréhensible (ex. « Douleur à l’épaule en levant le bras ») et le terme médical en petit.
@@ -102,6 +109,7 @@ npm run serve       # http://localhost:3000 (la caméra exige https ou localhost
 ```
 
 ## Personnaliser le contenu clinique
+- **Langues** : après avoir modifié un texte FR/EN du contenu, lance `node scripts/i18n-dump.mjs` (liste anglaise de référence), ajoute les nouvelles lignes dans `i18n-src/<langue>.text.tsv`, puis `node scripts/build-lang.mjs` (il signale tout texte manquant).
 - **Ajouter un exercice** : copie un bloc dans `exercises.js`. `fig.frames` = positions clés du bonhomme (angles des segments en degrés : 0 = haut, 90 = avant, 180 = bas). `track.planes.side/front` = métrique, amplitude de départ/fin, erreurs à surveiller.
 - **Modifier un protocole** : dans `pathologies.js`, `phases` liste les exercices des semaines 1–2, 3–6 et 7+ ; `painMax` = douleur tolérée pendant l'exercice.
 - **Règles de progression** : `program.js → adjustLevel` (monte après 2 séances faciles et propres, descend si douleur > limite, lendemain « pire », difficulté maximale ou qualité < 50 %).

@@ -1,13 +1,12 @@
 // Calendrier de suivi : séances faites / prévues / manquées, rendez-vous, rappels (APK) et export agenda (web).
-import { t, getLang } from './i18n.js';
+import { t, getLang, locale, dowNarrow } from './i18n.js';
 import * as P from './program.js';
 import * as store from './store.js';
-import { state, profile, sessions, updateProfile, go } from './state.js';
+import { state, profile, sessions, updateProfile, go, navRole } from './state.js';
 import { esc, icon, toast, nav } from './ui.js';
 import { daysPicker } from './onboarding.js';
 
 const DAY = 86400000;
-const locale = () => (getLang() === 'fr' ? 'fr-CA' : 'en-CA');
 const key = P.todayKey;
 
 function dayInfo(prof, d, done, appts) {
@@ -40,7 +39,7 @@ export function viewCalendar() {
   const offset = (first.getDay() + 6) % 7; // semaine qui commence lundi
   const cells = [];
   for (let i = 0; i < 42; i++) cells.push(new Date(m.getFullYear(), m.getMonth(), 1 - offset + i));
-  const dow = getLang() === 'fr' ? ['L', 'M', 'M', 'J', 'V', 'S', 'D'] : ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+  const dw = dowNarrow(); const dow = [1, 2, 3, 4, 5, 6, 0].map((d) => dw[d]);
 
   const selDate = new Date(C.sel + 'T12:00');
   const si = dayInfo(prof, selDate, done, appts);
@@ -86,7 +85,7 @@ export function viewCalendar() {
       ${native ? `<label class="field" style="margin:12px 0 0"><span>${t('time')}</span><input class="input" type="time" id="rt" value="${remind.time}"></label>`
         : `<button class="btn ghost" id="ics" style="margin-top:12px">${icon('cal', 18)} ${t('addToAgenda')}</button>`}
     </div>
-  </section>${nav('calendar', prof.role)}`;
+  </section>${nav('calendar', navRole())}`;
 
   const q = (s) => document.getElementById('app').querySelector(s), qa = (s) => document.getElementById('app').querySelectorAll(s);
   qa('[data-m]').forEach((b) => (b.onclick = () => { C.month = new Date(m.getFullYear(), m.getMonth() + +b.dataset.m, 1); viewCalendar(); }));

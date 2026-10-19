@@ -1,15 +1,50 @@
-// Textes de l'interface FR / EN
+// Textes de l'interface. FR et EN sont dans ce fichier ; les autres langues sont des paquets chargés à la demande
+// (js/lang/<code>.js : { ui: { clé: texte }, text: { "texte anglais du contenu": traduction } }).
+export const LANGS = [
+  { id: 'fr', name: 'Français', locale: 'fr-CA', voice: ['fr-CA', 'fr-FR', 'fr'], label: 'French (Canada)' },
+  { id: 'en', name: 'English', locale: 'en-CA', voice: ['en-CA', 'en-US', 'en-GB', 'en'], label: 'English' },
+  { id: 'es', name: 'Español', locale: 'es-MX', voice: ['es-MX', 'es-US', 'es-419', 'es-ES', 'es'], label: 'Spanish (Latin America)' },
+  { id: 'pt', name: 'Português', locale: 'pt-BR', voice: ['pt-BR', 'pt-PT', 'pt'], label: 'Portuguese (Brazil)' },
+  { id: 'ar', name: 'العربية', locale: 'ar-u-nu-latn', voice: ['ar-SA', 'ar-EG', 'ar-MA', 'ar'], label: 'Arabic (Modern Standard)', rtl: true },
+  { id: 'zh', name: '中文', locale: 'zh-CN', voice: ['zh-CN', 'cmn-CN', 'zh'], label: 'Simplified Chinese (Mandarin)' },
+];
+const IDS = LANGS.map((l) => l.id);
 let lang = 'fr';
+let pack = null; // paquet de la langue courante (hors FR/EN)
 try { lang = localStorage.getItem('mobilis.lang') || (navigator.language || 'fr').slice(0, 2); } catch (_) {}
-if (!['fr', 'en'].includes(lang)) lang = 'fr';
+if (!IDS.includes(lang)) lang = 'fr';
 
 export const getLang = () => lang;
-export function setLang(l) {
+export const langInfo = (id = lang) => LANGS.find((l) => l.id === id) || LANGS[0];
+export const locale = () => langInfo().locale;
+export const isLang = (id) => IDS.includes(id);
+const packs = {};
+async function loadPack(id) {
+  if (id === 'fr' || id === 'en') return null;
+  if (!packs[id]) packs[id] = (await import(`./lang/${id}.js`)).default;
+  return packs[id];
+}
+// Change la langue (charge le paquet si besoin). À attendre avant d'afficher.
+export async function setLang(l) {
+  if (!IDS.includes(l)) l = 'fr';
+  try { pack = await loadPack(l); } catch (e) { console.warn('lang', e); pack = null; l = 'en'; }
   lang = l;
   try { localStorage.setItem('mobilis.lang', l); } catch (_) {}
   document.documentElement.lang = l;
+  document.documentElement.dir = langInfo(l).rtl ? 'rtl' : 'ltr';
 }
-export const tr = (o) => (o == null ? '' : typeof o === 'string' ? o : o[lang] ?? o.fr);
+const xl = (s) => (pack && pack.text[s]) ?? s;
+// Contenu bilingue { fr, en } (chaînes ou listes) -> langue courante
+export const tr = (o) => {
+  if (o == null) return '';
+  if (typeof o === 'string') return o;
+  if (lang === 'fr') return o.fr ?? o.en;
+  if (lang === 'en' || o[lang] != null) return o[lang] ?? o.en ?? o.fr;
+  const en = o.en ?? o.fr;
+  return Array.isArray(en) ? en.map(xl) : xl(en);
+};
+// Jours de la semaine (initiale), 0 = dimanche
+export const dowNarrow = () => { const f = new Intl.DateTimeFormat(locale(), { weekday: 'narrow' }); return [0, 1, 2, 3, 4, 5, 6].map((d) => f.format(new Date(2026, 0, 4 + d))); };
 
 const D = {
   fr: {
@@ -111,6 +146,29 @@ const D = {
     sendToPatient: 'Envoyer au patient', sendCodeD: 'Le patient entre ce code dans Mobilis, scanne le QR ou ouvre le lien.', sendLinkD: 'Le patient ouvre ce lien ou scanne le QR.',
     codeHowTo: 'Mobilis → « J’ai un code de mon clinicien »', copyLink: 'Copier le lien',
     shareMsgCode: 'Voici ton programme d’exercices Mobilis. Code : {code}', shareMsgLink: 'Voici ton programme d’exercices Mobilis.',
+    // 1.2 : test patient, retour écrit / vocal, langues
+    testAsPatient: 'Tester comme patient', testNav: 'Vue patient', testRx: 'Tester',
+    testTitle: 'Tester l’app comme un patient', testD: 'Vois exactement ce que ton patient verra : caméra, consignes vocales et questions après l’exercice. Tes essais ne sont pas envoyés au patient.',
+    testPickRx: 'Un de mes programmes', testPickRxD: 'Charge le programme tel que le patient le reçoit.',
+    testOnboard: 'Parcours d’un nouveau patient', testOnboardD: 'Diagnostic écrit ou questions simples, puis programme adapté.',
+    testLibrary: 'Un exercice de la bibliothèque', testLibraryD: 'Choisis un exercice et lance la caméra.',
+    noRxToTest: 'Aucun programme pour l’instant. Crée-en un, ou essaie le parcours d’un nouveau patient.',
+    trialOn: 'Mode test patient', trialOnD: 'Ce que tu fais ici n’est pas envoyé au patient.', trialExit: 'Quitter le test', backToPatients: 'Retour aux patients',
+    trialStarted: 'Mode test : tu vois l’app comme ton patient',
+    feedbackAsk: 'Comment ça s’est passé ? Indique ta douleur et la difficulté. Tu peux aussi laisser un commentaire, à l’écrit ou au micro.',
+    commentLabel: 'Un commentaire ? (facultatif)', commentPh: 'Ex. : douleur au genou en descendant, exercice trop facile…',
+    micStart: 'Dicter', micStop: 'Arrêter', micListening: 'Je t’écoute… touche Arrêter quand tu as fini.', micTranscribing: 'Transcription…',
+    micKeyboard: 'Dictée non disponible ici : utilise le micro de ton clavier.', micDenied: 'Micro refusé. Autorise-le dans les réglages du téléphone.', micErr: 'Dictée impossible. Écris ton commentaire.',
+    coachReply: 'Réponse du coach', patientComments: 'Commentaires du patient',
+    lcReplyLocal: 'Merci ! Ton commentaire est enregistré et ton clinicien pourra le voir.',
+    lcClean: 'Belle exécution, garde ce contrôle.', lcHold: 'Tu as tenu {n} secondes.', lcReps: '{full} répétitions complètes sur {reps}.', lcNone: 'Série enregistrée. Prends ton temps : la qualité compte plus que la vitesse.',
+    lwDown: 'ta douleur diminue', lwUp: 'ta douleur a augmenté un peu', lwSame: 'ta douleur est stable',
+    lwLine: 'Semaine {w} : {s} séance(s) sur {p}, {trend}.', lwGood: 'Bravo pour la régularité !', lwMore: 'Vise une séance de plus la semaine prochaine.',
+    rptTitle: 'Rapport de suivi', rptPatient: 'Patient', rptCondition: 'Problème', rptWeek: 'Semaine', rptFlare: 'journée difficile en cours',
+    rptSessions: 'Séances (7 j)', rptPain: 'Douleur moyenne (7 j)', rptQuality: 'Qualité du mouvement (7 j)', rptExercises: 'Exercices (niveau 1–5) :', rptComments: 'Commentaires récents :',
+    colon: ' :', patientLang: 'Langue du patient', patientLangD: 'Écrans, consignes vocales et coach IA dans cette langue.',
+    langBeta: 'Traduction récente : signale toute erreur à ton clinicien.', camAnalysis: 'La caméra analyse ton mouvement et te corrige à voix haute.',
+    guidedAnalysis: 'Guidé : voix et minuterie (mouvement trop fin pour la caméra).',
   },
   en: {
     tagline: 'Your rehab exercises, guided by camera and voice.',
@@ -208,6 +266,29 @@ const D = {
     sendToPatient: 'Send to the patient', sendCodeD: 'The patient enters this code in Mobilis, scans the QR or opens the link.', sendLinkD: 'The patient opens this link or scans the QR.',
     codeHowTo: 'Mobilis → “I have a code from my clinician”', copyLink: 'Copy link',
     shareMsgCode: 'Here is your Mobilis exercise program. Code: {code}', shareMsgLink: 'Here is your Mobilis exercise program.',
+    // 1.2
+    testAsPatient: 'Test as a patient', testNav: 'Patient view', testRx: 'Test',
+    testTitle: 'Try the app as a patient', testD: 'See exactly what your patient will see: camera, voice cues and questions after each exercise. Your trials are not sent to the patient.',
+    testPickRx: 'One of my programs', testPickRxD: 'Loads the program exactly as the patient receives it.',
+    testOnboard: 'New patient journey', testOnboardD: 'Written diagnosis or simple questions, then a tailored program.',
+    testLibrary: 'One exercise from the library', testLibraryD: 'Pick an exercise and start the camera.',
+    noRxToTest: 'No program yet. Create one, or try the new patient journey.',
+    trialOn: 'Patient test mode', trialOnD: 'Nothing you do here is sent to the patient.', trialExit: 'Exit test', backToPatients: 'Back to patients',
+    trialStarted: 'Test mode: you see the app as your patient does',
+    feedbackAsk: 'How did it go? Rate your pain and the difficulty. You can also leave a comment, typed or spoken.',
+    commentLabel: 'Any comment? (optional)', commentPh: 'E.g. knee pain on the way down, exercise too easy…',
+    micStart: 'Dictate', micStop: 'Stop', micListening: 'Listening… tap Stop when you’re done.', micTranscribing: 'Transcribing…',
+    micKeyboard: 'Dictation isn’t available here: use your keyboard’s microphone.', micDenied: 'Microphone blocked. Allow it in your phone settings.', micErr: 'Dictation failed. Please type your comment.',
+    coachReply: 'Coach reply', patientComments: 'Patient comments',
+    lcReplyLocal: 'Thanks! Your comment is saved and your clinician will be able to see it.',
+    lcClean: 'Clean technique, keep that control.', lcHold: 'You held for {n} seconds.', lcReps: '{full} of {reps} reps were full range.', lcNone: 'Set saved. Take your time: quality matters more than speed.',
+    lwDown: 'your pain is easing', lwUp: 'your pain went up a little', lwSame: 'your pain is stable',
+    lwLine: 'Week {w}: {s} of {p} sessions, {trend}.', lwGood: 'Great consistency!', lwMore: 'Aim for one more session next week.',
+    rptTitle: 'Progress report', rptPatient: 'Patient', rptCondition: 'Condition', rptWeek: 'Week', rptFlare: 'flare-up ongoing',
+    rptSessions: 'Sessions (7 d)', rptPain: 'Mean pain (7 d)', rptQuality: 'Movement quality (7 d)', rptExercises: 'Exercises (level 1–5):', rptComments: 'Recent comments:',
+    colon: ':', patientLang: 'Patient language', patientLangD: 'Screens, voice cues and AI coach in this language.',
+    langBeta: 'New translation: please report any error to your clinician.', camAnalysis: 'The camera analyses your movement and corrects you out loud.',
+    guidedAnalysis: 'Guided: voice and timer (movement too fine for the camera).',
   },
 };
 
@@ -241,7 +322,9 @@ export const CUES = {
 };
 
 export function t(key, vars) {
-  let s = D[lang][key] ?? D.fr[key] ?? key;
-  if (vars) for (const k in vars) s = s.replace(`{${k}}`, vars[k]);
+  let s = (lang === 'fr' || lang === 'en' ? D[lang][key] : pack?.ui[key]) ?? D[lang === 'fr' ? 'fr' : 'en'][key] ?? D.fr[key] ?? key;
+  if (vars) for (const k in vars) s = s.replaceAll(`{${k}}`, vars[k]);
   return s;
 }
+// Pour les paquets de langue : toutes les clés de l'interface (anglais)
+export const UI_EN = D.en;

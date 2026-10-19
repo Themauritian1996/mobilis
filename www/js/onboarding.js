@@ -1,19 +1,20 @@
 // Accueil du patient : diagnostic écrit ou questions simples, point de départ, sécurité.
 // Import d'un programme préparé par un clinicien (code ou lien).
-import { t, tr, getLang, setLang } from './i18n.js';
+import { t, tr, getLang, setLang, locale, dowNarrow, isLang } from './i18n.js';
 import { REGIONS, PATHOLOGIES, RED_FLAGS } from './data/pathologies.js';
 import { LAY, QUESTIONS, START_QS, startingPoint, matchDiagnosis, scoreAnswers } from './data/triage.js';
 import { EXERCISES } from './data/exercises.js';
 import * as P from './program.js';
 import * as store from './store.js';
 import { state, go, render, profile, updateProfile } from './state.js';
-import { esc, icon, mountFigs, figSvg, toast } from './ui.js';
+import { esc, icon, mountFigs, figSvg, toast, langPicker } from './ui.js';
+import { doseText } from './train.js';
 
 const $app = () => document.getElementById('app');
 const DAY = 86400000;
 export const layName = (id) => tr(LAY[id]?.name) || tr(PATHOLOGIES.find((p) => p.id === id)?.name);
 export const medName = (id) => tr(PATHOLOGIES.find((p) => p.id === id)?.name);
-const DOW = () => (getLang() === 'fr' ? ['D', 'L', 'M', 'M', 'J', 'V', 'S'] : ['S', 'M', 'T', 'W', 'T', 'F', 'S']);
+const DOW = dowNarrow;
 export const daysPicker = (sel) => `<div class="days" role="group" aria-label="${t('trainDays')}">${[1, 2, 3, 4, 5, 6, 0].map((d) => `<button data-day="${d}" class="${sel.includes(d) ? 'on' : ''}" aria-pressed="${sel.includes(d)}">${DOW()[d]}</button>`).join('')}</div>`;
 
 // Carte du corps (les points ouvrent la région)
@@ -36,35 +37,34 @@ export function bodyMap(sel) {
 function shell(body, { back = true, cta = '', canNext = true, progress = 0 } = {}) {
   $app().innerHTML = `<section class="screen">
     <div class="topbar">${back ? `<button class="icon-btn" data-ob="back" aria-label="${t('back')}">${icon('back', 20)}</button>` : ''}<h1></h1>
-      ${profile()?.pathology ? `<button class="icon-btn" data-ob="cancel" aria-label="${t('close')}">${icon('close', 20)}</button>` : ''}</div>
+      ${profile()?.pathology || state.obTest ? `<button class="icon-btn" data-ob="cancel" aria-label="${t('close')}">${icon('close', 20)}</button>` : ''}</div>
     <div class="steps-dots">${[0, 1, 2, 3, 4].map((i) => `<i class="${i <= progress ? 'on' : ''}"></i>`).join('')}</div>
     ${body}<div style="height:96px"></div>
     <div class="sticky-cta"><div>${cta || `<button class="btn" data-ob="next" ${canNext ? '' : 'disabled'}>${t('next')}</button>`}</div></div></section>`;
   mountFigs($app());
   const c = $app().querySelector('[data-ob="cancel"]');
-  if (c) c.onclick = () => { state.ob = null; go('#/home'); };
+  if (c) c.onclick = () => { state.ob = null; state.obTest = false; go('#/home'); };
 }
 
 export function viewOnboard() {
   const prev = profile();
   const o = state.ob || (state.ob = {
-    step: 'name', hist: [], name: prev?.name || state.user?.name || '', role: prev?.role || 'patient', text: '', matches: null, region: prev?.region || null,
+    step: state.obTest ? 'diag' : 'name', hist: [], name: prev?.name || state.user?.name || '', role: prev?.role || 'patient', text: '', matches: null, region: prev?.region || null,
     answers: {}, pathology: null, start: {}, painBase: prev?.painBase ?? 3, irritability: prev?.irritability || 'med',
     days: prev?.days || [1, 3, 5], flags: new Set(), noFlag: false,
   });
   const to = (s) => { o.hist.push(o.step); o.step = s; viewOnboard(); };
-  const back = () => { o.step = o.hist.pop() || 'name'; viewOnboard(); };
+  const back = () => { o.step = o.hist.pop() || (state.obTest ? 'diag' : 'name'); viewOnboard(); };
   const q = (s) => $app().querySelector(s), qa = (s) => $app().querySelectorAll(s);
   const bind = () => {
     const b = q('[data-ob="back"]'); if (b) b.onclick = back;
-    qa('[data-lang]').forEach((x) => (x.onclick = () => { setLang(x.dataset.lang); viewOnboard(); }));
   };
 
   if (o.step === 'name') {
     shell(`<h1 class="ob-title">${t('welcome')}</h1><p class="muted">${t('ob1s')}</p>
       <label class="field" style="margin-top:18px"><span>${t('namePh')}</span><input class="input" id="nm" value="${esc(o.name)}" autocomplete="given-name"></label>
       <div class="field"><span>${t('iAm')}</span><div class="seg"><button data-role="patient" class="${o.role === 'patient' ? 'on' : ''}">${t('rolePatient')}</button><button data-role="clinician" class="${o.role === 'clinician' ? 'on' : ''}">${t('roleClinician')}</button></div></div>
-      <div class="field"><span>${t('language')}</span><div class="seg"><button data-lang="fr" class="${getLang() === 'fr' ? 'on' : ''}">Français</button><button data-lang="en" class="${getLang() === 'en' ? 'on' : ''}">English</button></div></div>
+      <div class="field"><span>${t('language')}</span>${langPicker()}</div>
       ${o.role === 'patient' ? `<div class="card row" style="margin-top:6px">${icon('stetho', 22)}<div class="grow"><b>${t('haveCode')}</b><div class="small muted">${t('haveCodeD')}</div></div><button class="btn sm ghost" data-go="#/code">${t('enterCode')}</button></div>` : ''}`,
       { back: false, canNext: o.name.trim().length > 0, progress: 0 });
     bind();
@@ -93,7 +93,7 @@ export function viewOnboard() {
     bind();
     const dx = q('#dx'); dx.oninput = () => { o.text = dx.value; };
     q('[data-a="analyse"]').onclick = () => {
-      o.text = dx.value; const r = matchDiagnosis(o.text, PATHOLOGIES); o.matches = [...r]; o.pathology = r[0]?.id || null;
+      o.text = dx.value; const r = matchDiagnosis(o.text, PATHOLOGIES, ['fr', 'en'].includes(getLang()) ? {} : { tr, regions: REGIONS }); o.matches = [...r]; o.pathology = r[0]?.id || null;
       if (!r.length && r.regions?.length) { o.region = r.regions[0]; toast(t('diagRegionOnly')); return to('questions'); }
       viewOnboard();
     };
@@ -183,12 +183,13 @@ export function viewOnboard() {
   bind();
   q('[data-ob="finish"]').onclick = async () => {
     const p = {
-      ...(prev || {}), role: 'patient', name: o.name.trim(), region: o.region, pathology: o.pathology, painBase: o.painBase, irritability: o.irritability,
+      ...(prev || {}), role: prev?.role === 'clinician' ? 'clinician' : 'patient', trial: prev?.role === 'clinician', name: o.name.trim() || prev?.name || '', region: o.region, pathology: o.pathology, painBase: o.painBase, irritability: o.irritability,
       days: o.days, perWeek: o.days.length, phase: sp.phase, baseLevel: sp.level, levels: prev?.pathology === o.pathology ? prev.levels || {} : {},
       startDate: Date.now() - sp.weeksDone * 7 * DAY, joinedAt: prev?.joinedAt || Date.now(), lang: getLang(), triage: { text: o.text, answers: o.answers, start: o.start },
       plan: null, lockPhase: false,
     };
     await store.saveProfile(p); state.data = await store.loadData(); state.ob = null;
+    if (state.obTest) { state.obTest = false; toast(t('trialStarted'), 3500); }
     go('#/home');
   };
 }
@@ -217,6 +218,27 @@ export function viewCodeEntry() {
   $app().querySelector('#go').onclick = () => { const v = store.cleanCode(c.value); if (v.length === 6) go('#/rx/' + v); else { const e = $app().querySelector('#err'); e.hidden = false; e.textContent = t('codeInvalid'); } };
 }
 
+// Profil patient construit à partir d'un programme du clinicien
+function rxToProfile(rx, prev, extra = {}) {
+  const weeks = { 1: 0, 2: 2, 3: 6 }[rx.phase] || 0;
+  return {
+    ...(prev || {}), role: prev?.role === 'clinician' ? 'clinician' : 'patient', region: rx.region, pathology: rx.pathology,
+    phase: rx.phase, plan: { phase: rx.phase, ids: rx.ids }, levels: { ...(rx.levels || {}) }, baseLevel: 2, lockPhase: !rx.auto,
+    irritability: prev?.irritability || 'med', painBase: prev?.painBase ?? 3, days: rx.days || prev?.days || [1, 3, 5], perWeek: (rx.days || prev?.days || [1, 3, 5]).length,
+    startDate: Date.now() - weeks * 7 * DAY, joinedAt: prev?.joinedAt || Date.now(), rxCode: rx.code || null, rxVersion: rx.version || 1, clinician: rx.clinician || '', rxNotes: rx.notes || '',
+    nextVisit: rx.nextVisit || prev?.nextVisit || null, lang: getLang(), flareUntil: 0, ...extra,
+  };
+}
+
+// Clinicien : charge un programme sur son propre appareil pour le vivre comme le patient (rien n'est envoyé au patient)
+export async function startTrial(rx) {
+  const prev = profile();
+  const p = rxToProfile(rx, prev, { role: 'clinician', trial: true, rxCode: null, shareProgress: false, name: prev?.name || '' });
+  await store.saveProfile(p); state.data = await store.loadData();
+  toast(t('trialStarted'), 3500);
+  go('#/home');
+}
+
 export async function viewRxImport(code) {
   $app().innerHTML = `<section class="screen"><div class="topbar"><h1>${t('rxTitle')}</h1></div><div class="card muted">${t('loading')}</div></section>`;
   let rx = null;
@@ -226,17 +248,21 @@ export async function viewRxImport(code) {
     return;
   }
   try { localStorage.removeItem('mobilis.pendingRx'); } catch (_) {}
+  // Langue choisie par le clinicien, sauf si le patient en a choisi une autre sur cet écran
+  let chosen = false; try { chosen = !!sessionStorage.getItem('mobilis.langChosen'); } catch (_) {}
+  if (rx.lang && isLang(rx.lang) && rx.lang !== getLang() && !chosen) await setLang(rx.lang);
   const prev = profile();
-  const o = { name: prev?.name || state.user?.name || '', days: prev?.days || rx.days || [1, 3, 5], share: store.isCloud() && !!rx.code, flags: new Set(), noFlag: false, step: 'summary' };
+  const o = state.rxo && state.rxo.code === code ? state.rxo : (state.rxo = { code, name: prev?.name || state.user?.name || '', days: rx.days || prev?.days || [1, 3, 5], share: store.isCloud() && !!rx.code, flags: new Set(), noFlag: false, step: 'summary' });
   const draw = () => {
     if (o.step === 'flags') return flagsScreen(o, finish, () => { const b = document.querySelector('[data-ob="back"]'); if (b) b.onclick = () => { o.step = 'summary'; draw(); }; });
-    $app().innerHTML = `<section class="screen"><div class="topbar"><h1>${t('rxTitle')}</h1></div>
+    $app().innerHTML = `<section class="screen"><div class="topbar"><h1>${t('rxTitle')}</h1>${langPicker()}</div>
       <div class="card"><span class="eyebrow">${t('preparedBy')} ${esc(rx.clinician || t('yourClinician'))}</span>
         <h3 style="margin-top:6px">${esc(layName(rx.pathology))}</h3><div class="small muted">${t('medTerm')} : ${esc(medName(rx.pathology))}</div>
         <div class="row wrap" style="margin-top:10px"><span class="chip">${t('phase')} ${rx.phase} · ${t('phaseName' + rx.phase)}</span><span class="chip">${rx.ids.length} ${t('exercises').toLowerCase()}</span>
-        ${rx.nextVisit ? `<span class="chip">${t('nextVisit')} ${new Date(rx.nextVisit + 'T12:00').toLocaleDateString(getLang() === 'fr' ? 'fr-CA' : 'en-CA', { day: 'numeric', month: 'long' })}</span>` : ''}</div>
+        ${rx.nextVisit ? `<span class="chip">${t('nextVisit')} ${new Date(rx.nextVisit + 'T12:00').toLocaleDateString(locale(), { day: 'numeric', month: 'long' })}</span>` : ''}</div>
         ${rx.notes ? `<p style="margin:12px 0 0;white-space:pre-line">${esc(rx.notes)}</p>` : ''}</div>
-      <h2>${t('exercises')}</h2><div class="list">${rx.ids.map((id) => `<div class="ex-item"><span class="ex-thumb">${figSvg(id, { stat: true })}</span><span class="meta"><b>${esc(tr(EXERCISES[id].name))}</b><small>${t('level')} ${rx.levels?.[id] || 2}/5</small></span></div>`).join('')}</div>
+      <h2>${t('exercises')}</h2><div class="list">${rx.ids.map((id) => `<div class="ex-item lg"><span class="ex-thumb">${figSvg(id, { stat: true })}</span><span class="meta"><b>${esc(tr(EXERCISES[id].name))}</b><small>${t('level')} ${rx.levels?.[id] || 2}/5 · ${doseText(P.doseFor(id, rx.levels?.[id] || 2))}</small><br><small>${EXERCISES[id].track ? icon('cam', 13) + ' ' + t('tracked') : icon('timer', 13) + ' ' + t('guidedShort')}</small></span></div>`).join('')}</div>
+      <p class="note" style="margin-top:8px">${rx.ids.some((id) => EXERCISES[id].track) ? t('camAnalysis') : t('guidedAnalysis')}</p>
       <h2>${t('aboutYou')}</h2>
       <label class="field"><span>${t('namePh')}</span><input class="input" id="nm" value="${esc(o.name)}"></label>
       <div class="field"><span>${t('trainDays')}</span>${daysPicker(o.days)}</div>
@@ -252,15 +278,8 @@ export async function viewRxImport(code) {
     q('#next').onclick = () => { o.step = 'flags'; draw(); };
   };
   async function finish() {
-    const weeks = { 1: 0, 2: 2, 3: 6 }[rx.phase] || 0;
-    const p = {
-      ...(prev || {}), role: prev?.role === 'clinician' ? 'clinician' : 'patient', name: o.name.trim(), region: rx.region, pathology: rx.pathology,
-      phase: rx.phase, plan: { phase: rx.phase, ids: rx.ids }, levels: { ...(rx.levels || {}) }, baseLevel: 2, lockPhase: !rx.auto,
-      irritability: prev?.irritability || 'med', painBase: prev?.painBase ?? 3, days: o.days, perWeek: o.days.length,
-      startDate: Date.now() - weeks * 7 * DAY, joinedAt: prev?.joinedAt || Date.now(), rxCode: rx.code || null, rxVersion: rx.version || 1, clinician: rx.clinician || '', rxNotes: rx.notes || '',
-      nextVisit: rx.nextVisit || prev?.nextVisit || null, shareProgress: o.share, lang: getLang(),
-    };
-    await store.saveProfile(p); state.data = await store.loadData(); state.ob = null;
+    const p = rxToProfile({ ...rx, days: o.days }, prev, { name: o.name.trim(), shareProgress: o.share, trial: prev?.role === 'clinician' });
+    await store.saveProfile(p); state.data = await store.loadData(); state.ob = null; state.rxo = null;
     toast(t('rxAdded'));
     go('#/home');
   }

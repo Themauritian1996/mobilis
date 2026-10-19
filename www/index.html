@@ -12,6 +12,21 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/app.css">
+  <script>
+    // Téléphone : toujours la mise en page mobile, même si Chrome affiche le « site pour ordinateur ».
+    (function () {
+      var d = document.documentElement;
+      function fit() {
+        var touch = matchMedia('(pointer: coarse)').matches && !matchMedia('(hover: hover)').matches;
+        var sw = Math.min(screen.width, screen.height), w = window.innerWidth;
+        var phone = touch && sw < 700;
+        var z = phone && w > screen.width * 1.25 ? w / screen.width : 1;
+        d.style.zoom = z === 1 ? '' : String(z);
+        d.classList.toggle('wide', !phone && w >= 900);
+      }
+      fit(); window.addEventListener('resize', fit);
+    })();
+  </script>
 </head>
 <body>
   <main id="app" aria-live="polite"></main>

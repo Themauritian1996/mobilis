@@ -152,7 +152,13 @@ export function progressSummary(profile, sessions, now = Date.now()) {
     pain7: pains.length ? +avg(pains).toFixed(1) : null, quality7: qs.length ? Math.round(avg(qs) * 100) : null,
     levels: profile.levels || {}, flare: inFlare(profile, now),
     last: sessions.slice(-5).reverse().map((s) => ({ date: s.date, n: s.items.length, pain: avg(s.items.map((i) => i.pain)) })),
+    notes: recentNotes(sessions, 5),
   };
+}
+// Commentaires écrits / dictés par le patient après ses exercices (les plus récents d'abord)
+export function recentNotes(sessions, n = 5) {
+  return sessions.flatMap((s) => s.items.filter((i) => i.note).map((i) => ({ date: i.ts || s.date, ex: i.id, pain: i.pain ?? null, text: String(i.note).slice(0, 400) })))
+    .sort((a, b) => b.date - a.date).slice(0, n);
 }
 
 export function avg(a) { return a && a.length ? a.reduce((x, y) => x + y, 0) / a.length : null; }

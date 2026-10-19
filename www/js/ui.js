@@ -2,7 +2,7 @@
 import { EXERCISES } from './data/exercises.js';
 import { EX_ANATOMY, STRUCTURES } from './data/anatomy.js';
 import { renderFigure } from './figure.js';
-import { t, tr } from './i18n.js';
+import { t, tr, LANGS, getLang } from './i18n.js';
 import * as store from './store.js';
 
 export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -15,7 +15,7 @@ export const IC = {
   user: I('<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>'),
   cal: I('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>'),
   play: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" fill="currentColor"/></svg>',
-  back: I('<path d="M15 18l-6-6 6-6"/>'),
+  back: I('<path d="M15 18l-6-6 6-6"/>').replace('<svg', '<svg class="i-back"'),
   close: I('<path d="M18 6 6 18M6 6l12 12"/>'),
   check: I('<path d="M20 6 9 17l-5-5"/>'),
   search: I('<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>'),
@@ -33,6 +33,7 @@ export const IC = {
   flame: I('<path d="M12 22c4 0 7-3 7-7 0-4-3-6-4-9-2 2-2 4-3 5-1-2-2-3-2-5-3 3-5 6-5 9 0 4 3 7 7 7z"/>'),
   bell: I('<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10 21a2 2 0 0 0 4 0"/>'),
   doc: I('<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h6"/>'),
+  mic: I('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>'),
   layers: I('<path d="M12 3 2 8l10 5 10-5-10-5zM2 13l10 5 10-5M2 18l10 5 10-5"/>'),
   logo: '<svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="currentColor"/><circle cx="17.5" cy="8.5" r="2.8" fill="var(--on-ink)"/><path d="M17.5 12.5l-3 7 4.8 2-1.8 5.5M14.5 19.5l-4.8 2M17.5 13.5l4.8 3" stroke="var(--on-ink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>',
 };
@@ -40,7 +41,7 @@ export const icon = (name, size = 18, extra = '') => IC[name].replace('<svg', `<
 
 export function toast(msg, ms = 2600) {
   document.querySelectorAll('.toast').forEach((x) => x.remove());
-  const d = document.createElement('div'); d.className = 'toast'; d.setAttribute('role', 'status'); d.textContent = msg;
+  const d = document.createElement('div'); d.className = 'toast' + (document.querySelector('.sheet-bg') ? ' top' : ''); d.setAttribute('role', 'status'); d.textContent = msg;
   document.body.appendChild(d); setTimeout(() => d.remove(), ms);
 }
 
@@ -106,7 +107,7 @@ export function nav(active, role) {
   const brand = `<div class="brand">${icon('logo', 28, 'style="color:var(--ink)"')} Mobilis</div>`;
   if (role === 'clinician') {
     return `<nav class="nav" aria-label="Navigation"><div class="inner">${brand}${b('clinic', 'stetho', t('patients'))}${b('library', 'book', t('library'))}
-      <button class="fab" data-go="#/clinic/new" aria-label="${t('newRx')}">${icon('plus', 22)}<span hidden>${t('newRx')}</span></button>${b('home', 'home', t('myProgram'))}${b('profile', 'user', t('profile'))}</div></nav>`;
+      <button class="fab" data-go="#/clinic/new" aria-label="${t('newRx')}">${icon('plus', 22)}<span hidden>${t('newRx')}</span></button>${b('home', 'play', t('testNav'))}${b('profile', 'user', t('profile'))}</div></nav>`;
   }
   return `<nav class="nav" aria-label="Navigation"><div class="inner">${brand}${b('home', 'home', t('home'))}${b('calendar', 'cal', t('calendar'))}
     <button class="fab" data-act="quickstart" aria-label="${t('startSession')}">${IC.play}<span hidden>${t('startSession')}</span></button>${b('progress', 'chart', t('progress'))}${b('profile', 'user', t('profile'))}</div></nav>`;
@@ -122,3 +123,6 @@ export function applyTheme() {
 
 export const lvlBar = (n) => `<span class="lvl" aria-label="${t('level')} ${n}/5">${[1, 2, 3, 4, 5].map((i) => `<i class="${i <= n ? 'on' : ''}"></i>`).join('')}</span>`;
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Sélecteur de langue (changement géré globalement dans app.js)
+export const langPicker = (cls = '') => `<select class="input lang-select ${cls}" data-lang-select aria-label="${t('language')}">${LANGS.map((l) => `<option value="${l.id}" ${getLang() === l.id ? 'selected' : ''}>${l.name}</option>`).join('')}</select>`;

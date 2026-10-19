@@ -33,3 +33,6 @@ export async function syncProgress() {
   if (!p?.rxCode || !p.shareProgress || !store.isCloud()) return;
   await store.pushProgress(p.rxCode, P.progressSummary(p, sessions()));
 }
+// Clinicien en « mode test patient » : il voit l'app exactement comme son patient
+export const inTrial = () => profile()?.role === 'clinician' && !!profile()?.pathology;
+export const navRole = () => (inTrial() ? 'patient' : profile()?.role);

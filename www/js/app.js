@@ -1,35 +1,44 @@
 import { firebaseEnabled } from './config.js';
-import { t, tr, getLang, setLang } from './i18n.js';
+import { t, tr, getLang, setLang, locale, langInfo } from './i18n.js';
 import { EXERCISES, EQUIP } from './data/exercises.js';
 import { REGIONS, PATHOLOGIES } from './data/pathologies.js';
 import * as store from './store.js';
 import * as P from './program.js';
 import { coachComment, speakRich, cueText } from './coach.js';
-import { state, setRender, render, go, profile, sessions, todaySession, nextExercise, updateProfile, syncProgress } from './state.js';
-import { esc, icon, IC, toast, stopFigs, mountFigs, figSvg, figureBlock, nav, applyTheme, lvlBar, sheet, shareText, copyText } from './ui.js';
+import { state, setRender, render, go, profile, sessions, todaySession, nextExercise, updateProfile, syncProgress, inTrial, navRole } from './state.js';
+import { esc, icon, IC, toast, stopFigs, mountFigs, figSvg, figureBlock, nav, applyTheme, lvlBar, sheet, shareText, copyText, langPicker } from './ui.js';
 import { viewOnboard, viewCodeEntry, viewRxImport, checkRxUpdate, layName, medName } from './onboarding.js';
 import { viewTrain, doseText } from './train.js';
 import { viewCalendar, appointments } from './calendar.js';
-import { viewClinic, viewRxEditor } from './clinic.js';
+import { viewClinic, viewRxEditor, viewTestStart } from './clinic.js';
 
 const $app = document.getElementById('app');
 let cleanup = [];
-const locale = () => (getLang() === 'fr' ? 'fr-CA' : 'en-CA');
 
 // ---------- Démarrage et routes ----------
 async function boot() {
-  setLang(getLang());
+  await setLang(getLang());
   applyTheme();
   try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme); } catch (_) {}
   await store.initAuth(async (u) => {
     state.user = u;
     state.data = u ? await store.loadData() : null;
-    if (state.data?.profile?.lang && state.data.profile.lang !== getLang()) setLang(state.data.profile.lang);
+    if (state.data?.profile?.lang && state.data.profile.lang !== getLang()) await setLang(state.data.profile.lang);
     render();
   });
 }
 window.addEventListener('hashchange', render);
 setRender(route);
+
+// Changement de langue (tous les sélecteurs)
+document.addEventListener('change', async (e) => {
+  const sel = e.target.closest('[data-lang-select]');
+  if (!sel) return;
+  try { sessionStorage.setItem('mobilis.langChosen', '1'); } catch (_) {}
+  await setLang(sel.value);
+  if (profile()) await updateProfile({ lang: sel.value });
+  render();
+});
 
 function route() {
   stopFigs();
@@ -40,11 +49,14 @@ function route() {
   const [name, arg, arg2] = r.split('/');
   if (name === 'rx' && arg) {
     try { localStorage.setItem('mobilis.pendingRx', arg); } catch (_) {}
+    // Le lien porte la langue choisie par le clinicien (#/rx/CODE/es)
+    let chosen = false; try { chosen = !!sessionStorage.getItem('mobilis.langChosen'); } catch (_) {}
+    if (arg2 && arg2 !== getLang() && langInfo(arg2).id === arg2 && !chosen) { setLang(arg2).then(render); return; }
     if (state.user) return viewRxImport(arg);
   }
   if (!state.user) return viewAuth();
   let pending = null; try { pending = localStorage.getItem('mobilis.pendingRx'); } catch (_) {}
-  if (pending && name !== 'rx') return go('#/rx/' + pending);
+  if (pending && name !== 'rx') return go('#/rx/' + pending.split('/')[0]);
   if (name === 'code') return viewCodeEntry();
   const prof = profile();
   if (!prof?.role || name === 'onboard' || (prof.role === 'patient' && !prof.pathology)) return viewOnboard();
@@ -54,8 +66,8 @@ function route() {
   if (name === 'library') return viewLibrary();
   if (name === 'ex' && arg) return viewExercise(arg);
   if (name === 'profile') return viewProfile();
-  if (prof.role === 'clinician' && !prof.pathology) return viewClinic();
   if (name === 'train' && arg) return viewTrain(arg, cleanup);
+  if (prof.role === 'clinician' && !prof.pathology) return viewTestStart();
   if (name === 'calendar') return viewCalendar();
   if (name === 'progress') return viewProgress();
   if (name === 'report') return viewReport();
@@ -76,7 +88,7 @@ function viewAuth() {
   let pending = null; try { pending = localStorage.getItem('mobilis.pendingRx'); } catch (_) {}
   $app.innerHTML = `<section class="screen auth">
     <div class="row between"><div class="brand-lg">${icon('logo', 30, 'style="color:var(--ink)"')} Mobilis</div>
-      <div class="seg" style="width:110px"><button data-lang="fr" class="${getLang() === 'fr' ? 'on' : ''}">FR</button><button data-lang="en" class="${getLang() === 'en' ? 'on' : ''}">EN</button></div></div>
+      ${langPicker()}</div>
     <h1>${t('heroTitle')}</h1><p class="muted" style="margin:0">${t('tagline')}</p>
     <svg class="hero-fig" data-fig="squat" data-static="0" data-keys="0" data-anat="0"></svg>
     ${pending ? `<div class="banner pos" style="margin-bottom:12px">${icon('stetho', 20)}<div>${t('pendingRx')}</div></div>` : ''}
@@ -97,7 +109,6 @@ function viewAuth() {
   </section>`;
   mountFigs($app);
   const q = (s) => $app.querySelector(s);
-  $app.querySelectorAll('[data-lang]').forEach((b) => (b.onclick = () => { setLang(b.dataset.lang); render(); }));
   const err = (e) => { const p = q('#err'); if (p) { p.hidden = false; p.textContent = t('authErr') + (e.code || e.message); } };
   q('[data-a="local"]').onclick = () => store.signInLocal(async (u) => { state.user = u; state.data = await store.loadData(); render(); });
   if (!fbOn) return;
@@ -147,7 +158,7 @@ function viewHome() {
   const npi = P.nextPhaseInfo(prof, sessions());
   const path = P.pathologyById(prof.pathology);
 
-  $app.innerHTML = `<section class="screen">
+  $app.innerHTML = `<section class="screen">${trialBar()}
     <div class="hello"><div class="avatar">${esc((prof.name || '?')[0].toUpperCase())}</div><div class="grow"><span class="eyebrow">${new Date().toLocaleDateString(locale(), { weekday: 'long', day: 'numeric', month: 'long' })}</span><div style="font-size:19px;font-weight:700">${t('hello')} ${esc(prof.name)}</div></div>
       <span class="chip" title="${t('streak')}">${icon('flame', 14)} ${P.streak(prof, sessions())}</span></div>
 
@@ -181,9 +192,10 @@ function viewHome() {
         <li class="${npi.painOk ? 'pos' : 'neg'}">${(npi.painOk ? t('painOk') : t('painHigh')).replace('{m}', npi.painMax)}</li></ul>`}</div>
 
     ${path?.edu ? `<h2>${t('education')}</h2><div class="card"><ul class="list-plain">${tr(path.edu).map((e) => `<li>${esc(e)}</li>`).join('')}</ul>
-      ${path.avoid ? `<div class="banner" style="margin-top:10px">${icon('shield', 20)}<div><b>${t('avoid')}${getLang() === 'fr' ? ' :' : ':'}</b> ${tr(path.avoid).map(esc).join(' ')}</div></div>` : ''}</div>` : ''}
-  </section>${nav('home', prof.role)}`;
+      ${path.avoid ? `<div class="banner" style="margin-top:10px">${icon('shield', 20)}<div><b>${t('avoid')}${t('colon')}</b> ${tr(path.avoid).map(esc).join(' ')}</div></div>` : ''}</div>` : ''}
+  </section>${nav('home', navRole())}`;
   mountFigs($app);
+  bindTrialBar();
   $app.querySelectorAll('[data-jp]').forEach((b) => (b.onclick = async () => { await store.saveJournal({ day: today, pain: +b.dataset.jp, ts: Date.now() }); state.data = await store.loadData(); toast(t('saved')); render(); }));
   const fl = $app.querySelector('[data-a="flare"]');
   if (fl) fl.onclick = () => {
@@ -194,6 +206,17 @@ function viewHome() {
   };
   const fo = $app.querySelector('[data-a="flareOff"]');
   if (fo) fo.onclick = async () => { await updateProfile({ flareUntil: 0 }); render(); };
+}
+
+// Bandeau « mode test patient » (clinicien)
+function trialBar() {
+  if (!inTrial()) return '';
+  return `<div class="trialbar"><div class="tb-top">${icon('stetho', 20)}<div class="grow"><b>${t('trialOn')}</b>${t('trialOnD')}</div></div><div class="tb-btns"><button data-a="trialBack">${icon('back', 14)} ${t('backToPatients')}</button><button data-a="trialExit">${icon('close', 14)} ${t('trialExit')}</button></div></div>`;
+}
+function bindTrialBar() {
+  const b = $app.querySelector('[data-a="trialBack"]'); if (b) b.onclick = () => go('#/clinic');
+  const x = $app.querySelector('[data-a="trialExit"]');
+  if (x) x.onclick = async () => { await updateProfile({ pathology: null, plan: null, trial: false, rxNotes: '', clinician: '', nextVisit: null, flareUntil: 0 }); go('#/clinic'); };
 }
 
 // ---------- Bibliothèque ----------
@@ -222,7 +245,7 @@ function viewExercise(id) {
   const d = (prof.pathology && P.todaysProgram(prof).find((x) => x.id === id) || {}).dose || P.doseFor(id, level);
   const planes = ex.track ? Object.keys(ex.track.planes) : [];
   const plane = (k) => `<div class="plane ${planes.includes(k) ? '' : 'off'}">${icon(k === 'side' ? 'side' : 'front', 30)}<div><b>${t(k === 'side' ? 'planeSide' : 'planeFront')}</b><small>${t(k === 'side' ? 'planeSideD' : 'planeFrontD')}</small></div></div>`;
-  const canTrain = !!prof.pathology || prof.role !== 'clinician';
+  const canTrain = true;
   $app.innerHTML = `<section class="screen">
     <div class="topbar"><button class="icon-btn" data-back aria-label="${t('back')}">${icon('back', 20)}</button><h1>${esc(tr(ex.name))}</h1></div>
     ${figureBlock(id)}
@@ -287,30 +310,31 @@ function viewProgress() {
     <h2>${t('weekReport')}</h2><div class="card"><p id="wr" class="muted small" style="margin:0 0 10px">${t('weekReportD')}</p><button class="btn sm ghost" data-a="wr">${icon('spark', 16)} ${t('genReport')}</button></div>`}
     ${j.length > 1 ? `<h2>${t('dailyLog')}</h2><div class="card chart">${lineChart(j, [{ get: (r) => r.pain, color: 'var(--neg)' }], { label: (r) => r.day.slice(8) })}</div>` : ''}
     <h2>${t('levels')}</h2><div class="list">${prog.map((x) => `<div class="toggle"><span class="small"><b>${esc(tr(EXERCISES[x.id].name))}</b></span>${lvlBar(x.level)}</div>`).join('')}</div>
-    ${hist.length ? `<h2>${t('history')}</h2><div class="list">${hist.map((s) => `<div class="toggle"><span><b>${new Date(s.date).toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'short' })}</b><br><small class="muted">${s.items.map((i) => `${esc(tr(EXERCISES[i.id]?.name))} · ${i.pain}/10${i.change > 0 ? ' ↑' : i.change < 0 ? ' ↓' : ''}`).join('<br>')}</small></span></div>`).join('')}</div>` : ''}
-  </section>${nav('progress', prof.role)}`;
+    ${hist.length ? `<h2>${t('history')}</h2><div class="list">${hist.map((s) => `<div class="toggle"><span><b>${new Date(s.date).toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'short' })}</b><br><small class="muted">${s.items.map((i) => `${esc(tr(EXERCISES[i.id]?.name))} · ${i.pain}/10${i.change > 0 ? ' ↑' : i.change < 0 ? ' ↓' : ''}${i.note ? `<br><span style="color:var(--ink)">« ${esc(i.note)} »</span>` : ''}`).join('<br>')}</small></span></div>`).join('')}</div>` : ''}
+  </section>${nav('progress', navRole())}`;
   const b = $app.querySelector('[data-a="wr"]');
   if (b) b.onclick = async () => {
     const cur = rows[rows.length - 1], prev = rows[rows.length - 2];
     const p = $app.querySelector('#wr'); p.textContent = t('thinking');
-    const { text } = await coachComment({ kind: 'week', condition: tr(P.pathologyById(prof.pathology).name), week: cur.week, sessions: cur.sessions, planned: cur.planned, pain: cur.pain, quality: cur.quality, painDelta: prev?.pain != null && cur.pain != null ? cur.pain - prev.pain : 0, phase: prof.phase || 1 });
+    const { text } = await coachComment({ kind: 'week', condition: tr(P.pathologyById(prof.pathology).name), week: cur.week, sessions: cur.sessions, planned: cur.planned, pain: cur.pain, quality: cur.quality, painDelta: prev?.pain != null && cur.pain != null ? cur.pain - prev.pain : 0, phase: prof.phase || 1, comments: P.recentNotes(sessions(), 5).map((n) => n.text) });
     p.textContent = text; p.classList.remove('muted'); speakRich(text);
   };
 }
 
 function reportText(prof) {
   const s = P.progressSummary(prof, sessions());
-  const fr = getLang() === 'fr';
+  const c = t('colon');
   return [
-    `Mobilis — ${fr ? 'Rapport de suivi' : 'Progress report'} (${new Date().toLocaleDateString(locale())})`,
-    `${fr ? 'Patient' : 'Patient'} : ${prof.name}`,
-    `${fr ? 'Problème' : 'Condition'} : ${medName(prof.pathology)} (${layName(prof.pathology)})`,
-    `${fr ? 'Semaine' : 'Week'} ${s.week} · Phase ${s.phase}${s.flare ? (fr ? ' · journée difficile en cours' : ' · flare-up ongoing') : ''}`,
-    `${fr ? 'Séances (7 j)' : 'Sessions (7 d)'} : ${s.sessions7}/${s.planned}`,
-    `${fr ? 'Douleur moyenne (7 j)' : 'Mean pain (7 d)'} : ${s.pain7 ?? '–'}/10`,
-    `${fr ? 'Qualité du mouvement (7 j)' : 'Movement quality (7 d)'} : ${s.quality7 != null ? s.quality7 + ' %' : '–'}`,
-    '', fr ? 'Exercices (niveau 1–5) :' : 'Exercises (level 1–5):',
-    ...P.todaysProgram(prof).map((x) => `- ${tr(EXERCISES[x.id].name)} : ${x.level}/5 (${doseText(x.dose)})`),
+    `Mobilis — ${t('rptTitle')} (${new Date().toLocaleDateString(locale())})`,
+    `${t('rptPatient')}${c} ${prof.name}`,
+    `${t('rptCondition')}${c} ${medName(prof.pathology)} (${layName(prof.pathology)})`,
+    `${t('rptWeek')} ${s.week} · ${t('phase')} ${s.phase}${s.flare ? ' · ' + t('rptFlare') : ''}`,
+    `${t('rptSessions')}${c} ${s.sessions7}/${s.planned}`,
+    `${t('rptPain')}${c} ${s.pain7 ?? '–'}/10`,
+    `${t('rptQuality')}${c} ${s.quality7 != null ? s.quality7 + ' %' : '–'}`,
+    '', t('rptExercises'),
+    ...P.todaysProgram(prof).map((x) => `- ${tr(EXERCISES[x.id].name)}${c} ${x.level}/5 (${doseText(x.dose)})`),
+    ...(s.notes.length ? ['', t('rptComments'), ...s.notes.map((n) => `- ${new Date(n.date).toLocaleDateString(locale(), { day: 'numeric', month: 'short' })} · ${tr(EXERCISES[n.ex]?.name)}${n.pain != null ? ' · ' + n.pain + '/10' : ''}${c} « ${n.text} »`)] : []),
   ].join('\n');
 }
 function viewReport() {
@@ -321,7 +345,7 @@ function viewReport() {
     <div class="card"><pre style="white-space:pre-wrap;font:inherit;margin:0;font-size:14px">${esc(txt)}</pre></div>
     <div class="row" style="margin-top:12px"><button class="btn ghost" id="cp">${icon('copy', 18)} ${t('copy')}</button><button class="btn" id="sh">${icon('share', 18)} ${t('share')}</button></div>
     ${prof.rxCode ? `<div class="list" style="margin-top:14px"><div class="toggle"><span><b>${t('shareWithClin')}</b><br><small class="muted">${store.isCloud() ? t('shareWithClinD') : t('shareNeedsAccount')}</small></span>${store.isCloud() ? `<button class="switch ${prof.shareProgress ? 'on' : ''}" id="auto" role="switch" aria-checked="${!!prof.shareProgress}"></button>` : ''}</div></div>` : ''}
-  </section>${nav('progress', prof.role)}`;
+  </section>${nav('progress', navRole())}`;
   $app.querySelector('#cp').onclick = () => copyText(txt);
   $app.querySelector('#sh').onclick = () => shareText(t('reportTitle'), txt);
   const au = $app.querySelector('#auto');
@@ -339,7 +363,7 @@ function viewAdjust() {
       <span class="stepper"><button data-lv="${x.id}" data-d="-1" aria-label="-">−</button><b>${P.levelOf(prof, x.id)}</b><button data-lv="${x.id}" data-d="1" aria-label="+">+</button></span></div>`).join('')}</div>
     <div class="list" style="margin-top:14px"><div class="toggle"><span><b>${t('changeProblem')}</b><br><small class="muted">${esc(layName(prof.pathology))}</small></span><button class="btn sm ghost" data-a="redo">${t('change')}</button></div>
       <div class="toggle"><span><b>${t('haveCode')}</b><br><small class="muted">${prof.rxCode ? t('linkedTo') + ' ' + store.fmtCode(prof.rxCode) : t('haveCodeD')}</small></span><button class="btn sm ghost" data-go="#/code">${t('enterCode')}</button></div></div>
-  </section>${nav('profile', prof.role)}`;
+  </section>${nav('profile', navRole())}`;
   $app.querySelectorAll('[data-ph]').forEach((b) => (b.onclick = async () => { await updateProfile({ phase: +b.dataset.ph }); toast(t('saved')); syncProgress(); viewAdjust(); }));
   $app.querySelectorAll('[data-lv]').forEach((b) => (b.onclick = async () => {
     const id = b.dataset.lv; const v = Math.max(1, Math.min(5, P.levelOf(profile(), id) + +b.dataset.d));
@@ -352,12 +376,12 @@ function viewAdjust() {
 function viewProfile() {
   const prof = profile(); const st = store.settings(); const u = state.user;
   const sw = (k, on) => `<button class="switch ${on ? 'on' : ''}" data-sw="${k}" role="switch" aria-checked="${on}"></button>`;
-  $app.innerHTML = `<section class="screen"><div class="topbar"><h1>${t('profile')}</h1></div>
+  $app.innerHTML = `<section class="screen">${trialBar()}<div class="topbar"><h1>${t('profile')}</h1></div>
     <div class="card row"><div class="avatar">${esc((prof.name || '?')[0].toUpperCase())}</div><div class="grow"><b>${esc(prof.name)}</b><div class="small muted">${u.local ? t('localMode') : esc(u.email || '')}</div></div>
       <span class="chip">${prof.role === 'clinician' ? t('roleClinician') : t('rolePatient')}</span></div>
     ${prof.pathology ? `<div class="list" style="margin-top:10px"><button class="toggle" data-go="#/adjust" style="width:100%;border:0;background:transparent;text-align:left;color:inherit"><span><b>${t('adjustTitle')}</b><br><small class="muted">${esc(layName(prof.pathology))} · ${t('phase')} ${prof.phase || 1}</small></span>${icon('back', 18, 'style="transform:scaleX(-1)"')}</button></div>` : ''}
     <h2>${t('settings')}</h2><div class="list">
-      <div class="toggle"><span>${t('language')}</span><div class="seg" style="width:130px"><button data-lang="fr" class="${getLang() === 'fr' ? 'on' : ''}">FR</button><button data-lang="en" class="${getLang() === 'en' ? 'on' : ''}">EN</button></div></div>
+      <div class="toggle"><span>${t('language')}${['fr', 'en'].includes(getLang()) ? '' : `<br><small class="muted">${t('langBeta')}</small>`}</span>${langPicker()}</div>
       <div class="toggle"><span>${t('theme')}</span><div class="seg" style="width:210px">${['auto', 'light', 'dark'].map((v) => `<button data-theme-set="${v}" class="${st.theme === v ? 'on' : ''}">${t('theme_' + v)}</button>`).join('')}</div></div>
       <div class="toggle" style="display:block"><span>${t('voice')}</span><div class="seg" style="margin-top:8px">${['local', 'gemini', 'off'].map((v) => `<button data-voice="${v}" class="${st.voice === v ? 'on' : ''}">${t(v === 'local' ? 'voiceLocal' : v === 'gemini' ? 'voiceGemini' : 'voiceOff')}</button>`).join('')}</div></div>
       <div class="toggle"><span>${t('countAloud')}</span>${sw('countAloud', st.countAloud)}</div>
@@ -373,16 +397,16 @@ function viewProfile() {
     <div class="stack" style="margin-top:16px"><button class="btn ghost" data-a="export">${t('exportData')}</button>
       ${u.local ? `<button class="btn danger" data-a="erase">${t('deleteLocal')}</button>` : ''}
       <button class="btn ghost" data-a="out">${t('signOut')}</button></div>
-  </section>${nav('profile', prof.role)}`;
+  </section>${nav('profile', navRole())}`;
   const q = (s) => $app.querySelector(s);
-  $app.querySelectorAll('[data-lang]').forEach((b) => (b.onclick = async () => { setLang(b.dataset.lang); await updateProfile({ lang: b.dataset.lang }); render(); }));
+  bindTrialBar();
   $app.querySelectorAll('[data-theme-set]').forEach((b) => (b.onclick = () => { store.saveSettings({ theme: b.dataset.themeSet }); applyTheme(); viewProfile(); }));
   $app.querySelectorAll('[data-voice]').forEach((b) => (b.onclick = () => { store.saveSettings({ voice: b.dataset.voice }); viewProfile(); if (b.dataset.voice !== 'off') speakRich(cueText('good')); }));
   $app.querySelectorAll('[data-sw]').forEach((b) => (b.onclick = () => { const k = b.dataset.sw; store.saveSettings({ [k]: !store.settings()[k] }); viewProfile(); }));
   q('#gk').onchange = () => { store.saveSettings({ geminiKey: q('#gk').value.trim() }); toast(t('saved')); };
   q('[data-a="role"]').onclick = async () => {
     const role = prof.role === 'clinician' ? 'patient' : 'clinician';
-    await updateProfile({ role });
+    await updateProfile({ role, trial: false });
     go(role === 'clinician' ? '#/clinic' : prof.pathology ? '#/home' : '#/onboard');
   };
   q('[data-a="export"]').onclick = () => {

@@ -1,6 +1,6 @@
 // Coach vocal : consignes instantanées (voix de l'appareil) + commentaires de fin de série par Gemini.
 import { CONFIG, coachUrl } from './config.js';
-import { CUES, getLang, tr } from './i18n.js';
+import { CUES, getLang, tr, t, langInfo } from './i18n.js';
 import { settings } from './store.js';
 
 // ---------- Voix de l'appareil (latence quasi nulle, idéal pour corriger en direct) ----------
@@ -8,8 +8,8 @@ let voices = [];
 const loadVoices = () => { try { voices = speechSynthesis.getVoices(); } catch (_) { voices = []; } };
 if ('speechSynthesis' in window) { loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; }
 
-function pickVoice(lang) {
-  const pref = lang === 'fr' ? ['fr-CA', 'fr-FR', 'fr'] : ['en-CA', 'en-US', 'en-GB', 'en'];
+function pickVoice() {
+  const pref = langInfo().voice;
   for (const p of pref) { const v = voices.find((x) => x.lang && x.lang.replace('_', '-').startsWith(p)); if (v) return v; }
   return null;
 }
@@ -19,9 +19,8 @@ export function speak(text, { interrupt = false } = {}) {
   try {
     if (interrupt) speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
-    const lang = getLang();
-    u.lang = lang === 'fr' ? 'fr-CA' : 'en-CA';
-    const v = pickVoice(lang); if (v) u.voice = v;
+    u.lang = langInfo().voice[0];
+    const v = pickVoice(); if (v) u.voice = v;
     u.rate = 1.05;
     speechSynthesis.speak(u);
   } catch (_) {}
@@ -43,69 +42,173 @@ const NUM = {
 };
 export function countAloud(n) {
   if (!settings().countAloud) return;
-  speak(getLang() === 'fr' ? (NUM.fr[n] || String(n)) : String(n));
+  speak(NUM[getLang()]?.[n] || String(n));
 }
 
 // ---------- Gemini ----------
-function buildPrompt(d) {
-  const fr = getLang() === 'fr';
-  const sys = fr
-    ? 'Tu es un coach de réadaptation musculo-squelettique, supervisé par un physiatre. Tu parles au patient, en français québécois neutre, en 2 phrases maximum (40 mots), ton chaleureux et concret. Donne UNE correction prioritaire et UN encouragement. Ne pose jamais de diagnostic, ne change pas le programme. Si la douleur dépasse la limite, recommande d’alléger ou d’arrêter et d’en parler à son clinicien.'
-    : 'You are a musculoskeletal rehab coach supervised by a physiatrist. Speak to the patient in plain English, 2 sentences max (40 words), warm and concrete. Give ONE priority correction and ONE encouragement. Never diagnose or change the program. If pain exceeds the limit, advise easing off or stopping and talking to their clinician.';
-  return { sys, user: JSON.stringify(d) };
-}
+// Consignes en anglais (meilleure fiabilité), réponse demandée dans la langue du patient.
+const SYS = {
+  set: 'You are a musculoskeletal rehab coach supervised by a physiatrist. Speak directly to the patient, 2 sentences max (40 words), warm and concrete, no jargon. From the JSON set data (full reps, camera-detected faults, quality 0-1, filmed plane), give ONE priority correction and ONE encouragement. If an image is provided, use the visible posture. Never diagnose or change the program. If pain exceeds the limit, advise easing off or stopping and talking to their clinician.',
+  week: 'You are an MSK rehab coach supervised by a physiatrist. Write a weekly review for the patient in max 3 sentences from the JSON data (sessions done/planned, mean pain, movement quality, pain change, patient comments). Highlight one real gain and one priority for next week, no diagnosis, no jargon.',
+  reply: 'You are an MSK rehab coach supervised by a physiatrist. The patient just finished an exercise and left a comment (JSON: exercise, condition, pain 0-10, pain limit, difficulty 1-5, comment). Answer the comment in max 2 short sentences (35 words): acknowledge it, give one safe practical tip. Never diagnose or change the program. If the comment suggests worsening pain, numbness, weakness, swelling or anything unusual, tell them to ease off and contact their clinician. No jargon.',
+};
+const langLine = () => `Always answer in ${langInfo().label}.`;
+export const aiAvailable = () => !!(settings().geminiKey || CONFIG.coachEndpoint);
 
-async function callGeminiDirect(key, d, imageB64) {
-  const { sys, user } = buildPrompt(d);
-  const parts = [{ text: user }];
-  if (imageB64) parts.push({ inline_data: { mime_type: 'image/jpeg', data: imageB64 } });
+async function geminiDirect(key, sys, parts, maxTokens = 180) {
   const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${CONFIG.geminiModel}:generateContent`, {
     method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
-    body: JSON.stringify({ systemInstruction: { parts: [{ text: sys }] }, contents: [{ role: 'user', parts }], generationConfig: { temperature: 0.6, maxOutputTokens: 160 } }),
+    body: JSON.stringify({ systemInstruction: { parts: [{ text: sys }] }, contents: [{ role: 'user', parts }], generationConfig: { temperature: 0.6, maxOutputTokens: maxTokens } }),
   });
   if (!r.ok) throw new Error('gemini ' + r.status);
   const j = await r.json();
   return (j.candidates?.[0]?.content?.parts || []).map((p) => p.text || '').join('').trim();
 }
 
-async function callProxy(d, imageB64) {
+async function callProxy(body) {
   if (!CONFIG.coachEndpoint) throw new Error('no endpoint');
-  const r = await fetch(coachUrl(), {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ lang: getLang(), data: d, image: imageB64 || null, kind: d.kind || 'set' }),
-  });
+  const r = await fetch(coachUrl(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lang: getLang(), langLabel: langInfo().label, ...body }) });
   if (!r.ok) throw new Error('proxy ' + r.status);
   const j = await r.json();
   return (j.text || '').trim();
 }
 
+async function ask(kind, d, imageB64) {
+  const key = settings().geminiKey;
+  if (!navigator.onLine) throw new Error('offline');
+  if (key) {
+    const parts = [{ text: JSON.stringify(d) }];
+    if (imageB64) parts.push({ inline_data: { mime_type: 'image/jpeg', data: imageB64 } });
+    return geminiDirect(key, `${SYS[kind]} ${langLine()}`, parts);
+  }
+  return callProxy({ data: d, image: imageB64 || null, kind });
+}
+
 // Repli local (hors ligne / sans clé) : phrase construite à partir des métriques
 function localComment(d) {
-  const fr = getLang() === 'fr';
   if (d.kind === 'week') return localWeek(d);
+  if (d.mode === 'hold' ? !d.holdSec : !d.reps) return t('lcNone');
   const top = Object.entries(d.faults || {}).sort((a, b) => b[1] - a[1])[0];
-  const fix = top ? tr(CUES[top[0]]) + '.' : (fr ? 'Belle exécution, garde ce contrôle.' : 'Clean technique, keep that control.');
-  let lead;
-  if (d.mode === 'hold') lead = fr ? `Tu as tenu ${d.holdSec} secondes.` : `You held for ${d.holdSec} seconds.`;
-  else lead = fr ? `${d.full} répétitions complètes sur ${d.reps}.` : `${d.full} of ${d.reps} reps were full range.`;
+  const fix = top ? tr(CUES[top[0]]) + '.' : t('lcClean');
+  const lead = d.mode === 'hold' ? t('lcHold', { n: d.holdSec }) : t('lcReps', { full: d.full, reps: d.reps });
   return `${lead} ${fix}`;
 }
 function localWeek(d) {
-  const fr = getLang() === 'fr';
-  const trend = d.painDelta < -0.5 ? (fr ? 'ta douleur diminue' : 'your pain is easing') : d.painDelta > 0.5 ? (fr ? 'ta douleur a augmenté un peu' : 'your pain went up a little') : (fr ? 'ta douleur est stable' : 'your pain is stable');
-  return fr
-    ? `Semaine ${d.week} : ${d.sessions} séance(s) sur ${d.planned}, ${trend}. ${d.sessions >= d.planned ? 'Bravo pour la régularité !' : 'Vise une séance de plus la semaine prochaine.'}`
-    : `Week ${d.week}: ${d.sessions} of ${d.planned} sessions, ${trend}. ${d.sessions >= d.planned ? 'Great consistency!' : 'Aim for one more session next week.'}`;
+  const trend = d.painDelta < -0.5 ? t('lwDown') : d.painDelta > 0.5 ? t('lwUp') : t('lwSame');
+  return `${t('lwLine', { w: d.week, s: d.sessions, p: d.planned, trend })} ${d.sessions >= d.planned ? t('lwGood') : t('lwMore')}`;
 }
 
 export async function coachComment(d, imageB64) {
-  const key = settings().geminiKey;
   try {
-    if (!navigator.onLine) throw new Error('offline');
-    const txt = key ? await callGeminiDirect(key, d, imageB64) : await callProxy(d, imageB64);
+    const txt = await ask(d.kind === 'week' ? 'week' : 'set', d, imageB64);
     if (txt) return { text: txt, source: 'gemini' };
   } catch (_) { /* repli local */ }
   return { text: localComment(d), source: 'local' };
+}
+
+// Réponse du coach au commentaire écrit / dicté du patient
+export async function coachReply(d) {
+  try {
+    const txt = await ask('reply', d);
+    if (txt) return { text: txt, source: 'gemini' };
+  } catch (_) {}
+  return { text: t('lcReplyLocal'), source: 'local' };
+}
+
+// ---------- Dictée du commentaire ----------
+// 1) Reconnaissance vocale du navigateur (Chrome) ; 2) sinon enregistrement + transcription Gemini ; 3) sinon null.
+export function dictationMode() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const native = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+  if (native) return 'native'; // APK : reconnaissance vocale d'Android (gratuite, sans clé)
+  if (SR) return 'browser';
+  if (aiAvailable() && window.MediaRecorder && navigator.mediaDevices?.getUserMedia) return 'gemini';
+  return null;
+}
+async function nativeDictation({ onText, onState }) {
+  let SpeechRecognition;
+  try { ({ SpeechRecognition } = await import('../vendor/capacitor.js')); } catch (_) { return null; }
+  try {
+    const { available } = await SpeechRecognition.available();
+    if (!available) return null;
+    let perm = await SpeechRecognition.checkPermissions();
+    if (perm.speechRecognition !== 'granted') perm = await SpeechRecognition.requestPermissions();
+    if (perm.speechRecognition !== 'granted') { onState('denied'); return 'done'; }
+  } catch (_) { return null; }
+  let last = '', ended = false;
+  const finish = async () => {
+    if (ended) return; ended = true;
+    try { await SpeechRecognition.removeAllListeners(); } catch (_) {}
+    onText(last.trim(), true); onState('idle');
+  };
+  await SpeechRecognition.removeAllListeners().catch(() => {});
+  await SpeechRecognition.addListener('partialResults', (d) => { if (d.matches && d.matches[0]) { last = d.matches[0]; onText(last, false); } });
+  await SpeechRecognition.addListener('listeningState', (d) => { if (d.status === 'stopped') setTimeout(finish, 250); });
+  try { speechSynthesis.cancel(); } catch (_) {}
+  SpeechRecognition.start({ language: langInfo().voice[0], maxResults: 1, partialResults: true, popup: false })
+    .then((r) => { if (r && r.matches && r.matches[0]) last = r.matches[0]; })
+    .catch(() => { if (!last) { ended = true; onState('error'); } });
+  onState('listening');
+  return { stop: () => { SpeechRecognition.stop().catch(() => {}); setTimeout(finish, 600); } };
+}
+export async function startDictation({ onText, onState }) {
+  let mode = dictationMode();
+  if (mode === 'native') {
+    const r = await nativeDictation({ onText, onState });
+    if (r === 'done') return null;
+    if (r) return r;
+    mode = aiAvailable() && window.MediaRecorder && navigator.mediaDevices?.getUserMedia ? 'gemini' : null;
+  }
+  if (mode === 'browser') {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const rec = new SR();
+    rec.lang = langInfo().voice[0]; rec.continuous = true; rec.interimResults = true;
+    let finalTxt = '';
+    rec.onresult = (e) => {
+      let interim = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) finalTxt += e.results[i][0].transcript + ' ';
+        else interim += e.results[i][0].transcript;
+      }
+      onText((finalTxt + interim).trim(), false);
+    };
+    rec.onerror = (e) => onState(e.error === 'not-allowed' || e.error === 'service-not-allowed' ? 'denied' : 'error');
+    rec.onend = () => { onText(finalTxt.trim(), true); onState('idle'); };
+    try { speechSynthesis.cancel(); } catch (_) {}
+    rec.start(); onState('listening');
+    return { stop: () => rec.stop() };
+  }
+  if (mode === 'gemini') {
+    let stream;
+    try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+    catch (_) { onState('denied'); return null; }
+    const type = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg'].find((x) => MediaRecorder.isTypeSupported?.(x)) || '';
+    const mr = new MediaRecorder(stream, type ? { mimeType: type } : undefined);
+    const chunks = [];
+    mr.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+    mr.onstop = async () => {
+      stream.getTracks().forEach((tk) => tk.stop());
+      onState('transcribing');
+      try {
+        const blob = new Blob(chunks, { type: mr.mimeType || 'audio/webm' });
+        const b64 = await blobB64(blob);
+        onText(await transcribe(b64, (mr.mimeType || 'audio/webm').split(';')[0]), true);
+        onState('idle');
+      } catch (e) { console.warn(e); onState('error'); }
+    };
+    const timer = setTimeout(() => mr.state === 'recording' && mr.stop(), 60000);
+    mr.start(); onState('listening');
+    return { stop: () => { clearTimeout(timer); if (mr.state === 'recording') mr.stop(); } };
+  }
+  onState('unavailable');
+  return null;
+}
+const blobB64 = (blob) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.onerror = rej; r.readAsDataURL(blob); });
+async function transcribe(b64, mime) {
+  const sys = `Transcribe the patient's spoken comment verbatim. The patient speaks ${langInfo().label} (they may mix languages). Output only the transcription, no quotes, no notes.`;
+  const key = settings().geminiKey;
+  if (key) return geminiDirect(key, sys, [{ inline_data: { mime_type: mime, data: b64 } }], 400);
+  return callProxy({ kind: 'transcribe', audio: b64, mime });
 }
 
 // ---------- Voix Gemini (TTS) pour les commentaires de fin de série ----------
@@ -124,7 +227,7 @@ export async function speakRich(text) {
       });
     } else {
       if (!CONFIG.coachEndpoint) throw new Error('no endpoint');
-      r = await fetch(coachUrl(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'tts', text, lang: getLang() }) });
+      r = await fetch(coachUrl(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'tts', text, lang: getLang(), langLabel: langInfo().label }) });
     }
     if (!r.ok) throw new Error('tts');
     const j = await r.json();

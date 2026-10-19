@@ -4,7 +4,7 @@ import { EXERCISES } from './data/exercises.js';
 import * as P from './program.js';
 import * as store from './store.js';
 import { loadPose, detect, toPx, Tracker, drawSkeleton, FAULT_JOINTS, detectPlane, bodyVisible } from './pose.js';
-import { speak, cue, cueText, countAloud, coachComment, speakRich, grabFrame } from './coach.js';
+import { speak, cue, cueText, countAloud, coachComment, coachReply, speakRich, grabFrame, startDictation, dictationMode, aiAvailable } from './coach.js';
 import { state, go, profile, sessions, todaySession, nextExercise, syncProgress } from './state.js';
 import { esc, icon, IC, toast, mountFigs, figSvg, figureBlock, sleep } from './ui.js';
 
@@ -21,7 +21,7 @@ export function viewTrain(id, cleanup) {
   const item = P.todaysProgram(prof).find((x) => x.id === id);
   const level = item ? item.level : P.levelOf(prof, id);
   const dose = item ? item.dose : P.doseFor(id, level, P.inFlare(prof));
-  const path = P.pathologyById(prof.pathology);
+  const path = P.pathologyById(prof.pathology) || { name: { fr: 'Exercice libre', en: 'Free exercise' }, painMax: 4 };
   const planes = ex.track ? Object.keys(ex.track.planes) : [];
   const totalSets = dose.type === 'hold' ? dose.sets * (dose.reps || 1) : dose.sets;
   const T = { set: 0, sets: [], stream: null, raf: 0, tracker: null, mode: ex.track ? 'camera' : 'guided', facing: store.settings().camera, active: false, guidedTimer: null };
@@ -251,8 +251,10 @@ export function viewTrain(id, cleanup) {
     const all = sessions();
     const sess = todaySession(true);
     const needCheckin = !sess.checkin && !sess.items.length && all.length > 0;
-    const fb = { pain: Math.min(prof.painBase ?? 2, path.painMax), difficulty: 3, checkin: sess.checkin };
+    const fb = { pain: Math.min(prof.painBase ?? 2, path.painMax), difficulty: 3, checkin: sess.checkin, note: '' };
     const bg = document.createElement('div'); bg.className = 'sheet-bg';
+    let dict = null, micState = 'idle', saving = false;
+    const micLabel = () => micState === 'listening' ? `${icon('close', 14)} ${t('micStop')}` : micState === 'transcribing' ? `<span class="spinner sm"></span> ${t('micTranscribing')}` : `${icon('mic', 16)} ${t('micStart')}`;
     const draw = () => {
       const over = fb.pain > path.painMax;
       bg.innerHTML = `<div class="sheet"><div class="grab"></div><h3>${t('feedbackTitle')}</h3>
@@ -261,16 +263,41 @@ export function viewTrain(id, cleanup) {
         <div class="card" style="margin:12px 0"><div class="row between"><b>${t('painDuring')}</b><span class="mid ${over ? 'neg' : ''}" id="pv">${fb.pain}</span></div>
         <input type="range" min="0" max="10" value="${fb.pain}" id="pain" aria-label="${t('painDuring')}"><div class="scale"><span>0</span><span>${t('limit')} ${path.painMax}</span><span>10</span></div>
         <div id="pw" class="banner neg" style="margin-top:8px" ${over ? '' : 'hidden'}>${t('painStop')}</div></div>
-        <b>${t('difficulty')}</b><div class="seg" style="margin:8px 0 16px">${[1, 2, 3, 4, 5].map((n) => `<button data-df="${n}" class="${fb.difficulty === n ? 'on' : ''}">${t('d' + n)}</button>`).join('')}</div>
+        <b>${t('difficulty')}</b><div class="seg" style="margin:8px 0 14px">${[1, 2, 3, 4, 5].map((n) => `<button data-df="${n}" class="${fb.difficulty === n ? 'on' : ''}">${t('d' + n)}</button>`).join('')}</div>
+        <label class="field comment-box"><span>${t('commentLabel')}</span><textarea class="input" id="note" placeholder="${t('commentPh')}" maxlength="400">${esc(fb.note)}</textarea></label>
+        <div class="mic-row" style="margin:-4px 0 16px"><button class="mic-btn ${micState === 'listening' ? 'rec' : ''}" id="mic" type="button" ${micState === 'transcribing' ? 'disabled' : ''}>${micLabel()}</button><small class="muted" id="micmsg">${micState === 'listening' ? t('micListening') : ''}</small></div>
         <button class="btn" data-s="save" ${needCheckin && !fb.checkin ? 'disabled' : ''}>${t('save')}</button></div>`;
       bg.querySelectorAll('[data-ci]').forEach((b) => (b.onclick = () => { fb.checkin = b.dataset.ci; draw(); }));
       bg.querySelectorAll('[data-df]').forEach((b) => (b.onclick = () => { fb.difficulty = +b.dataset.df; draw(); }));
       const r = bg.querySelector('#pain');
       r.oninput = () => { fb.pain = +r.value; const pv = bg.querySelector('#pv'); pv.textContent = r.value; pv.classList.toggle('neg', fb.pain > path.painMax); bg.querySelector('#pw').hidden = fb.pain <= path.painMax; };
+      const note = bg.querySelector('#note'); note.oninput = () => { fb.note = note.value; };
+      bg.querySelector('#mic').onclick = mic;
       bg.querySelector('[data-s="save"]').onclick = save;
     };
+    // Dictée : le texte s'ajoute à ce que le patient a déjà écrit
+    async function mic() {
+      if (micState === 'listening') { dict && dict.stop(); return; }
+      if (!dictationMode()) { toast(t('micKeyboard'), 4000); bg.querySelector('#note').focus(); return; }
+      const base = fb.note ? fb.note.trim() + ' ' : '';
+      dict = await startDictation({
+        onText: (txt, final) => { if (saving) return; fb.note = (base + (txt || '')).slice(0, 400); const n = bg.querySelector('#note'); if (n) n.value = fb.note; },
+        onState: (st) => {
+          if (saving) return;
+          if (st === 'denied') { toast(t('micDenied'), 4500); st = 'idle'; }
+          if (st === 'error') { toast(t('micErr'), 4000); st = 'idle'; }
+          if (st === 'unavailable') { toast(t('micKeyboard'), 4000); st = 'idle'; }
+          micState = st; const y = bg.querySelector('.sheet')?.scrollTop; draw(); const sh = bg.querySelector('.sheet'); if (sh && y != null) sh.scrollTop = y;
+        },
+      });
+    }
     async function save() {
-      const it = { id, level, sets: T.sets, pain: fb.pain, difficulty: fb.difficulty };
+      if (saving) return;
+      saving = true;
+      if (dict && micState === 'listening') dict.stop();
+      const noteTxt = (fb.note || '').trim();
+      const it = { id, level, sets: T.sets, pain: fb.pain, difficulty: fb.difficulty, ts: Date.now() };
+      if (noteTxt) it.note = noteTxt;
       if (needCheckin) sess.checkin = fb.checkin;
       const adj = P.adjustLevel(prof, it, all, sess.checkin);
       it.change = adj.change;
@@ -280,11 +307,22 @@ export function viewTrain(id, cleanup) {
       state.data = await store.loadData();
       syncProgress();
       toast(adj.reason === 'flare' ? t('flareKeep') : adj.change > 0 ? `${t('lvlUp')} ${adj.level}` : adj.change < 0 ? `${t('lvlDown')} ${adj.level}` : `${t('lvlSame')} ${adj.level}`);
-      bg.remove();
       const nxt = nextExercise();
-      go(nxt ? `#/ex/${nxt.id}` : '#/home');
+      const leave = () => { bg.remove(); go(nxt ? `#/ex/${nxt.id}` : '#/home'); };
+      if (!noteTxt) return leave();
+      // Le coach répond au commentaire (Gemini si disponible, sinon accusé de réception)
+      bg.innerHTML = `<div class="sheet"><div class="grab"></div><h3>${t('coachReply')}</h3>
+        <div class="card small" style="margin:12px 0"><span class="muted">« ${esc(noteTxt)} »</span></div>
+        <div class="list"><div class="coach-box"><span class="ai">${icon('spark', 18)}</span><div><p id="rep" class="muted">${aiAvailable() ? t('thinking') : t('lcReplyLocal')}</p></div></div></div>
+        <button class="btn" id="go" style="margin-top:14px">${t('next')}</button></div>`;
+      bg.querySelector('#go').onclick = leave;
+      if (aiAvailable()) {
+        const { text } = await coachReply({ exercise: tr(ex.name), condition: tr(path.name), pain: fb.pain, painLimit: path.painMax, difficulty: fb.difficulty, comment: noteTxt });
+        const p = bg.querySelector('#rep'); if (p) { p.textContent = text; p.classList.remove('muted'); speakRich(text); }
+      }
     }
     draw(); root.appendChild(bg);
+    speak(t('feedbackAsk'), { interrupt: true });
   }
 
   setup();

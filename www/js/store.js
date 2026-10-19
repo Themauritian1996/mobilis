@@ -181,15 +181,28 @@ export const cleanCode = (c) => String(c || '').toUpperCase().replace(/[^A-Z0-9]
 const b64e = (o) => btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 const b64d = (s) => JSON.parse(decodeURIComponent(escape(atob(s.replace(/-/g, '+').replace(/_/g, '/')))));
 
+// Lien patient : la langue choisie par le clinicien suit le lien (affichée dès la page de connexion)
+export const rxLink = (ref, lang) => `${CONFIG.siteUrl}/#/rx/${ref}${lang ? '/' + lang : ''}`;
+const LOCAL_RX = 'mobilis.myRx';
+const localRxList = () => { try { return JSON.parse(localStorage.getItem(LOCAL_RX) || '[]'); } catch (_) { return []; } };
+
 export async function saveRx(rx) {
-  // Avec un compte : code court stocké dans Firestore. Sans compte : tout le programme voyage dans le lien.
-  if (!isCloud()) return { code: null, link: `${CONFIG.siteUrl}/#/rx/~${b64e(rx)}` };
+  // Avec un compte : code court stocké dans Firestore. Sans compte : tout le programme voyage dans le lien
+  // (et une copie reste sur l'appareil du clinicien pour le renvoyer ou le tester).
+  if (!isCloud()) {
+    const id = rx.localId || 'L' + Date.now().toString(36);
+    const data = { ...rx, code: null, localId: id, version: (rx.version || 0) + 1, updated: Date.now(), created: rx.created || Date.now() };
+    const packed = '~' + b64e({ ...data, localId: undefined });
+    data.packed = packed;
+    try { localStorage.setItem(LOCAL_RX, JSON.stringify([data, ...localRxList().filter((x) => x.localId !== id)].slice(0, 50))); } catch (_) {}
+    return { code: null, link: rxLink(packed, rx.lang), data };
+  }
   const { db, m } = await loadFirebase();
   const code = rx.code || newCode();
   const data = { ...rx, code, by: user.uid, version: (rx.version || 0) + 1, updated: Date.now() };
   if (!rx.created) data.created = Date.now();
   await m.setDoc(m.doc(db, 'rx', code), data);
-  return { code, link: `${CONFIG.siteUrl}/#/rx/${code}`, data };
+  return { code, link: rxLink(code, rx.lang), data };
 }
 
 export async function getRx(codeOrPacked) {
@@ -199,8 +212,9 @@ export async function getRx(codeOrPacked) {
   return snap.exists() ? snap.data() : null;
 }
 
+export const getLocalRx = (id) => localRxList().find((x) => x.localId === id) || null;
 export async function listMyRx() {
-  if (!isCloud()) return [];
+  if (!isCloud()) return localRxList().map((x) => ({ ...x, patients: [] }));
   const { db, m } = await loadFirebase();
   const qs = await m.getDocs(m.query(m.collection(db, 'rx'), m.where('by', '==', user.uid)));
   const list = qs.docs.map((d) => d.data()).sort((a, b) => (b.updated || 0) - (a.updated || 0));

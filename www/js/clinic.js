@@ -1,15 +1,17 @@
 // Mode clinicien : préparer un programme, l'envoyer par code / QR / lien, suivre et ajuster la progression du patient.
-import { t, tr, getLang } from './i18n.js';
+import { t, tr, getLang, locale, LANGS, langInfo } from './i18n.js';
 import { REGIONS, PATHOLOGIES } from './data/pathologies.js';
 import { EXERCISES } from './data/exercises.js';
 import { CONFIG } from './config.js';
 import * as store from './store.js';
 import { state, go, profile } from './state.js';
-import { esc, icon, toast, nav, mountFigs, figSvg, sheet, copyText, shareText } from './ui.js';
-import { layName } from './onboarding.js';
+import { esc, icon, IC, toast, nav, mountFigs, figSvg, sheet, copyText, shareText } from './ui.js';
+import { layName, startTrial } from './onboarding.js';
 
 const $app = () => document.getElementById('app');
-const fmtDate = (ts) => new Date(ts).toLocaleDateString(getLang() === 'fr' ? 'fr-CA' : 'en-CA', { day: 'numeric', month: 'short' });
+const fmtDate = (ts) => new Date(ts).toLocaleDateString(locale(), { day: 'numeric', month: 'short' });
+const rxRef = (rx) => rx.code || rx.localId;
+const linkOf = (rx) => store.rxLink(rx.code || rx.packed, rx.lang);
 
 export async function viewClinic() {
   const prof = profile();
@@ -23,17 +25,40 @@ export async function viewClinic() {
   if (!list.length) { box.innerHTML = `<div class="card"><h3>${t('noRxYet')}</h3><p class="muted small" style="margin:4px 0 12px">${t('noRxYetD')}</p><button class="btn" data-go="#/clinic/new">${t('newRx')}</button></div>`; return; }
   box.innerHTML = list.map((rx) => {
     const pts = rx.patients || [];
-    return `<div class="card"><div class="row between"><span class="eyebrow tnum">${store.fmtCode(rx.code)} · ${t('phase')} ${rx.phase}${rx.auto ? '' : ' · ' + t('locked')}</span><span class="small muted">${fmtDate(rx.updated)}</span></div>
+    const painMax = PATHOLOGIES.find((x) => x.id === rx.pathology)?.painMax ?? 4;
+    return `<div class="card"><div class="row between"><span class="eyebrow tnum">${rx.code ? store.fmtCode(rx.code) + ' · ' : ''}${t('phase')} ${rx.phase}${rx.auto ? '' : ' · ' + t('locked')}${rx.lang && rx.lang !== 'fr' ? ' · ' + esc(langInfo(rx.lang).name) : ''}</span><span class="small muted">${fmtDate(rx.updated)}</span></div>
       <h3 style="margin-top:6px">${esc(tr(PATHOLOGIES.find((p) => p.id === rx.pathology)?.name))}</h3>
       <div class="small muted">${rx.ids.length} ${t('exercises').toLowerCase()}${rx.label ? ' · ' + esc(rx.label) : ''}</div>
       ${pts.length ? pts.map((p) => {
         const adh = p.planned ? Math.round((p.sessions7 / p.planned) * 100) : 0;
         return `<div class="list" style="margin-top:10px"><div class="toggle"><span><b>${esc(p.name || t('patient'))}</b><br><small class="muted">${t('week')} ${p.week} · ${t('phase')} ${p.phase} · ${t('updated')} ${fmtDate(p.updated)}</small></span>${p.flare ? `<span class="chip neg">${t('flareShort')}</span>` : ''}</div>
-          <div class="kpis"><div><b class="${adh >= 80 ? 'pos' : adh < 50 ? 'neg' : ''}">${p.sessions7}/${p.planned}</b><span>${t('sessions7')}</span></div><div><b class="${p.pain7 != null && p.pain7 > (PATHOLOGIES.find((x) => x.id === rx.pathology)?.painMax ?? 4) ? 'neg' : ''}">${p.pain7 ?? '–'}</b><span>${t('avgPain')}</span></div><div><b>${p.quality7 != null ? p.quality7 + '%' : '–'}</b><span>${t('quality')}</span></div></div></div>`;
-      }).join('') : `<p class="small muted" style="margin:10px 0 0">${t('waitingPatient')}</p>`}
-      <div class="row" style="margin-top:12px"><button class="btn sm ghost grow" data-share="${rx.code}">${icon('share', 16)} ${t('sendCode')}</button><button class="btn sm grow" data-go="#/clinic/rx/${rx.code}">${t('adjust')}</button></div></div>`;
+          <div class="kpis"><div><b class="${adh >= 80 ? 'pos' : adh < 50 ? 'neg' : ''}">${p.sessions7}/${p.planned}</b><span>${t('sessions7')}</span></div><div><b class="${p.pain7 != null && p.pain7 > painMax ? 'neg' : ''}">${p.pain7 ?? '–'}</b><span>${t('avgPain')}</span></div><div><b>${p.quality7 != null ? p.quality7 + '%' : '–'}</b><span>${t('quality')}</span></div></div>
+          ${p.notes?.length ? `<div class="toggle" style="display:block"><b class="small">${t('patientComments')}</b>${p.notes.slice(0, 3).map((n) => `<div class="small" style="margin-top:6px"><span class="muted">${fmtDate(n.date)} · ${esc(tr(EXERCISES[n.ex]?.name))}${n.pain != null ? ' · ' + n.pain + '/10' : ''}</span><br>« ${esc(n.text)} »</div>`).join('')}</div>` : ''}</div>`;
+      }).join('') : (rx.code ? `<p class="small muted" style="margin:10px 0 0">${t('waitingPatient')}</p>` : '')}
+      <div class="row" style="margin-top:12px"><button class="btn sm ghost grow" data-share="${rxRef(rx)}">${icon('share', 16)} ${t('sendCode')}</button><button class="btn sm ghost grow" data-test="${rxRef(rx)}">${icon('play', 14)} ${t('testRx')}</button><button class="btn sm grow" data-go="#/clinic/rx/${rxRef(rx)}">${t('adjust')}</button></div></div>`;
   }).join('');
-  box.querySelectorAll('[data-share]').forEach((b) => (b.onclick = () => { const rx = list.find((x) => x.code === b.dataset.share); shareSheet(rx.code, `${CONFIG.siteUrl}/#/rx/${rx.code}`); }));
+  const find = (ref) => list.find((x) => rxRef(x) === ref);
+  box.querySelectorAll('[data-share]').forEach((b) => (b.onclick = () => { const rx = find(b.dataset.share); shareSheet(rx.code, linkOf(rx)); }));
+  box.querySelectorAll('[data-test]').forEach((b) => (b.onclick = () => startTrial(find(b.dataset.test))));
+}
+
+// Clinicien : tester l'app comme un patient
+export async function viewTestStart() {
+  const prof = profile();
+  $app().innerHTML = `<section class="screen"><div class="topbar"><h1>${t('testTitle')}</h1></div>
+    <p class="muted">${t('testD')}</p>
+    <h2>${t('testPickRx')}</h2><p class="small muted" style="margin-top:-6px">${t('testPickRxD')}</p><div id="rxt"><div class="card muted">${t('loading')}</div></div>
+    <button class="test-opt" data-a="ob"><span class="ic">${icon('search', 20)}</span><span class="grow"><b>${t('testOnboard')}</b><small>${t('testOnboardD')}</small></span></button>
+    <button class="test-opt" data-go="#/library"><span class="ic">${icon('cam', 20)}</span><span class="grow"><b>${t('testLibrary')}</b><small>${t('testLibraryD')}</small></span></button>
+  </section>${nav('home', prof.role)}`;
+  $app().querySelector('[data-a="ob"]').onclick = () => { state.ob = null; state.obTest = true; go('#/onboard'); };
+  let list = [];
+  try { list = await store.listMyRx(); } catch (e) { console.warn(e); }
+  const box = $app().querySelector('#rxt'); if (!box) return;
+  box.innerHTML = list.length ? `<div class="list">${list.slice(0, 8).map((rx, i) => `<button class="ex-item" data-i="${i}"><span class="ex-thumb">${figSvg(rx.ids[0], { stat: true })}</span><span class="meta"><b>${esc(layName(rx.pathology))}</b><small>${rx.code ? store.fmtCode(rx.code) + ' · ' : ''}${t('phase')} ${rx.phase} · ${rx.ids.length} ${t('exercises').toLowerCase()}${rx.label ? ' · ' + esc(rx.label) : ''}</small></span>${icon('play', 16)}</button>`).join('')}</div>`
+    : `<div class="card small muted">${t('noRxToTest')}</div>`;
+  mountFigs(box);
+  box.querySelectorAll('[data-i]').forEach((b) => (b.onclick = () => startTrial(list[+b.dataset.i])));
 }
 
 export async function viewRxEditor(code) {
@@ -41,13 +66,14 @@ export async function viewRxEditor(code) {
   let rx = null;
   if (code && !(state.clinic && state.clinic.code === code)) {
     $app().innerHTML = `<section class="screen"><div class="card muted">${t('loading')}</div></section>`;
-    try { rx = await store.getRx(code); } catch (_) {}
+    try { rx = code.startsWith('L') ? store.getLocalRx(code) : await store.getRx(code); } catch (_) {}
     if (!rx) { toast(t('rxNotFound')); return go('#/clinic'); }
   }
   const f = state.clinic && state.clinic.code === (code || null) ? state.clinic : (state.clinic = {
     code: code || null, clinician: rx?.clinician || prof.clinicianName || prof.name || '', region: rx?.region || 'shoulder', pathology: rx?.pathology || null,
     phase: rx?.phase || 1, ids: rx?.ids || [], levels: { ...(rx?.levels || {}) }, auto: rx ? !!rx.auto : true, notes: rx?.notes || '', nextVisit: rx?.nextVisit || '',
     label: rx?.label || '', version: rx?.version || 0, created: rx?.created || null, days: rx?.days || [1, 3, 5],
+    lang: rx?.lang || getLang(), localId: rx?.localId || null,
   });
   const path = PATHOLOGIES.find((p) => p.id === f.pathology);
   const regionEx = [...new Set(PATHOLOGIES.filter((p) => p.region === f.region).flatMap((p) => Object.values(p.phases).flat()))];
@@ -70,9 +96,10 @@ export async function viewRxEditor(code) {
     <h2>${t('trainDays')}</h2><div class="seg">${[2, 3, 4, 5, 6].map((n) => `<button data-pw="${n}" class="${f.days.length === n ? 'on' : ''}">${n}×</button>`).join('')}</div>
     <div class="list" style="margin-top:14px"><div class="toggle"><span><b>${t('autoProg')}</b><br><small class="muted">${t('autoProgD')}</small></span><button class="switch ${f.auto ? 'on' : ''}" id="auto" role="switch" aria-checked="${f.auto}"></button></div></div>
     <label class="field" style="margin-top:14px"><span>${t('notesForPatient')}</span><textarea class="input" id="nt" placeholder="${t('notesPh')}">${esc(f.notes)}</textarea></label>
-    <label class="field"><span>${t('nextVisit')}</span><input class="input" type="date" id="nv" value="${esc(f.nextVisit)}"></label>` : ''}
+    <label class="field"><span>${t('nextVisit')}</span><input class="input" type="date" id="nv" value="${esc(f.nextVisit)}"></label>
+    <label class="field"><span>${t('patientLang')}</span><select class="input" id="pl">${LANGS.map((l) => `<option value="${l.id}" ${f.lang === l.id ? 'selected' : ''}>${l.name}</option>`).join('')}</select><small class="muted">${t('patientLangD')}</small></label>` : ''}
     <div style="height:96px"></div>
-    <div class="sticky-cta"><div><button class="btn" id="save" ${path && f.ids.length ? '' : 'disabled'}>${code ? t('saveChanges') : t('createSend')}</button></div></div></section>
+    <div class="sticky-cta"><div class="row"><button class="btn ghost" id="try" style="flex:0 0 auto;width:auto;padding-inline:16px" ${path && f.ids.length ? '' : 'disabled'}>${icon('play', 14)} ${t('testRx')}</button><button class="btn grow" id="save" ${path && f.ids.length ? '' : 'disabled'}>${code ? t('saveChanges') : t('createSend')}</button></div></div></section>
     <div class="desk-only">${nav('clinic', prof.role)}</div>`;
   mountFigs($app());
   const q = (s) => $app().querySelector(s), qa = (s) => $app().querySelectorAll(s);
@@ -88,17 +115,21 @@ export async function viewRxEditor(code) {
   const au = q('#auto'); if (au) au.onclick = () => scroll(() => { f.auto = !f.auto; });
   const nt = q('#nt'); if (nt) nt.oninput = (e) => { f.notes = e.target.value; };
   const nv = q('#nv'); if (nv) nv.onchange = (e) => { f.nextVisit = e.target.value; };
+  const pl = q('#pl'); if (pl) pl.onchange = (e) => { f.lang = e.target.value; };
+  const levelsOf = () => Object.fromEntries(f.ids.map((id) => [id, f.levels[id] || 2]));
+  q('#try').onclick = () => startTrial({ ...f, levels: levelsOf(), code: null });
   q('#save').onclick = async () => {
     q('#save').disabled = true;
-    const levels = Object.fromEntries(f.ids.map((id) => [id, f.levels[id] || 2]));
-    const data = { code: f.code, clinician: f.clinician.trim(), label: f.label.trim(), region: f.region, pathology: f.pathology, phase: f.phase, ids: f.ids, levels, auto: f.auto, notes: f.notes.trim(), nextVisit: f.nextVisit || null, days: f.days, version: f.version, created: f.created, lang: getLang() };
+    const levels = levelsOf();
+    const data = { code: f.code, clinician: f.clinician.trim(), label: f.label.trim(), region: f.region, pathology: f.pathology, phase: f.phase, ids: f.ids, levels, auto: f.auto, notes: f.notes.trim(), nextVisit: f.nextVisit || null, days: f.days, version: f.version, created: f.created, lang: f.lang || getLang() };
+    if (f.localId) data.localId = f.localId;
     try {
       const res = await store.saveRx(data);
       if (f.clinician.trim() && f.clinician.trim() !== prof.clinicianName) await store.saveProfile({ ...profile(), clinicianName: f.clinician.trim() });
       state.clinic = null;
-      toast(code ? t('rxSaved') : t('rxCreated'));
-      if (code) return go('#/clinic');
-      shareSheet(res.code, res.link, () => go('#/clinic'));
+      if (code && res.code) { toast(t('rxSaved')); return go('#/clinic'); }
+      await shareSheet(res.code, res.link, () => go('#/clinic'));
+      toast(t('rxCreated'));
     } catch (e) { console.warn(e); toast(t('rxSaveErr') + ' ' + (e.code || e.message), 5000); q('#save').disabled = false; }
   };
 }
