@@ -123,6 +123,7 @@ export async function speakRich(text) {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': s.geminiKey }, body: JSON.stringify(body),
       });
     } else {
+      if (!CONFIG.coachEndpoint) throw new Error('no endpoint');
       r = await fetch(coachUrl(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'tts', text, lang: getLang() }) });
     }
     if (!r.ok) throw new Error('tts');

@@ -16,8 +16,10 @@ export const CONFIG = {
   //   - Site web sur Cloudflare Pages : laisse '/api/coach' (la clé reste secrète côté serveur).
   //   - APK : l'app appelle automatiquement siteUrl + coachEndpoint.
   //   - Ou chaque utilisateur peut entrer sa propre clé Gemini dans Profil → Coach IA.
-  siteUrl: '', // adresse du site Cloudflare, ex. 'https://mobilis.pages.dev'
-  coachEndpoint: '/api/coach',
+  siteUrl: 'https://themauritian1996.github.io/mobilis',
+  // Vide = pas de serveur (GitHub Pages) : le coach utilise la clé Gemini entrée dans Profil.
+  // Avec Cloudflare Pages, mettre '/api/coach' (la fonction functions/api/coach.js garde la clé secrète).
+  coachEndpoint: '',
   geminiModel: 'gemini-flash-latest',
   geminiTtsModel: 'gemini-2.5-flash-preview-tts',
 
@@ -32,5 +34,5 @@ export const firebaseEnabled = () => !!(CONFIG.firebase.apiKey && CONFIG.firebas
 // Dans l'APK (Capacitor), le site n'est pas servi par Cloudflare : on appelle le site en ligne.
 export const coachUrl = () => {
   const native = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
-  return native && CONFIG.coachEndpoint.startsWith('/') ? CONFIG.siteUrl + CONFIG.coachEndpoint : CONFIG.coachEndpoint;
+  return native && CONFIG.coachEndpoint && CONFIG.coachEndpoint.startsWith('/') ? CONFIG.siteUrl + CONFIG.coachEndpoint : CONFIG.coachEndpoint;
 };
