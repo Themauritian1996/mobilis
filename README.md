@@ -4,6 +4,15 @@ Application web + APK Android qui filme le patient pendant ses exercices, analys
 
 > Outil d'aide à l'exécution d'exercices prescrits. Ne remplace pas l'évaluation d'un professionnel. Voir « Réglementaire » plus bas.
 
+## En ligne
+
+| Quoi | Où |
+|---|---|
+| Site web | https://themauritian1996.github.io/mobilis/ (GitHub Pages, publié à chaque envoi sur `main`) |
+| APK Android | onglet **Actions → APK Android → dernière exécution → Artifacts** (ou une Release `v*`) |
+| Comptes et données | Firebase `mobilis-6828b` : Google + courriel, Firestore à Montréal, règles « chaque patient voit seulement ses données » |
+| Coach Gemini | clé personnelle entrée dans **Profil → Coach IA** (GitHub Pages n'a pas de serveur). Pour une clé cachée côté serveur, voir l'option Cloudflare plus bas. |
+
 ## Ce que fait l'app
 
 | Fonction | Détail |
@@ -39,7 +48,9 @@ tests/                  ← test du compteur (le bonhomme du schéma « fait » 
 1. Crée un dépôt (ex. `mobilis`) sur github.com, privé si tu veux.
 2. Envoie tout le contenu de ce dossier (glisser-déposer dans « Add file → Upload files », ou demande à Claude Code de le pousser).
 
-### 2. Site web sur Cloudflare Pages (gratuit)
+### 2. (Option) Site sur Cloudflare Pages avec clé Gemini côté serveur
+À faire seulement si tu veux remplacer GitHub Pages. Ensuite, dans `www/js/config.js`, mets `siteUrl` = ton adresse pages.dev et `coachEndpoint: '/api/coach'`.
+
 1. dash.cloudflare.com → **Workers & Pages → Create → Pages → Connect to Git** → choisis le dépôt.
 2. Réglages de build :
    - Build command : `bash scripts/fetch-model.sh`
