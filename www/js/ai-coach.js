@@ -4,7 +4,7 @@
 //  - la liste FERMÉE des corrections valides pour cet exercice et ce plan (rédigées par le clinicien).
 // Il répond en JSON (correction choisie + confiance). L'app valide la réponse contre les mesures avant de la dire,
 // et prononce la consigne validée (pas un texte libre), ce qui garantit une correction anatomiquement juste.
-import { CONFIG } from './config.js';
+import { gemini } from './coach.js';
 import { settings } from './store.js';
 import { CUES, tr, langInfo } from './i18n.js';
 import { METRIC_INFO } from './pose.js';
@@ -46,16 +46,7 @@ const SCHEMA = (ids) => ({
 });
 
 async function askJSON(key, sys, parts, ids) {
-  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${CONFIG.geminiModel}:generateContent`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
-    body: JSON.stringify({
-      systemInstruction: { parts: [{ text: sys }] }, contents: [{ role: 'user', parts }],
-      generationConfig: { temperature: 0.2, maxOutputTokens: 200, responseMimeType: 'application/json', responseSchema: SCHEMA(ids) },
-    }),
-  });
-  if (!r.ok) throw new Error('gemini ' + r.status);
-  const j = await r.json();
-  const txt = (j.candidates?.[0]?.content?.parts || []).map((p) => p.text || '').join('');
+  const txt = await gemini({ key, sys, parts, maxTokens: 160, temperature: 0.2, schema: SCHEMA(ids), timeout: 6000 });
   return JSON.parse(txt);
 }
 
@@ -70,6 +61,7 @@ function measuredOk(chk) {
 export function validate(res, allowed, meas, ex) {
   if (!res || typeof res.cue !== 'string') return null;
   const conf = +res.confidence || 0;
+  if (res.cue === 'none' && meas?.move && /MISMATCH/.test(meas.move)) return null; // jamais « excellent » si le mouvement ne correspond pas
   if (res.cue === 'none') return { kind: 'ok', text: String(res.say || '').split(/\s+/).slice(0, 12).join(' '), conf };
   const km = /^key(\d+)$/.exec(res.cue);
   if (km) {
@@ -89,13 +81,14 @@ export function validate(res, allowed, meas, ex) {
 }
 
 function describe(meas, ctx) {
-  if (!meas) return 'No pose measurements available for this movement (guided exercise).';
+  if (!meas) return 'No pose measurements available.';
   const lines = [];
   if (meas.metric) lines.push(`Main movement: ${METRIC_INFO[meas.metric] || meas.metric}. Peak value this rep: ${meas.peakValue} (target ${meas.targetValue}); range reached: ${meas.romPct}% of the prescribed range.`);
   if (meas.dur != null) lines.push(`Rep duration: ${meas.dur}s (minimum controlled ${meas.minRepSec}s; prescribed tempo ${ctx.tempo}).`);
   if (meas.holdSec != null) lines.push(`Holding ${meas.holdSec}s of ${ctx.target}s; main value ${meas.value} (valid range ${meas.range?.join('–')}).`);
   for (const c of meas.checks || []) lines.push(`Check "${c.cue}": ${METRIC_INFO[c.metric] || c.metric}${c.relative ? ' (change from the start position)' : ''} = ${c.value}, allowed ${c.kind === 'max' ? '≤' : '≥'} ${c.limit} → ${c.kind === 'max' ? (c.value > c.limit ? 'FAULT' : 'ok') : (c.value < c.limit ? 'FAULT' : 'ok')}.`);
   if (meas.faults?.length) lines.push(`Faults flagged by the app this rep: ${meas.faults.join(', ')}.`);
+  if (meas.move) lines.push(meas.move);
   return lines.join('\n');
 }
 

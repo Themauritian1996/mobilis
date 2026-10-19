@@ -725,7 +725,7 @@ export const EXERCISES = {
     dose: { type: 'reps', sets: 3, reps: 10, tempo: '3-0-2' },
     fig: { view: 'front', anchor: { j: 'ankleL', x: 132, y: 160 }, frames: [{ liftR: -2 }, { thighScaleL: 0.84, shankL: -6, thighScaleR: 0.95, liftR: -14, trunk: -2 }], props: [['step', 112, 44]], trace: 'ankleR' },
     track: { mode: 'reps', planes: {
-      front: { metric: 'hipLow', rel: true, delta: 0.22, checks: [{ m: 'kneeValgus', max: 0.08, cue: 'valgus' }, { m: 'pelvisDrop', abs: true, max: 8, cue: 'pelvis' }, { m: 'trunkSide', abs: true, max: 10, cue: 'sideLean' }] },
+      front: { metric: 'hipLow', rel: true, delta: 0.19, checks: [{ m: 'kneeValgus', max: 0.08, cue: 'valgus' }, { m: 'pelvisDrop', abs: true, max: 8, cue: 'pelvis' }, { m: 'trunkSide', abs: true, max: 10, cue: 'sideLean' }] },
       side: { metric: 'knee', from: 170, to: 130, checks: [{ m: 'trunkLean', max: 30, cue: 'trunk' }] },
     } },
   },

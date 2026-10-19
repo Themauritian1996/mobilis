@@ -21,6 +21,8 @@ export const CONFIG = {
   // Avec Cloudflare Pages, mettre '/api/coach' (la fonction functions/api/coach.js garde la clé secrète).
   coachEndpoint: '',
   geminiModel: 'gemini-flash-latest',
+  // Modèle rapide pour tout ce qui se passe pendant la séance (analyse par répétition, résumé de série) : réponse en 1–3 s
+  geminiFastModel: 'gemini-flash-lite-latest',
   geminiTtsModel: 'gemini-2.5-flash-preview-tts',
   // Coach IA en direct (API Live, vidéo 1 image/s → voix). Essayés dans l'ordre ; si aucun ne répond : analyse d'images toutes les 8 s.
   geminiLiveModels: ['gemini-3.8-live', 'gemini-3.1-flash-live-preview', 'gemini-live-2.5-flash-preview'],

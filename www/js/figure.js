@@ -119,14 +119,16 @@ export function pose(fig, params) {
   return sidePose(params, fig.anchor || { j: 'ankle', x: 120, y: 178 });
 }
 
-function interpParams(a, b, t) {
+// Valeur d'un paramètre dans une image clé : valeur donnée, sinon membre « proche » (pour uarm2…), sinon valeur par défaut
+const DEF_ALL = { ...SIDE_DEFAULT, ...FRONT_DEFAULT, ...HAND_DEFAULT, ...FOOT_DEFAULT };
+const pv = (f, k) => f[k] ?? (k.endsWith('2') ? f[k.slice(0, -1)] ?? DEF_ALL[k.slice(0, -1)] : undefined) ?? DEF_ALL[k];
+export function interpParams(a, b, t) {
   const o = {};
   const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
-  const def = { ...SIDE_DEFAULT, ...FRONT_DEFAULT, ...HAND_DEFAULT, ...FOOT_DEFAULT };
   for (const k of keys) {
-    const va = a[k] ?? b[k] ?? def[k] ?? 0;
-    const vb = b[k] ?? a[k] ?? def[k] ?? 0;
-    o[k] = lerp(va, vb, t);
+    const va = pv(a, k) ?? b[k] ?? 0;
+    const vb = pv(b, k) ?? a[k] ?? 0;
+    o[k] = typeof va === 'number' && typeof vb === 'number' ? lerp(va, vb, t) : (t < 0.5 ? va : vb);
   }
   return o;
 }

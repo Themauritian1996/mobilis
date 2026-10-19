@@ -307,6 +307,13 @@ export class Tracker {
     return { phase: this.state, value: v, target: to, side, progress: Math.max(0, Math.min(1, P)), reps: this.reps, faults };
   }
 
+  // Répétition jugée « mauvais mouvement » par le contrôle de la démonstration : elle ne compte pas comme complète
+  flagRep(fault) {
+    const r = this.repLog[this.repLog.length - 1]; if (!r || r.faults.includes(fault)) return;
+    r.faults.push(fault); this.faultCount[fault] = (this.faultCount[fault] || 0) + 1;
+    if (r.full) { r.full = false; this.full--; this.partial++; }
+    r.quality = Math.max(0, +(r.quality - 0.4).toFixed(2));
+  }
   summary() {
     const q = this.repLog.length ? this.repLog.reduce((a, r) => a + r.quality, 0) / this.repLog.length : null;
     return {

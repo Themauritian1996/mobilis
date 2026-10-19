@@ -39,7 +39,7 @@ export function cue(key) {
   speak(tr(CUES[key]));
   return true;
 }
-export const cueText = (key) => tr(CUES[key]);
+export const cueText = (key) => (CUES[key] ? tr(CUES[key]) : t('cue_' + key));
 
 const NUM = {
   fr: ['zéro', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf', 'dix', 'onze', 'douze', 'treize', 'quatorze', 'quinze', 'seize', 'dix-sept', 'dix-huit', 'dix-neuf', 'vingt'],
@@ -59,15 +59,31 @@ const SYS = {
 const langLine = () => `Always answer in ${langInfo().label}.`;
 export const aiAvailable = () => !!(settings().geminiKey || CONFIG.coachEndpoint);
 
-export async function geminiDirect(key, sys, parts, maxTokens = 180) {
-  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${CONFIG.geminiModel}:generateContent`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
-    body: JSON.stringify({ systemInstruction: { parts: [{ text: sys }] }, contents: [{ role: 'user', parts }], generationConfig: { temperature: 0.6, maxOutputTokens: maxTokens } }),
-  });
-  if (!r.ok) throw new Error('gemini ' + r.status);
-  const j = await r.json();
-  return (j.candidates?.[0]?.content?.parts || []).map((p) => p.text || '').join('').trim();
+// Appel Gemini direct (clé personnelle). Rapide par défaut : modèle « lite », sans réflexion, limite de temps stricte.
+// Si le modèle rapide ou l'option de réflexion est refusé, on réessaie avec le modèle standard / sans l'option (mémorisé).
+const flags = { noThinkCfg: false, fastBroken: false };
+export async function gemini({ key = settings().geminiKey, sys, parts, maxTokens = 180, temperature = 0.5, schema = null, timeout = 8000, fast = true }) {
+  const model = fast && !flags.fastBroken ? CONFIG.geminiFastModel || CONFIG.geminiModel : CONFIG.geminiModel;
+  const gen = { temperature, maxOutputTokens: maxTokens };
+  if (schema) { gen.responseMimeType = 'application/json'; gen.responseSchema = schema; }
+  if (!flags.noThinkCfg) gen.thinkingConfig = { thinkingBudget: 0 };
+  const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), timeout);
+  try {
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, signal: ctl.signal,
+      body: JSON.stringify({ systemInstruction: { parts: [{ text: sys }] }, contents: [{ role: 'user', parts }], generationConfig: gen }),
+    });
+    if (!r.ok) {
+      const body = await r.text().catch(() => '');
+      if (r.status === 400 && !flags.noThinkCfg && /thinking/i.test(body)) { flags.noThinkCfg = true; return gemini({ key, sys, parts, maxTokens, temperature, schema, timeout, fast }); }
+      if ((r.status === 404 || r.status === 400) && model !== CONFIG.geminiModel) { flags.fastBroken = true; return gemini({ key, sys, parts, maxTokens, temperature, schema, timeout, fast: false }); }
+      throw new Error('gemini ' + r.status);
+    }
+    const j = await r.json();
+    return (j.candidates?.[0]?.content?.parts || []).filter((p) => !p.thought).map((p) => p.text || '').join('').trim();
+  } finally { clearTimeout(tm); }
 }
+export const geminiDirect = (key, sys, parts, maxTokens = 180) => gemini({ key, sys, parts, maxTokens });
 
 async function callProxy(body) {
   if (!CONFIG.coachEndpoint) throw new Error('no endpoint');
@@ -83,17 +99,17 @@ async function ask(kind, d, imageB64) {
   if (key) {
     const parts = [{ text: JSON.stringify(d) }];
     if (imageB64) parts.push({ inline_data: { mime_type: 'image/jpeg', data: imageB64 } });
-    return geminiDirect(key, `${SYS[kind]} ${langLine()}`, parts);
+    return gemini({ key, sys: `${SYS[kind]} ${langLine()}`, parts, maxTokens: 160, timeout: kind === 'week' ? 15000 : 8000 });
   }
   return callProxy({ data: d, image: imageB64 || null, kind });
 }
 
 // Repli local (hors ligne / sans clé) : phrase construite à partir des métriques
-function localComment(d) {
+export function localComment(d) {
   if (d.kind === 'week') return localWeek(d);
   if (d.mode === 'hold' ? !d.holdSec : !d.reps) return t('lcNone');
   const top = Object.entries(d.faults || {}).sort((a, b) => b[1] - a[1])[0];
-  const fix = top ? tr(CUES[top[0]]) + '.' : t('lcClean');
+  const fix = top ? cueText(top[0]) + '.' : t('lcClean');
   const lead = d.mode === 'hold' ? t('lcHold', { n: d.holdSec }) : t('lcReps', { full: d.full, reps: d.reps });
   return `${lead} ${fix}`;
 }
@@ -211,7 +227,7 @@ const blobB64 = (blob) => new Promise((res, rej) => { const r = new FileReader()
 async function transcribe(b64, mime) {
   const sys = `Transcribe the patient's spoken comment verbatim. The patient speaks ${langInfo().label} (they may mix languages). Output only the transcription, no quotes, no notes.`;
   const key = settings().geminiKey;
-  if (key) return geminiDirect(key, sys, [{ inline_data: { mime_type: mime, data: b64 } }], 400);
+  if (key) return gemini({ key, sys, parts: [{ inline_data: { mime_type: mime, data: b64 } }], maxTokens: 400, timeout: 20000 });
   return callProxy({ kind: 'transcribe', audio: b64, mime });
 }
 

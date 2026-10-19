@@ -13,6 +13,14 @@ Application web + APK Android qui filme le patient pendant ses exercices, analys
 | Comptes et données | Firebase `mobilis-6828b` : Google + courriel, Firestore à Montréal, règles « chaque patient voit seulement ses données » |
 | Coach Gemini | clé personnelle entrée dans **Profil → Coach IA** (GitHub Pages n'a pas de serveur). Pour une clé cachée côté serveur, voir l'option Cloudflare plus bas. |
 
+## Nouveautés 1.6
+
+- **Contrôle « bon mouvement » (fiable, sur le téléphone)** : en continu, les angles du patient (tronc, épaule, coude, hanche, genou) sont comparés à ceux de la **démonstration** de l'exercice (cinématique du schéma, de l'image de départ à celle d'arrivée). Articulations qui doivent rester fixes : écart et mouvement parasite ; articulations qui doivent bouger : amplitude et zone. Exemple : flexion du biceps à la place du pendule de Codman → « Ce n'est pas le mouvement prévu. Penche le tronc vers l'avant… » puis « Garde le coude tendu ». Fonctionne aussi pour les exercices guidés quand la caméra miroir est active. Test : 43/43 exercices reconnus sans fausse alerte, biceps au lieu du pendule signalé 100 % du temps (`tests/movematch.test.mjs`).
+- **Lignes de guidage sur la vidéo** : bleu = articulation qui doit bouger (angle affiché), rouge = à corriger, vert pointillé = position visée. Réglage dans Profil.
+- **L'IA ne peut plus dire « excellent » si le mouvement ne correspond pas** ; elle reçoit le résultat du contrôle et n'est pas appelée tant que le mouvement est faux.
+- **Résumé de série instantané** : répétitions, qualité, % de mouvement conforme, détail rép. par rép. (amplitude, durée, à corriger) et commentaire de l'app tout de suite ; le commentaire de l'IA le remplace s'il arrive en moins de 8 s (modèle rapide `gemini-flash-lite-latest`, sans réflexion, limite de temps).
+- **Correctif** : les animations des démonstrations partaient parfois de la position d'arrivée (paramètres par défaut ignorés) ; elles montrent maintenant tout le mouvement.
+
 ## Nouveautés 1.5
 
 - **Coach IA « précis » (par défaut)** : après chaque répétition, Gemini reçoit l'image clé du mouvement (point le plus avancé) avec le squelette dessiné (articulations fautives en rouge), les **mesures anatomiques** de la caméra (angle au sommet, % de l'amplitude visée, pire valeur de chaque contrôle vs sa limite, durée de la rép.) et une **liste fermée de corrections valides** pour cet exercice et ce plan (de côté : pas de valgus ; de face : pas de flexion du tronc ni de profondeur). Il répond en JSON ; l'app **rejette toute correction contredite par les mesures** (ex. « descends plus » alors que l'amplitude est atteinte) et prononce la consigne validée du programme. Maintien : toutes les 6 s ; exercices guidés : toutes les 8 s (posture, squelette si disponible).

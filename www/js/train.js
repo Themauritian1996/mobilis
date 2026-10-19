@@ -4,11 +4,12 @@ import { EXERCISES } from './data/exercises.js';
 import * as P from './program.js';
 import * as store from './store.js';
 import { loadPose, detect, toPx, Tracker, drawSkeleton, FAULT_JOINTS, detectPlane, bodyVisible } from './pose.js';
-import { speak, cue, cueText, countAloud, coachComment, coachReply, speakRich, grabFrame, startDictation, dictationMode, aiAvailable } from './coach.js';
+import { speak, cue, cueText, countAloud, coachComment, localComment, coachReply, speakRich, grabFrame, startDictation, dictationMode, aiAvailable } from './coach.js';
 import { state, go, profile, sessions, todaySession, nextExercise, syncProgress } from './state.js';
 import { esc, icon, IC, toast, mountFigs, figSvg, figureBlock, sleep } from './ui.js';
 import { startLiveCoach, liveAvailable, primeAudio } from './live.js';
 import { createPreciseCoach } from './ai-coach.js';
+import { MoveMatcher, drawGuides, hintKey } from './movematch.js';
 import { CUES } from './i18n.js';
 
 const RING = 276.5;
@@ -27,7 +28,7 @@ export function viewTrain(id, cleanup) {
   const path = P.pathologyById(prof.pathology) || { name: { fr: 'Exercice libre', en: 'Free exercise' }, painMax: 4 };
   const planes = ex.track ? Object.keys(ex.track.planes) : [];
   const totalSets = dose.type === 'hold' ? dose.sets * (dose.reps || 1) : dose.sets;
-  const T = { set: 0, sets: [], stream: null, raf: 0, tracker: null, mode: ex.track ? 'camera' : 'guided', facing: store.settings().camera, active: false, guidedTimer: null, selfView: store.settings().selfView !== false, liveAI: !!store.settings().liveAI && liveAvailable(), live: null, liveState: 'off' };
+  const T = { set: 0, sets: [], stream: null, raf: 0, tracker: null, mode: ex.track ? 'camera' : 'guided', facing: store.settings().camera, active: false, guidedTimer: null, selfView: store.settings().selfView !== false, guides: store.settings().guides !== false, liveAI: !!store.settings().liveAI && liveAvailable(), live: null, liveState: 'off' };
   const planeFor = (i) => planes[i % planes.length];
   const holdTarget = dose.type === 'hold' ? dose.hold : 0;
 
@@ -120,6 +121,24 @@ export function viewTrain(id, cleanup) {
     const g = T.guidedEl ? T.guidedEl() : { el: 0, reps: 0 };
     return dose.type === 'hold' ? { holdSec: g.el, target: holdTarget, faults: [] } : { reps: g.reps, target: dose.reps, faults: [] };
   }
+  // Contrôle « bon mouvement » vs démonstration + consigne précise quand ça ne correspond pas
+  const figView = ex.fig.view || 'side';
+  function moveCheck(p, now, camPlane) {
+    if (!T.mm || !T.mm.usable) return null;
+    if (camPlane && camPlane !== figView) return null; // filmé dans l'autre plan : angles 2D non comparables
+    const st = T.mm.update(p, now);
+    if (st.status === 'wrong') {
+      T.mvWrongInRep = true;
+      const k = hintKey(st.issues[0], figView);
+      if (now - (T.mvSaid || 0) > 6000 || T.mvKey !== k) {
+        T.mvSaid = now; T.mvKey = k;
+        const txt = `${t('mv_wrong')} ${t(k)}`;
+        showCue(txt, 'bad'); setTimeout(() => { if ($('.cue span').textContent === txt) showCue(''); }, 4000);
+        speak(txt, { interrupt: true });
+      }
+    } else if (T.mvKey && st.status === 'ok') { T.mvKey = null; if (cue('good')) { showCue(cueText('good'), 'good'); setTimeout(() => showCue(''), 1500); } }
+    return st;
+  }
   function startLive() {
     if (!T.liveAI || T.live || !T.stream || !T.active) return;
     if ((store.settings().aiMode || 'precise') === 'live') {
@@ -140,9 +159,13 @@ export function viewTrain(id, cleanup) {
     // Maintien : un point toutes les 6 s ; guidé : toutes les 8 s (pas de mesures fines, posture seulement)
     if (T.mode === 'camera' && dose.type === 'hold') T.aiTimer = setInterval(() => {
       const st = T.lastSt; if (!st || st.phase === 'calibrating') return;
-      coach.review(annotated(), { holdSec: Math.floor(st.holdSec || 0), value: st.value != null ? +st.value.toFixed(1) : null, range: st.range, checks: st.checks, faults: st.faults, metric: null });
+      if (T.mm?.state.status === 'wrong') return;
+      coach.review(annotated(), { move: T.mm?.describe(), holdSec: Math.floor(st.holdSec || 0), value: st.value != null ? +st.value.toFixed(1) : null, range: st.range, checks: st.checks, faults: st.faults, metric: null });
     }, 6000);
-    if (T.mode === 'guided') { T.aiTimer = setInterval(() => coach.review(annotated(), null), 8000); guidedPose(); }
+    if (T.mode === 'guided') {
+      T.aiTimer = setInterval(() => { if (T.mm?.state.status !== 'wrong') coach.review(annotated(), { move: T.mm?.describe(), faults: [] }); }, 8000);
+      guidedPose();
+    }
   }
   function aiText(txt, final, seen) {
     showCue(txt, 'ai'); clearTimeout(T.aiCueT);
@@ -164,16 +187,27 @@ export function viewTrain(id, cleanup) {
   }
   // Mode guidé + coach IA : squelette sur le miroir (si le modèle de pose est disponible) pour des images annotées
   async function guidedPose() {
-    try { await loadPose(); } catch (_) { return; }
-    let last = 0;
+    if (T.gpRun) return; T.gpRun = true;
+    try { await loadPose(); } catch (_) { T.gpRun = false; return; }
+    T.mm = new MoveMatcher(ex); T.mvKey = null;
+    let last = 0, lastTurn = 0;
     const tick = (now) => {
-      if (!T.active || T.mode !== 'guided' || !T.live) return;
-      if (now - last > 150) {
+      if (!T.active || T.mode !== 'guided' || !T.stream) { T.gpRun = false; g.clearRect(0, 0, canvas.width, canvas.height); return; }
+      if (now - last > 120) {
         last = now; const lm = detect(video, now); T.lastLm = lm;
         const W = canvas.width = canvas.clientWidth * devicePixelRatio, H = canvas.height = canvas.clientHeight * devicePixelRatio;
-        if (lm && T.selfView) {
+        if (lm) {
           const vw = video.videoWidth, vh = video.videoHeight, sc = Math.max(W / vw, H / vh), ox = (W - vw * sc) / 2, oy = (H - vh * sc) / 2;
-          drawSkeleton(g, lm.map((l) => ({ x: (l.x * vw * sc + ox) / W, y: (l.y * vh * sc + oy) / H, visibility: l.visibility })), W, H, new Set(), T.facing === 'user');
+          const proj = lm.map((l) => ({ x: (l.x * vw * sc + ox) / W, y: (l.y * vh * sc + oy) / H, visibility: l.visibility }));
+          const p = toPx(lm, vw, vh);
+          let plane = null;
+          if (bodyVisible(p)) {
+            const dp = detectPlane(p); plane = dp === 'side' || dp === 'front' ? dp : null;
+            if (plane && plane !== figView && now - lastTurn > 9000 && T.mm.usable) { lastTurn = now; const k = figView === 'side' ? 'turnSide' : 'turnFront'; cue(k); showCue(t(k), 'bad'); }
+            moveCheck(p, now, plane);
+          }
+          if (T.selfView) { drawSkeleton(g, proj, W, H, new Set(), T.facing === 'user'); if (T.guides) drawGuides(g, proj, W, H, T.mm, T.facing === 'user'); }
+          else g.clearRect(0, 0, W, H);
         } else g.clearRect(0, 0, W, H);
       }
       requestAnimationFrame(tick);
@@ -245,7 +279,7 @@ export function viewTrain(id, cleanup) {
   // Mode guidé avec vidéo : le patient se voit en miroir, le schéma passe en vignette
   async function mirrorOn() {
     try { if (!T.stream) await openCam(); } catch (e) { console.warn(e); toast(e && e.name === 'NotAllowedError' ? t('camDenied') : t('mirrorErr'), 4000); T.selfView = false; }
-    guidedLayout(); startLive();
+    guidedLayout(); startLive(); if (T.stream && T.active) guidedPose();
   }
   function guidedLayout() {
     if (T.mode !== 'guided' || !T.active) return;
@@ -272,14 +306,17 @@ export function viewTrain(id, cleanup) {
   function runSet() {
     const pl = planeFor(T.set);
     const recentFaults = new Map(); T.recentFaults = recentFaults;
+    T.mm = new MoveMatcher(ex); T.mvKey = null; T.mvWrongInRep = false;
     T.frame = null;
     T.tracker = new Tracker(ex, pl, {
       romFactor: dose.romFactor,
       onCue: (k) => { if (cue(k)) { showCue(cueText(k), k === 'holdIt' || k === 'depth' ? '' : 'bad'); recentFaults.set(k, performance.now()); setTimeout(() => showCue(''), 2200); } },
       onRep: (rep) => {
         countAloud(T.tracker.reps);
-        if (T.live?.review) {
-          T.live.review(T.kf || annotated(), { ...rep.meas, dur: rep.dur, faults: rep.faults }, T.tracker.repLog.slice(-4, -1).map((r) => ({ n: r.n, romPct: r.meas?.romPct, faults: r.faults })));
+        if (T.mvWrongInRep) { T.tracker.flagRep('wrongMove'); rep = T.tracker.repLog[T.tracker.repLog.length - 1]; }
+        T.mvWrongInRep = T.mm?.state.status === 'wrong';
+        if (T.live?.review && !rep.faults.includes('wrongMove')) {
+          T.live.review(T.kf || annotated(), { ...rep.meas, dur: rep.dur, faults: rep.faults, move: T.mm?.describe() }, T.tracker.repLog.slice(-4, -1).map((r) => ({ n: r.n, romPct: r.meas?.romPct, faults: r.faults })));
           T.kf = null; T.kfP = 0;
         }
         if (rep.full && !rep.faults.length && T.tracker.full % 3 === 0 && cue('great')) { showCue(cueText('great'), 'good'); setTimeout(() => showCue(''), 1500); }
@@ -314,6 +351,7 @@ export function viewTrain(id, cleanup) {
             if (now - lastWarn > 3500) { lastWarn = now; const k = pl === 'side' ? 'turnSide' : 'turnFront'; cue(k); showCue(t(k), 'bad'); }
           } else {
             const st = T.tracker.update(p, now); T.lastSt = st;
+            if (T.tracker.calibrated) { moveCheck(p, now, pl); if (T.guides) drawGuides(g, proj, W, H, T.mm, T.facing === 'user'); }
             // image clé = point le plus avancé de la répétition
             if (T.live?.review && st.phase === 'moving' && (st.progress || 0) > (T.kfP || 0) + 0.04 && now - (T.kfT || 0) > 180) { T.kf = annotated(); T.kfP = st.progress; T.kfT = now; }
             if (st.phase === 'calibrating') showCue(t('calibrating'));
@@ -399,26 +437,42 @@ export function viewTrain(id, cleanup) {
     $('.bottom').hidden = true;
     const last = T.set + 1 >= totalSets;
     const bg = document.createElement('div'); bg.className = 'sheet-bg';
+    // Mouvement conforme à la démonstration (part du temps), puis remise à zéro pour la série suivante
+    const moveOk = T.mm?.usable && T.mm.totalTime > 3 ? Math.round((1 - T.mm.wrongShare) * 100) : null;
+    if (T.mm) T.mm.resetStats();
+    if (moveOk != null && moveOk < 70) { sum.faults = { ...(sum.faults || {}), wrongMove: Math.max(1, sum.faults?.wrongMove || 0) }; if (sum.quality != null) sum.quality = Math.min(sum.quality, 0.4); }
+    const ls = T.sets[T.sets.length - 1]; if (ls) { ls.faults = sum.faults; ls.quality = sum.quality; ls.moveOk = moveOk; }
     const faults = Object.entries(sum.faults || {}).sort((a, b) => b[1] - a[1]);
-    bg.innerHTML = `<div class="sheet"><div class="grab"></div><span class="eyebrow">${t('set')} ${T.set + 1}/${totalSets}</span><h3 style="margin-top:4px">${t('setSummary')}</h3>
-      <div class="list" style="margin:12px 0"><div class="kpis">${sum.mode === 'hold'
-        ? `<div><b>${sum.holdSec}s</b><span>${t('holdTime')}</span></div>`
-        : `<div><b>${sum.full}</b><span>${t('fullReps')}</span></div><div><b>${sum.partial}</b><span>${t('partialReps')}</span></div>`}
-        <div><b>${sum.quality != null ? Math.round(sum.quality * 100) + '%' : '–'}</b><span>${t('quality')}</span></div></div></div>
-      ${faults.length ? `<div class="row wrap" style="gap:6px;margin-bottom:12px">${faults.slice(0, 3).map(([k]) => `<span class="chip neg">${esc(cueText(k))}</span>`).join('')}</div>` : ''}
-      <div class="list"><div class="coach-box"><span class="ai">${icon('spark', 18)}</span><div><b class="small">${t('coachSays')}</b><p id="coachtxt" class="muted">${t('thinking')}</p></div></div></div>
-      <div class="row" style="margin-top:14px">${last ? `<button class="btn" data-s="finish">${t('finishEx')}</button>` : `<button class="btn ghost" data-s="finish">${t('finishEx')}</button><button class="btn" data-s="next">${t('nextSet')}</button>`}</div></div>`;
-    root.appendChild(bg);
+    const reps = (sum.reps_detail || []).slice(-12);
     const data = {
       kind: 'set', exercise: tr(ex.name), condition: tr(path.name), plane: sum.plane, level, target: dose.type === 'hold' ? `${holdTarget}s` : dose.reps,
       mode: sum.mode, reps: sum.reps, full: sum.full, partial: sum.partial, holdSec: sum.holdSec, quality: sum.quality,
       faults: Object.fromEntries(faults.map(([k, v]) => [k, Math.round(v)])), painLimit: path.painMax, set: T.set + 1, totalSets,
+      movementMatchesDemoPct: moveOk, perRep: reps.map((r) => ({ n: r.n, rangePct: r.meas?.romPct, sec: r.dur, faults: r.faults })),
       liveCoachRemarks: (T.aiNotes || []).slice(-4),
     };
+    const local = moveOk != null && moveOk < 70 ? `${t('mv_wrongSet')} ${t('mv_seeDemo')}` : localComment(data);
+    const hasAI = aiAvailable();
+    bg.innerHTML = `<div class="sheet"><div class="grab"></div><span class="eyebrow">${t('set')} ${T.set + 1}/${totalSets}</span><h3 style="margin-top:4px">${t('setSummary')}</h3>
+      <div class="list" style="margin:12px 0"><div class="kpis">${sum.mode === 'hold'
+        ? `<div><b>${sum.holdSec}s</b><span>${t('holdTime')}</span></div>`
+        : `<div><b>${sum.full}</b><span>${t('fullReps')}</span></div><div><b>${sum.partial}</b><span>${t('partialReps')}</span></div>`}
+        <div><b>${sum.quality != null ? Math.round(sum.quality * 100) + '%' : '–'}</b><span>${t('quality')}</span></div>
+        ${moveOk != null ? `<div><b class="${moveOk >= 85 ? 'pos' : moveOk < 70 ? 'neg' : ''}">${moveOk}%</b><span>${t('moveMatch')}</span></div>` : ''}</div></div>
+      ${faults.length ? `<div class="row wrap" style="gap:6px;margin-bottom:12px">${faults.slice(0, 3).map(([k]) => `<span class="chip neg">${esc(cueText(k))}</span>`).join('')}</div>` : ''}
+      ${reps.length ? `<details class="reps-tbl"><summary>${t('repTable')}</summary><table><thead><tr><th>#</th><th>${t('colRange')}</th><th>${t('colTime')}</th><th>${t('colIssues')}</th></tr></thead><tbody>
+        ${reps.map((r) => `<tr><td>${r.n}</td><td class="${(r.meas?.romPct ?? 100) >= 90 ? 'pos' : 'neg'}">${r.meas ? Math.min(150, r.meas.romPct) + '%' : '–'}</td><td>${r.dur}s</td><td>${r.faults.length ? r.faults.map((f) => esc(cueText(f))).join(', ') : '✓'}</td></tr>`).join('')}
+        </tbody></table></details>` : ''}
+      <div class="list"><div class="coach-box"><span class="ai">${icon('spark', 18)}</span><div><b class="small">${t('coachSays')}</b><p id="coachtxt">${esc(local)}</p>${hasAI ? `<small id="aist" class="muted">${t('aiPending')}</small>` : ''}</div></div></div>
+      <div class="row" style="margin-top:14px">${last ? `<button class="btn" data-s="finish">${t('finishEx')}</button>` : `<button class="btn ghost" data-s="finish">${t('finishEx')}</button><button class="btn" data-s="next">${t('nextSet')}</button>`}</div></div>`;
+    root.appendChild(bg);
     T.aiNotes = [];
-    coachComment(data, store.settings().sendFrame ? T.frame : null).then(({ text }) => {
-      const p = bg.querySelector('#coachtxt'); if (p) { p.textContent = text; p.classList.remove('muted'); }
-      speakRich(text);
+    if (!hasAI || (moveOk != null && moveOk < 70)) { speak(local); bg.querySelector('#aist')?.remove(); }
+    else coachComment(data, store.settings().sendFrame ? T.frame : null).then(({ text, source }) => {
+      if (!bg.isConnected) return;
+      bg.querySelector('#aist')?.remove();
+      if (source === 'gemini') { const p = bg.querySelector('#coachtxt'); if (p) p.textContent = text; speakRich(text); }
+      else speak(local);
     });
     bg.querySelector('[data-s="finish"]').onclick = () => { bg.remove(); feedbackSheet(); };
     const nx = bg.querySelector('[data-s="next"]');

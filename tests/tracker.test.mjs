@@ -1,9 +1,9 @@
 // Test : on anime le bonhomme du schéma, on le convertit en points MediaPipe et on vérifie le compte des répétitions.
-import { pose } from '../www/js/figure.js';
+import { pose, interpParams } from '../www/js/figure.js';
 import { EXERCISES } from '../www/js/data/exercises.js';
 import { Tracker, toPx } from '../www/js/pose.js';
 
-const lerpP = (a, b, t) => { const o = {}; for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) { const va = a[k] ?? b[k] ?? 0, vb = b[k] ?? a[k] ?? 0; o[k] = va + (vb - va) * t; } return o; };
+const lerpP = interpParams;
 function toLm(fig, prm) {
   const j = pose(fig, prm); const L = new Array(33).fill(null).map(() => ({ x: 0, y: 0, visibility: 1 }));
   const set = (i, p, dx = 0, dy = 0) => { L[i] = { x: (p[0] + dx) / 240, y: (p[1] + dy) / 200, visibility: 1 }; };
