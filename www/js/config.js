@@ -5,10 +5,11 @@ export const CONFIG = {
 
   // 1) Firebase (console.firebase.google.com → Paramètres du projet → Vos applications → Web)
   firebase: {
-    apiKey: '',
-    authDomain: '',
-    projectId: '',
-    appId: '',
+    // Clés web publiques par conception : la sécurité vient des règles Firestore (firestore.rules)
+    apiKey: 'AIzaSyBRkSq7rvZyhTbBB858u3quzDdg_R_k81g',
+    authDomain: 'mobilis-6828b.firebaseapp.com',
+    projectId: 'mobilis-6828b',
+    appId: '1:661952244751:web:570268f53abdb0c8d6477a',
   },
 
   // 2) Coach vocal Gemini
