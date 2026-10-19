@@ -1,0 +1,95 @@
+# Compile l'APK Android à chaque envoi sur main (onglet Actions → dernière exécution → Artifacts).
+# Crée aussi une « Release » téléchargeable quand tu pousses une étiquette v1.0, v1.1, etc.
+name: APK Android
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      HAS_GOOGLE: ${{ secrets.GOOGLE_SERVICES_JSON != '' }}
+      HAS_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Dépendances
+        run: npm install --no-audit --no-fund
+
+      - name: Tests du compteur de répétitions
+        run: npm test
+
+      - name: Modèle de pose (hors ligne)
+        run: bash scripts/fetch-model.sh
+
+      - name: Projet Android
+        run: |
+          npx cap add android
+          # Permission caméra
+          sed -i 's#</manifest>#    <uses-permission android:name="android.permission.CAMERA" />\n    <uses-feature android:name="android.hardware.camera" android:required="false" />\n</manifest>#' android/app/src/main/AndroidManifest.xml
+
+      - name: Connexion Google native (facultatif)
+        if: env.HAS_GOOGLE == 'true'
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          npm install --no-save @capacitor-firebase/authentication@^8.5.2
+          echo "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+          sed -i 's/ext {/ext {\n    rgcfaIncludeGoogle = true/' android/variables.gradle
+
+      - name: Signature (facultatif)
+        if: env.HAS_KEYSTORE == 'true'
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: echo "$KEYSTORE_B64" | base64 -d > android/app/release.jks
+
+      - name: Synchroniser le site dans l'app
+        run: npx cap sync android
+
+      - name: Compiler l'APK
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          cd android
+          chmod +x gradlew
+          if [ -n "$KEYSTORE_B64" ]; then
+            ./gradlew assembleRelease \
+              -Pandroid.injected.signing.store.file=$PWD/app/release.jks \
+              -Pandroid.injected.signing.store.password="$KS_PASS" \
+              -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
+              -Pandroid.injected.signing.key.password="$KEY_PASS"
+            cp app/build/outputs/apk/release/app-release.apk ../Mobilis.apk
+          else
+            ./gradlew assembleDebug
+            cp app/build/outputs/apk/debug/app-debug.apk ../Mobilis.apk
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Mobilis-apk
+          path: Mobilis.apk
+
+      - name: Publier la release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: Mobilis.apk

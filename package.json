@@ -1,0 +1,24 @@
+{
+  "name": "mobilis",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Mobilis — exercices de réadaptation MSK guidés par caméra (pose 2D) et coach vocal Gemini. Site web + APK Android.",
+  "type": "module",
+  "scripts": {
+    "fetch-model": "bash scripts/fetch-model.sh",
+    "vendor": "bash scripts/vendor.sh",
+    "test": "node tests/tracker.test.mjs",
+    "serve": "npx serve www",
+    "android:sync": "npx cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/core": "^8.5.3",
+    "firebase": "^12.19.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.3",
+    "@mediapipe/tasks-vision": "1.1.1",
+    "esbuild": "^0.28.2"
+  }
+}

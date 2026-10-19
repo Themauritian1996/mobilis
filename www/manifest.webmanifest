@@ -1,0 +1,12 @@
+{
+  "name": "Mobilis — réadaptation guidée",
+  "short_name": "Mobilis",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#edf6f3",
+  "theme_color": "#0f8f80",
+  "lang": "fr-CA",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
