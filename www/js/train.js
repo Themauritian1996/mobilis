@@ -8,6 +8,7 @@ import { speak, cue, cueText, countAloud, coachComment, coachReply, speakRich, g
 import { state, go, profile, sessions, todaySession, nextExercise, syncProgress } from './state.js';
 import { esc, icon, IC, toast, mountFigs, figSvg, figureBlock, sleep } from './ui.js';
 import { startLiveCoach, liveAvailable, primeAudio } from './live.js';
+import { createPreciseCoach } from './ai-coach.js';
 import { CUES } from './i18n.js';
 
 const RING = 276.5;
@@ -55,7 +56,7 @@ export function viewTrain(id, cleanup) {
   mountFigs(root);
 
   function close() {
-    T.active = false; cancelAnimationFrame(T.raf); clearInterval(T.guidedTimer); stopLive();
+    T.active = false; cancelAnimationFrame(T.raf); clearInterval(T.guidedTimer); clearInterval(T.restTimer); stopLive();
     if (T.stream) T.stream.getTracks().forEach((tk) => tk.stop());
     try { speechSynthesis.cancel(); } catch (_) {}
     root.remove();
@@ -106,26 +107,80 @@ export function viewTrain(id, cleanup) {
   }
   const liveCtx = () => ({
     exercise: ex.name.en, condition: path.name.en || tr(path.name), target: dose.type === 'hold' ? holdTarget : dose.reps,
-    painLimit: path.painMax ?? 4, steps: ex.steps.en || [], keys: (ex.keys || []).map((k) => k.en || tr(k)),
+    painLimit: path.painMax ?? 4, steps: ex.steps.en || [], keys: (ex.keys || []).map((k) => k.en || tr(k)), plane: T.mode === 'camera' ? planeFor(T.set) : 'guided',
   });
   function liveState() {
     if (T.mode === 'camera' && T.tracker) {
       const now = performance.now();
       const faults = [...(T.recentFaults || new Map())].filter(([, ts]) => now - ts < 6000).map(([k]) => CUES[k]?.en || k);
-      return { reps: T.tracker.reps, target: dose.reps, holdSec: dose.type === 'hold' ? Math.floor(T.lastSt?.holdSec || 0) : null, faults };
+      const last = T.tracker.repLog.slice(-1)[0];
+      const measures = [last?.meas ? `last rep reached ${last.meas.romPct}% of range in ${last.dur}s` : '', ...(T.lastSt?.checks || []).map((c) => `${c.cue} ${c.value} (limit ${c.kind === 'max' ? '≤' : '≥'}${c.limit})`)].filter(Boolean).join('; ');
+      return { reps: T.tracker.reps, target: dose.reps, holdSec: dose.type === 'hold' ? Math.floor(T.lastSt?.holdSec || 0) : null, faults, measures };
     }
     const g = T.guidedEl ? T.guidedEl() : { el: 0, reps: 0 };
     return dose.type === 'hold' ? { holdSec: g.el, target: holdTarget, faults: [] } : { reps: g.reps, target: dose.reps, faults: [] };
   }
   function startLive() {
     if (!T.liveAI || T.live || !T.stream || !T.active) return;
-    T.live = startLiveCoach({
-      video, mirror: T.facing === 'user', context: liveCtx(), getState: liveState,
-      onText: (txt, final) => { showCue(txt, 'ai'); clearTimeout(T.aiCueT); if (final) { T.aiNotes = [...(T.aiNotes || []), txt].slice(-6); T.aiCueT = setTimeout(() => { if ($('.cue span').className === 'ai') showCue(''); }, 4500); } },
+    if ((store.settings().aiMode || 'precise') === 'live') {
+      T.live = startLiveCoach({
+        video, mirror: T.facing === 'user', context: liveCtx(), getState: liveState, frame: () => annotated(512),
+        onText: (txt, final) => aiText(txt, final),
+        onState: (st) => { if (st === 'error' && T.liveState !== 'error') toast(t('liveErr'), 4500); T.liveState = st; paintAI(); },
+      });
+      return;
+    }
+    const plane = T.mode === 'camera' ? planeFor(T.set) : 'guided';
+    const c = liveCtx();
+    const coach = createPreciseCoach({ ex, exercise: c.exercise, condition: c.condition, steps: c.steps, plane, mode: T.mode === 'camera' ? (dose.type === 'hold' ? 'hold' : 'reps') : 'guided', target: c.target, tempo: dose.tempo || '2-1-2' }, {
+      onResult: (v) => { aiText(v.text, true, v.seen); speak(v.text); },
       onState: (st) => { if (st === 'error' && T.liveState !== 'error') toast(t('liveErr'), 4500); T.liveState = st; paintAI(); },
     });
+    T.live = { stop: () => { clearInterval(T.aiTimer); coach.stop(); }, review: coach.review };
+    // Maintien : un point toutes les 6 s ; guidé : toutes les 8 s (pas de mesures fines, posture seulement)
+    if (T.mode === 'camera' && dose.type === 'hold') T.aiTimer = setInterval(() => {
+      const st = T.lastSt; if (!st || st.phase === 'calibrating') return;
+      coach.review(annotated(), { holdSec: Math.floor(st.holdSec || 0), value: st.value != null ? +st.value.toFixed(1) : null, range: st.range, checks: st.checks, faults: st.faults, metric: null });
+    }, 6000);
+    if (T.mode === 'guided') { T.aiTimer = setInterval(() => coach.review(annotated(), null), 8000); guidedPose(); }
   }
-  function stopLive() { if (T.live) { T.live.stop(); T.live = null; } T.liveState = 'off'; paintAI(); }
+  function aiText(txt, final, seen) {
+    showCue(txt, 'ai'); clearTimeout(T.aiCueT);
+    if (final) { T.aiNotes = [...(T.aiNotes || []), seen ? `${txt} (${seen})` : txt].slice(-6); T.aiCueT = setTimeout(() => { if ($('.cue span').className === 'ai') showCue(''); }, 4500); }
+  }
+  // Image annotée envoyée à l'IA : vidéo + squelette (articulations fautives en rouge) + angle principal
+  const shot = document.createElement('canvas');
+  function annotated(w = 384) {
+    if (!video.videoWidth) return null;
+    shot.width = w; shot.height = Math.round((video.videoHeight / video.videoWidth) * w);
+    const g2 = shot.getContext('2d'), mirror = T.facing === 'user';
+    g2.save(); if (mirror) { g2.translate(w, 0); g2.scale(-1, 1); } g2.drawImage(video, 0, 0, w, shot.height); g2.restore();
+    if (T.lastLm) drawSkeleton(g2, T.lastLm, w, shot.height, T.lastFj || new Set(), mirror, true);
+    if (T.lastSt?.value != null && T.mode === 'camera') {
+      g2.fillStyle = 'rgba(0,0,0,.6)'; g2.fillRect(0, 0, w, 22); g2.fillStyle = '#fff'; g2.font = '13px sans-serif';
+      g2.fillText(`${ex.track.planes[planeFor(T.set)].metric}: ${Math.round(T.lastSt.value * 100) / 100}`, 6, 15);
+    }
+    return shot.toDataURL('image/jpeg', 0.7).split(',')[1];
+  }
+  // Mode guidé + coach IA : squelette sur le miroir (si le modèle de pose est disponible) pour des images annotées
+  async function guidedPose() {
+    try { await loadPose(); } catch (_) { return; }
+    let last = 0;
+    const tick = (now) => {
+      if (!T.active || T.mode !== 'guided' || !T.live) return;
+      if (now - last > 150) {
+        last = now; const lm = detect(video, now); T.lastLm = lm;
+        const W = canvas.width = canvas.clientWidth * devicePixelRatio, H = canvas.height = canvas.clientHeight * devicePixelRatio;
+        if (lm && T.selfView) {
+          const vw = video.videoWidth, vh = video.videoHeight, sc = Math.max(W / vw, H / vh), ox = (W - vw * sc) / 2, oy = (H - vh * sc) / 2;
+          drawSkeleton(g, lm.map((l) => ({ x: (l.x * vw * sc + ox) / W, y: (l.y * vh * sc + oy) / H, visibility: l.visibility })), W, H, new Set(), T.facing === 'user');
+        } else g.clearRect(0, 0, W, H);
+      }
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }
+  function stopLive() { clearInterval(T.aiTimer); if (T.live) { T.live.stop(); T.live = null; } T.liveState = 'off'; paintAI(); }
   function setLiveAI(on) {
     if (on && !liveAvailable()) { toast(t('liveNeedKey'), 5000); return; }
     primeAudio();
@@ -223,6 +278,10 @@ export function viewTrain(id, cleanup) {
       onCue: (k) => { if (cue(k)) { showCue(cueText(k), k === 'holdIt' || k === 'depth' ? '' : 'bad'); recentFaults.set(k, performance.now()); setTimeout(() => showCue(''), 2200); } },
       onRep: (rep) => {
         countAloud(T.tracker.reps);
+        if (T.live?.review) {
+          T.live.review(T.kf || annotated(), { ...rep.meas, dur: rep.dur, faults: rep.faults }, T.tracker.repLog.slice(-4, -1).map((r) => ({ n: r.n, romPct: r.meas?.romPct, faults: r.faults })));
+          T.kf = null; T.kfP = 0;
+        }
         if (rep.full && !rep.faults.length && T.tracker.full % 3 === 0 && cue('great')) { showCue(cueText('great'), 'good'); setTimeout(() => showCue(''), 1500); }
         if (dose.type !== 'hold' && T.tracker.reps === dose.reps - 1) setTimeout(() => cue('lastRep'), 600);
         if (store.settings().sendFrame && (!T.frame || rep.faults.length)) T.frame = grabFrame(video, T.facing === 'user');
@@ -246,6 +305,7 @@ export function viewTrain(id, cleanup) {
         const sc = Math.max(W / vw, H / vh), ox = (W - vw * sc) / 2, oy = (H - vh * sc) / 2;
         const proj = lm.map((l) => ({ x: (l.x * vw * sc + ox) / W, y: (l.y * vh * sc + oy) / H, visibility: l.visibility }));
         drawSkeleton(g, proj, W, H, fj, T.facing === 'user');
+        T.lastLm = lm; T.lastFj = fj;
         const p = toPx(lm, vw, vh);
         if (!bodyVisible(p)) { if (now - lastWarn > 3000) { lastWarn = now; cue('notVisible'); showCue(t('notVisible'), 'bad'); } }
         else {
@@ -254,6 +314,8 @@ export function viewTrain(id, cleanup) {
             if (now - lastWarn > 3500) { lastWarn = now; const k = pl === 'side' ? 'turnSide' : 'turnFront'; cue(k); showCue(t(k), 'bad'); }
           } else {
             const st = T.tracker.update(p, now); T.lastSt = st;
+            // image clé = point le plus avancé de la répétition
+            if (T.live?.review && st.phase === 'moving' && (st.progress || 0) > (T.kfP || 0) + 0.04 && now - (T.kfT || 0) > 180) { T.kf = annotated(); T.kfP = st.progress; T.kfT = now; }
             if (st.phase === 'calibrating') showCue(t('calibrating'));
             else if ($('.cue span').textContent === t('calibrating')) showCue('');
             if (dose.type === 'hold') {
@@ -318,6 +380,21 @@ export function viewTrain(id, cleanup) {
     summarySheet({ ...sum, plane: 'guided' });
   }
 
+  // Repos entre les séries (réglable dans l'aperçu de la séance)
+  function restThen(fn) {
+    let left = dose.rest ?? 0;
+    if (!left) return fn();
+    $('.bottom').hidden = true; $('.setup').hidden = true;
+    const done = () => { clearInterval(T.restTimer); T.restTimer = 0; center(''); fn(); };
+    center(`<div class="rest-box"><span class="eyebrow">${t('restLbl')}</span><div class="bignum" id="restn">${left}</div><p class="small" style="opacity:.75;margin:0 0 14px">${t('restNext', { n: T.set + 1, tot: totalSets })}</p><button class="btn sm ghost" data-t="skiprest">${t('restSkip')}</button></div>`);
+    root.querySelector('[data-t="skiprest"]').onclick = done;
+    speak(t('restSpoken', { n: left }), { interrupt: true });
+    T.restTimer = setInterval(() => {
+      left--; const el = root.querySelector('#restn'); if (el) el.textContent = left;
+      if ([3, 2, 1].includes(left)) speak(String(left), { interrupt: true });
+      if (left <= 0) done();
+    }, 1000);
+  }
   function summarySheet(sum) {
     $('.bottom').hidden = true;
     const last = T.set + 1 >= totalSets;
@@ -345,7 +422,7 @@ export function viewTrain(id, cleanup) {
     });
     bg.querySelector('[data-s="finish"]').onclick = () => { bg.remove(); feedbackSheet(); };
     const nx = bg.querySelector('[data-s="next"]');
-    if (nx) nx.onclick = () => { bg.remove(); T.set++; setup(); };
+    if (nx) nx.onclick = () => { bg.remove(); T.set++; restThen(setup); };
   }
 
   function feedbackSheet() {

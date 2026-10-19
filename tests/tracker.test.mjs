@@ -38,7 +38,9 @@ function run(id, plane, fig, cycles = 5) {
     for (let i = 0; i < 10; i++) step(A);
   }
   const s = tr.summary();
-  return { id, plane, reps: s.reps, full: s.full, faults: Object.keys(s.faults).join(',') || '-' };
+  const m = tr.repLog[0]?.meas;
+  if (s.reps && (!m || m.romPct < 50 || !Number.isFinite(m.peakValue))) throw new Error(`mesures manquantes : ${id}`);
+  return { id, plane, reps: s.reps, full: s.full, rom: m ? m.romPct + '%' : '-', faults: Object.keys(s.faults).join(',') || '-' };
 }
 const cases = [];
 for (const [id, ex] of Object.entries(EXERCISES)) {
@@ -58,6 +60,14 @@ console.log(bad.length ? `À revoir : ${bad.map((b) => b.id).join(', ')}` : 'Tou
 const leanFig = { ...EXERCISES.squat.fig, frames: [EXERCISES.squat.fig.frames[0], { ...EXERCISES.squat.fig.frames[1], trunk: 65 }] };
 const valgusFig = { view: 'front', anchor: { j: 'ankleL', x: 131, y: 180 }, frames: [{}, { thighScaleR: 0.3, thighScaleL: 0.3, hipAbdR: -14, hipAbdL: -14, shankR: 22, shankL: 22 }] };
 const r1 = run('squat', 'side', leanFig), r2 = run('squat', 'front', valgusFig);
+{ // la pire valeur du contrôle « tronc » doit dépasser la limite de 45°
+  const ex = EXERCISES.squat; const tr = new Tracker(ex, 'side'); let t = 0;
+  const [A, B] = leanFig.frames; const st = (prm) => { t += 33; tr.update(toPx(toLm(leanFig, prm), 240, 200), t); };
+  for (let i = 0; i < 30; i++) st(A); for (let i = 0; i <= 45; i++) st(lerpP(A, B, i / 45)); for (let i = 0; i < 30; i++) st(B); for (let i = 0; i <= 45; i++) st(lerpP(B, A, i / 45)); for (let i = 0; i < 10; i++) st(A);
+  const c = tr.repLog[0].meas.checks.find((x) => x.cue === 'trunk');
+  if (!(c && c.value > 45)) throw new Error('mesure du tronc incorrecte ' + JSON.stringify(c));
+  console.log('Mesure tronc au squat penché :', c.value.toFixed(1), '° (limite 45°)');
+}
 console.log('Tronc penché →', r1.faults, '| Valgus →', r2.faults);
 if (!r1.faults.includes('trunk') || !r2.faults.includes('valgus')) { console.error('Détection d’erreur ÉCHOUÉE'); process.exit(1); }
 console.log('Détection d’erreurs OK');

@@ -9,6 +9,7 @@ import { state, setRender, render, go, profile, sessions, todaySession, nextExer
 import { esc, icon, IC, toast, stopFigs, mountFigs, figSvg, figureBlock, nav, applyTheme, lvlBar, sheet, shareText, copyText, langPicker } from './ui.js';
 import { viewOnboard, viewCodeEntry, viewRxImport, checkRxUpdate, layName, medName } from './onboarding.js';
 import { viewTrain, doseText } from './train.js';
+import { viewSession } from './session.js';
 import { viewCalendar, appointments } from './calendar.js';
 import { viewClinic, viewRxEditor, viewTestStart } from './clinic.js';
 
@@ -69,6 +70,7 @@ function route() {
   if (name === 'train' && arg) return viewTrain(arg, cleanup);
   if (prof.role === 'clinician' && !prof.pathology) return viewTestStart();
   if (name === 'calendar') return viewCalendar();
+  if (name === 'session') return viewSession();
   if (name === 'progress') return viewProgress();
   if (name === 'report') return viewReport();
   if (name === 'adjust') return viewAdjust();
@@ -79,7 +81,7 @@ document.addEventListener('click', (e) => {
   const g = e.target.closest('[data-go]');
   if (g) { e.preventDefault(); go(g.dataset.go); return; }
   const a = e.target.closest('[data-act="quickstart"]');
-  if (a) { const n = nextExercise(); go(n ? `#/train/${n.id}` : '#/home'); }
+  if (a) { const n = nextExercise(); go(n ? '#/session' : '#/home'); }
 });
 
 // ---------- Connexion ----------
@@ -166,7 +168,7 @@ function viewHome() {
       <div class="row between"><div class="grow"><span class="eyebrow">${t('week')} ${week} · ${t('phase')} ${phase} · ${t('phaseName' + phase)}</span><h3 style="margin-top:6px">${esc(layName(prof.pathology))}</h3></div><div class="big">${pct}<span style="font-size:18px">%</span></div></div>
       <div class="bar pos" style="margin:14px 0"><i style="width:${pct}%"></i></div>
       ${flare ? `<div class="banner neg" style="margin-bottom:12px">${icon('flame', 20)}<div><b>${t('flareOn')}</b><br>${t('flareOnD')} <button class="link" data-a="flareOff">${t('flareEnd')}</button></div></div>` : ''}
-      ${next ? `<button class="btn" data-go="#/train/${next.id}">${IC.play.replace('<svg', '<svg width="16" height="16"')} ${nDone ? t('continueSession') : isTrainDay ? t('startSession') : t('startExtra')}</button>` : `<button class="btn soft" disabled>${t('sessionDone')}</button>`}
+      ${next ? `<button class="btn" data-go="#/session">${IC.play.replace('<svg', '<svg width="16" height="16"')} ${nDone ? t('continueSession') : isTrainDay ? t('startSession') : t('startExtra')}</button>` : `<button class="btn soft" disabled>${t('sessionDone')}</button>`}
     </div>
 
     ${journal ? '' : `<div class="card" style="margin-top:10px"><div class="row between"><b>${t('dailyQ')}</b><span class="small muted">0–10</span></div>
@@ -333,7 +335,7 @@ function reportText(prof) {
     `${t('rptPain')}${c} ${s.pain7 ?? '–'}/10`,
     `${t('rptQuality')}${c} ${s.quality7 != null ? s.quality7 + ' %' : '–'}`,
     '', t('rptExercises'),
-    ...P.todaysProgram(prof).map((x) => `- ${tr(EXERCISES[x.id].name)}${c} ${x.level}/5 (${doseText(x.dose)})`),
+    ...P.todaysProgram(prof).map((x) => `- ${tr(EXERCISES[x.id].name)}${c} ${x.level}/5 (${doseText(x.dose)})${x.kept ? ' · ' + t('sessCustomKept').toLowerCase() : ''}`),
     ...(s.notes.length ? ['', t('rptComments'), ...s.notes.map((n) => `- ${new Date(n.date).toLocaleDateString(locale(), { day: 'numeric', month: 'short' })} · ${tr(EXERCISES[n.ex]?.name)}${n.pain != null ? ' · ' + n.pain + '/10' : ''}${c} « ${n.text} »`)] : []),
   ].join('\n');
 }
@@ -393,6 +395,7 @@ function viewProfile() {
       <p class="note" style="margin-top:-6px">${t('geminiKeyD')}</p>
       <div class="toggle" style="padding:12px 0 0"><span><span>${t('sendFrame')}</span><br><small class="muted">${t('sendFrameD')}</small></span>${sw('sendFrame', st.sendFrame)}</div>
       <div class="toggle" style="padding:12px 0 0"><span><span>${t('liveAI')}</span><br><small class="muted">${t(st.geminiKey ? 'liveAID' : 'liveNeedKey')}</small></span>${sw('liveAI', !!st.liveAI)}</div>
+      <div class="toggle" style="display:block;padding:12px 0 0"><span>${t('aiMode')}<br><small class="muted">${t('aiModeD')}</small></span><div class="seg" style="margin-top:8px">${['precise', 'live'].map((v) => `<button data-aimode="${v}" class="${(st.aiMode || 'precise') === v ? 'on' : ''}">${t(v === 'precise' ? 'aiModePrecise' : 'aiModeLive')}</button>`).join('')}</div></div>
     </div>
     <h2>${t('mode')}</h2><div class="list"><div class="toggle"><span><b>${prof.role === 'clinician' ? t('switchToPatient') : t('switchToClin')}</b><br><small class="muted">${t('switchD')}</small></span><button class="btn sm ghost" data-a="role">${t('change')}</button></div></div>
     <h2>${t('about')}</h2><div class="card small"><p style="margin-top:0">${t('aboutD')}</p><p class="muted" style="margin-bottom:0">${t('disclaimer')}</p></div>
@@ -403,6 +406,7 @@ function viewProfile() {
   const q = (s) => $app.querySelector(s);
   bindTrialBar();
   $app.querySelectorAll('[data-theme-set]').forEach((b) => (b.onclick = () => { store.saveSettings({ theme: b.dataset.themeSet }); applyTheme(); viewProfile(); }));
+  $app.querySelectorAll('[data-aimode]').forEach((b) => (b.onclick = () => { store.saveSettings({ aiMode: b.dataset.aimode }); viewProfile(); }));
   $app.querySelectorAll('[data-voice]').forEach((b) => (b.onclick = () => { store.saveSettings({ voice: b.dataset.voice }); viewProfile(); if (b.dataset.voice !== 'off') speakRich(cueText('good')); }));
   $app.querySelectorAll('[data-sw]').forEach((b) => (b.onclick = () => { const k = b.dataset.sw; store.saveSettings({ [k]: !store.settings()[k] }); viewProfile(); }));
   q('#gk').onchange = () => { store.saveSettings({ geminiKey: q('#gk').value.trim() }); toast(t('saved')); };

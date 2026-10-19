@@ -24,6 +24,8 @@ function systemPrompt(c) {
 Exercise: ${c.exercise}. Condition: ${c.condition}. Target: ${c.target}. Pain limit during exercise: ${c.painLimit}/10.
 Correct technique: ${c.steps.join(' ')} Key points: ${c.keys.join('; ')}.
 When you get a "CHECK" message, look at the latest video frames and reply with ONE very short spoken sentence (max 12 words): the single most important correction you can actually see, or brief encouragement if the form looks right. If the patient is not visible, ask them to step back so their whole body is in view.
+The app also measures the movement with validated pose tracking and tells you its measurements in each CHECK: TRUST THEM over your visual impression. ${c.plane === 'side' ? 'Side view: do not comment on knee valgus or left/right symmetry (not visible).' : c.plane === 'front' ? 'Front view: do not comment on forward trunk lean, squat depth or low-back arch (not visible).' : 'Fine movement: only comment on gross posture.'}
+Only give corrections that are part of the correct technique above; if you are not sure, encourage instead. The skeleton overlay (red joints = measured fault) is drawn on the frames.
 Never count repetitions (the app counts). Never diagnose, never change the program. If they look in pain, tell them to ease off.
 Always speak ${langInfo().label}, warm and simple, no jargon.`;
 }
@@ -43,6 +45,7 @@ export function startLiveCoach(o) {
   primeAudio();
 
   const frame = (w = 512) => {
+    if (o.frame) return o.frame(w); // image annotée (squelette) fournie par la séance
     const v = o.video; if (!v.videoWidth) return null;
     cv.width = w; cv.height = Math.round((v.videoHeight / v.videoWidth) * w);
     const g = cv.getContext('2d'); g.save();
@@ -52,7 +55,7 @@ export function startLiveCoach(o) {
   };
   const checkText = () => {
     const s = o.getState ? o.getState() : {};
-    const f = (s.faults || []).length ? ` App-detected issues: ${s.faults.join(', ')}.` : '';
+    const f = ((s.faults || []).length ? ` App-detected issues: ${s.faults.join(', ')}.` : ' No fault measured by the app.') + (s.measures ? ` Measurements: ${s.measures}.` : '');
     return `CHECK. ${s.holdSec != null ? `Holding ${s.holdSec}s of ${s.target}s.` : `Rep ${s.reps || 0} of ${s.target}.`}${f}`;
   };
 

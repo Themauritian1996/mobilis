@@ -122,6 +122,38 @@ const M = {
   footLift: (p, s, c) => Math.abs(p.anL.y - p.anR.y) / c.legLen,
   hipLow: (p, s, c) => c.hip.y / c.shW,
 };
+// Sens anatomique de chaque mesure (envoyé à l'IA pour qu'elle interprète des chiffres valides)
+export const METRIC_INFO = {
+  knee: 'knee joint angle in degrees (180 = fully straight, smaller = more bent)',
+  hip: 'hip angle between trunk and thigh in degrees (180 = straight, smaller = more flexed)',
+  hipMax: 'largest hip angle of both sides (degrees)',
+  elbow: 'elbow angle in degrees (180 = straight)',
+  ankle: 'ankle angle between shin and foot in degrees (smaller = more dorsiflexion)',
+  bodyLine: 'shoulder-hip-ankle alignment in degrees (180 = straight body line)',
+  armElev: 'arm elevation from the side of the trunk in degrees (0 = arm down)',
+  shFlex: 'shoulder flexion in degrees (0 = arm along the body, 90 = forward horizontal, negative = arm behind the body)',
+  trunkLean: 'trunk forward lean from vertical in degrees (positive = leaning forward)',
+  trunkTilt: 'trunk elevation from horizontal in degrees (prone press-up)',
+  shinLean: 'shin forward lean from vertical in degrees (knee travelling over toes)',
+  neckFwd: 'forward head position (ear ahead of shoulder, fraction of torso length)',
+  wristUp: 'wrist height above shoulder (fraction of torso length)',
+  heelRise: 'heel height relative to standing (fraction of leg length)',
+  hipY: 'hip height above ankles (bridge height, relative to pelvis width)',
+  armSym: 'left/right arm elevation difference in degrees',
+  kneeSym: 'left/right knee angle difference in degrees',
+  trunkSide: 'trunk side lean in degrees (front view)',
+  pelvisDrop: 'pelvic tilt left/right in degrees (front view, 0 = level)',
+  shrug: 'shoulder elevation toward the ears (smaller = more shrugged)',
+  headTilt: 'head side tilt in degrees',
+  headRot: 'head rotation (nose offset between ears)',
+  kneeValgus: 'medial knee shift relative to the hip-ankle line, fraction of leg length (> 0.1 = knee caving inward)',
+  erFront: 'forearm outward rotation (wrist lateral to elbow, fraction of upper arm)',
+  elbowAway: 'elbow distance from the trunk (fraction of upper arm length)',
+  hipAbd: 'hip abduction angle in degrees (leg out to the side)',
+  kneeGap: 'angle between the knees from the pelvis (clamshell opening)',
+  footLift: 'foot lifted off the floor (fraction of leg length)',
+  hipLow: 'hip height drop relative to shoulder width (squat depth in front view)',
+};
 const SIDED = new Set(['knee', 'hip', 'elbow', 'ankle', 'bodyLine', 'armElev', 'shFlex', 'shinLean', 'neckFwd', 'wristUp', 'heelRise', 'erFront', 'elbowAway', 'hipAbd', 'kneeValgus']);
 
 function visibleSide(p) {
@@ -161,7 +193,7 @@ export class Tracker {
     this.reps = 0; this.full = 0; this.partial = 0; this.repLog = [];
     this.state = 'rest'; this.peak = 0; this.p = 0; this.topSince = 0; this.repStart = 0;
     this.repFaults = new Set(); this.violation = {}; this.holdSec = 0; this.lastT = 0;
-    this.worstFrame = null; this.faultCount = {};
+    this.worstFrame = null; this.faultCount = {}; this.lastChecks = []; this.repWorst = {}; this.peakVal = null;
   }
 
   get calibrated() { return !!this.base; }
@@ -206,24 +238,31 @@ export class Tracker {
     } else v = this.valueFor(p, side);
 
     // Contrôles de qualité
-    const faults = [];
+    const faults = [], checksNow = [];
     for (const ck of s.checks || []) {
       let m = metric(ck.m, p, s.both && ck.m === 'kneeValgus' ? null : side);
       if (ck.rel) m -= this.base.checks[ck.m] ?? 0;
       if (ck.abs) m = Math.abs(m);
       const bad = (ck.max != null && m > ck.max) || (ck.min != null && m < ck.min);
       const active = this.mode === 'hold' || this.state !== 'rest';
+      checksNow.push({ cue: ck.cue, metric: ck.m, value: +m.toFixed(ck.max != null && Math.abs(ck.max) < 2 ? 3 : 1), limit: ck.max ?? ck.min, kind: ck.max != null ? 'max' : 'min', relative: !!ck.rel, bad });
+      if (active) {
+        const w = this.repWorst[ck.cue];
+        const worse = !w || (ck.max != null ? m > w.value : m < w.value);
+        if (worse) this.repWorst[ck.cue] = { cue: ck.cue, metric: ck.m, value: +m.toFixed(3), limit: ck.max ?? ck.min, kind: ck.max != null ? 'max' : 'min', relative: !!ck.rel };
+      }
       this.violation[ck.cue] = bad && active ? (this.violation[ck.cue] || 0) + 1 : 0;
       if (this.violation[ck.cue] >= 6) faults.push(ck.cue);
     }
     for (const f of faults) { this.repFaults.add(f); this.onCue(f); }
+    this.lastChecks = checksNow;
 
     if (this.mode === 'hold') {
       const ok = v >= s.min && v <= s.max && faults.length === 0;
       if (ok) this.holdSec += dt;
       else if (this.holdSec > 0.5 && !faults.length) this.onCue('holdIt');
       for (const f of faults) this.faultCount[f] = (this.faultCount[f] || 0) + dt;
-      return { phase: ok ? 'holding' : 'adjust', value: v, side, progress: ok ? 1 : 0, holdSec: this.holdSec, faults };
+      return { phase: ok ? 'holding' : 'adjust', value: v, side, progress: ok ? 1 : 0, holdSec: this.holdSec, faults, checks: checksNow, range: [s.min, s.max] };
     }
 
     // Mode répétitions
@@ -237,10 +276,10 @@ export class Tracker {
     }
     const startT = this.p0 + 0.2, endT = this.p0 + 0.1;
     if (this.state === 'rest' && P > startT) {
-      this.state = 'moving'; this.peak = P; this.repStart = t; this.repFaults = new Set(); this.topSince = 0;
+      this.state = 'moving'; this.peak = P; this.repStart = t; this.repFaults = new Set(); this.topSince = 0; this.repWorst = {}; this.peakVal = v;
     }
     if (this.state === 'moving') {
-      if (P > this.peak) this.peak = P;
+      if (P > this.peak) { this.peak = P; this.peakVal = v; }
       if (P >= 0.9) { if (!this.topSince) this.topSince = t; }
       else if (this.topSince && holdTop && (t - this.topSince) / 1000 < holdTop && P < 0.8) this.onCue('holdIt');
       if (this.topSince && P >= 0.9 && holdTop && (t - this.topSince) / 1000 >= holdTop) this.topOk = true;
@@ -257,7 +296,8 @@ export class Tracker {
           const quality = Math.max(0, Math.min(1, 1 - 0.25 * new Set(fl).size - (full ? 0 : 0.3)));
           this.reps++; full ? this.full++ : this.partial++;
           for (const f of fl) this.faultCount[f] = (this.faultCount[f] || 0) + 1;
-          const rep = { n: this.reps, full, dur: +dur.toFixed(1), faults: fl, quality: +quality.toFixed(2), peak: +this.peak.toFixed(2) };
+          const rep = { n: this.reps, full, dur: +dur.toFixed(1), faults: fl, quality: +quality.toFixed(2), peak: +this.peak.toFixed(2),
+            meas: { metric: s.metric, peakValue: +(+this.peakVal).toFixed(1), targetValue: +(+to).toFixed(1), romPct: Math.round(this.peak * 100), minRepSec: s.minRepSec || 1.0, checks: Object.values(this.repWorst) } };
           this.repLog.push(rep);
           this.onRep(rep);
         }
@@ -278,8 +318,8 @@ export class Tracker {
 }
 
 // ---------- Dessin du squelette ----------
-export function drawSkeleton(g, lm, w, h, faultJoints = new Set(), mirror = false) {
-  g.clearRect(0, 0, w, h);
+export function drawSkeleton(g, lm, w, h, faultJoints = new Set(), mirror = false, keep = false) {
+  if (!keep) g.clearRect(0, 0, w, h);
   if (!lm) return;
   const X = (l) => (mirror ? (1 - l.x) * w : l.x * w);
   g.lineCap = 'round';

@@ -39,13 +39,38 @@ export function levelOf(profile, id) {
   return profile.levels?.[id] ?? profile.baseLevel ?? startLevel(profile.irritability);
 }
 
-export function todaysProgram(profile) {
+// Réglages du patient avant la séance : pour aujourd'hui seulement (todayOver) ou permanents (doseOver)
+export const DEFAULT_REST = 30;
+export function todayOver(profile) { const o = profile.todayOver; return o && o.date === todayKey() ? o : { date: todayKey(), items: {}, skip: [] }; }
+export function applyOver(d, o) {
+  if (!o) return d;
+  const r = { ...d };
+  if (o.sets) r.sets = o.sets;
+  if (o.reps) r.reps = o.reps;
+  if (o.hold && r.type === 'hold') r.hold = o.hold;
+  if (o.rest != null) r.rest = o.rest;
+  r.custom = true;
+  return r;
+}
+export function todaysProgram(profile, { withSkipped = false } = {}) {
   const flare = inFlare(profile);
+  const to = todayOver(profile);
   return exerciseIds(profile).map((id) => {
     const lv = levelOf(profile, id);
     const level = flare ? Math.max(1, lv - 1) : lv;
-    return { id, level, dose: doseFor(id, level, flare), flare };
-  });
+    let dose = doseFor(id, level, flare);
+    dose.rest = DEFAULT_REST;
+    dose = applyOver(applyOver(dose, profile.doseOver?.[id]), to.items[id]);
+    if (!profile.doseOver?.[id] && !to.items[id]) delete dose.custom;
+    return { id, level, dose, flare, skipped: to.skip.includes(id), kept: !!profile.doseOver?.[id] };
+  }).filter((x) => withSkipped || !x.skipped);
+}
+// Durée estimée d'un exercice (secondes) : séries × (répétitions × tempo, ou maintien) + repos + mise en place
+export function exerciseSeconds(d) {
+  const tempo = (d.tempo || '2-1-2').split('-').map(Number);
+  const rep = Math.max(3, tempo.reduce((a, b) => a + b, 0) + (d.holdTop || 0));
+  const work = d.type === 'hold' ? (d.reps || 1) * (d.hold + 4) : d.reps * rep;
+  return d.sets * work + Math.max(0, d.sets - 1) * (d.rest ?? DEFAULT_REST) + 40;
 }
 
 // Règle de progression après chaque exercice (modèle de surveillance de la douleur)

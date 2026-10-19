@@ -13,6 +13,13 @@ Application web + APK Android qui filme le patient pendant ses exercices, analys
 | Comptes et données | Firebase `mobilis-6828b` : Google + courriel, Firestore à Montréal, règles « chaque patient voit seulement ses données » |
 | Coach Gemini | clé personnelle entrée dans **Profil → Coach IA** (GitHub Pages n'a pas de serveur). Pour une clé cachée côté serveur, voir l'option Cloudflare plus bas. |
 
+## Nouveautés 1.5
+
+- **Coach IA « précis » (par défaut)** : après chaque répétition, Gemini reçoit l'image clé du mouvement (point le plus avancé) avec le squelette dessiné (articulations fautives en rouge), les **mesures anatomiques** de la caméra (angle au sommet, % de l'amplitude visée, pire valeur de chaque contrôle vs sa limite, durée de la rép.) et une **liste fermée de corrections valides** pour cet exercice et ce plan (de côté : pas de valgus ; de face : pas de flexion du tronc ni de profondeur). Il répond en JSON ; l'app **rejette toute correction contredite par les mesures** (ex. « descends plus » alors que l'amplitude est atteinte) et prononce la consigne validée du programme. Maintien : toutes les 6 s ; exercices guidés : toutes les 8 s (posture, squelette si disponible).
+- **Mode « conversation en direct »** (au choix dans Profil) : flux vidéo continu, maintenant avec images annotées et mesures envoyées à chaque point.
+- **Aperçu de la séance** (bouton Commencer) : exercices, durée estimée, matériel, espace et position du téléphone, règle de douleur, consignes de sécurité, note du clinicien.
+- **Réglages avant la séance** : séries, répétitions, maintien, repos entre les séries, passer un exercice aujourd'hui ; pour aujourd'hui ou « garder pour les prochaines séances » (indiqué dans le rapport au clinicien). **Minuterie de repos** entre les séries.
+
 ## Nouveautés 1.4
 
 - **Coach IA en direct (Gemini)** : pendant la série, Gemini regarde la vidéo de la caméra (environ 1 image par seconde via l'API Live) et corrige à voix haute en une courte phrase toutes les ~7 s, en tenant compte des erreurs détectées par l'app. Le texte s'affiche dans une bulle ✦. Fonctionne aussi pour les exercices guidés (caméra en miroir).
