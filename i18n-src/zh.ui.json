@@ -387,5 +387,14 @@
 "mirrorErr": "摄像头不可用：改为显示示意图。",
 "selfViewSetting": "练习时显示自拍画面",
 "selfViewSettingD": "练习中也可以随时显示或隐藏（眼睛图标）。",
-"exDemoBtn": "查看动作示范"
+"exDemoBtn": "查看动作示范",
+"liveAI": "AI 实时教练（Gemini）",
+"liveAID": "练习时 Gemini 会观看你的视频（约每秒 1 张画面，发送至 Google）并语音纠正。Mobilis 不保存任何画面。",
+"liveNeedKey": "请在“我的 → AI 教练”中添加 Gemini 密钥以开启实时教练。",
+"liveErr": "AI 实时教练暂时不可用，摄像头纠正仍在继续。",
+"live_off": "已关闭",
+"live_connecting": "连接中…",
+"live_live": "实时",
+"live_snapshot": "已开启（每 8 秒 1 张画面）",
+"live_error": "出错"
 }

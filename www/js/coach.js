@@ -28,8 +28,12 @@ export function speak(text, { interrupt = false } = {}) {
 
 // Anti-répétition des consignes
 const lastSaid = {}; let lastAny = 0;
+// Pendant que le coach IA en direct parle, les consignes locales se taisent (sauf le comptage).
+let liveTalking = false;
+export const setLiveTalking = (v) => { liveTalking = v; if (v) { try { speechSynthesis.cancel(); } catch (_) {} } };
 export function cue(key) {
   const now = Date.now();
+  if (liveTalking) return false;
   if (now - lastAny < 2200 || now - (lastSaid[key] || 0) < 5000) return false;
   lastAny = now; lastSaid[key] = now;
   speak(tr(CUES[key]));
@@ -55,7 +59,7 @@ const SYS = {
 const langLine = () => `Always answer in ${langInfo().label}.`;
 export const aiAvailable = () => !!(settings().geminiKey || CONFIG.coachEndpoint);
 
-async function geminiDirect(key, sys, parts, maxTokens = 180) {
+export async function geminiDirect(key, sys, parts, maxTokens = 180) {
   const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${CONFIG.geminiModel}:generateContent`, {
     method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
     body: JSON.stringify({ systemInstruction: { parts: [{ text: sys }] }, contents: [{ role: 'user', parts }], generationConfig: { temperature: 0.6, maxOutputTokens: maxTokens } }),

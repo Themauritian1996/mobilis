@@ -7,6 +7,8 @@ import { loadPose, detect, toPx, Tracker, drawSkeleton, FAULT_JOINTS, detectPlan
 import { speak, cue, cueText, countAloud, coachComment, coachReply, speakRich, grabFrame, startDictation, dictationMode, aiAvailable } from './coach.js';
 import { state, go, profile, sessions, todaySession, nextExercise, syncProgress } from './state.js';
 import { esc, icon, IC, toast, mountFigs, figSvg, figureBlock, sleep } from './ui.js';
+import { startLiveCoach, liveAvailable, primeAudio } from './live.js';
+import { CUES } from './i18n.js';
 
 const RING = 276.5;
 
@@ -24,7 +26,7 @@ export function viewTrain(id, cleanup) {
   const path = P.pathologyById(prof.pathology) || { name: { fr: 'Exercice libre', en: 'Free exercise' }, painMax: 4 };
   const planes = ex.track ? Object.keys(ex.track.planes) : [];
   const totalSets = dose.type === 'hold' ? dose.sets * (dose.reps || 1) : dose.sets;
-  const T = { set: 0, sets: [], stream: null, raf: 0, tracker: null, mode: ex.track ? 'camera' : 'guided', facing: store.settings().camera, active: false, guidedTimer: null, selfView: store.settings().selfView !== false };
+  const T = { set: 0, sets: [], stream: null, raf: 0, tracker: null, mode: ex.track ? 'camera' : 'guided', facing: store.settings().camera, active: false, guidedTimer: null, selfView: store.settings().selfView !== false, liveAI: !!store.settings().liveAI && liveAvailable(), live: null, liveState: 'off' };
   const planeFor = (i) => planes[i % planes.length];
   const holdTarget = dose.type === 'hold' ? dose.hold : 0;
 
@@ -34,6 +36,7 @@ export function viewTrain(id, cleanup) {
     <div class="hud-top"><button class="icon-btn" data-t="close" aria-label="${t('close')}">${icon('close', 20)}</button>
       <div class="hud-title"><b>${esc(tr(ex.name))}</b><small id="setlbl"></small><div id="pbadge"></div></div>
       <div class="hud-btns"><button class="icon-btn" data-t="demo" aria-label="${t('exDemoBtn')}" title="${t('exDemoBtn')}">${icon('demo', 20)}</button>
+      <button class="icon-btn ai-btn" data-t="ai" aria-pressed="false" aria-label="${t('liveAI')}" title="${t('liveAI')}">${icon('spark', 20)}<i></i></button>
       <button class="icon-btn" data-t="video" aria-pressed="true"></button>
       <button class="icon-btn" data-t="flip" aria-label="${t('camSwitch')}" title="${t('camSwitch')}">${icon('flip', 20)}</button></div></div>
     <div class="vid-off" hidden>${icon('eyeOff', 18)} <span>${t('videoOffNote')}</span></div>
@@ -52,7 +55,7 @@ export function viewTrain(id, cleanup) {
   mountFigs(root);
 
   function close() {
-    T.active = false; cancelAnimationFrame(T.raf); clearInterval(T.guidedTimer);
+    T.active = false; cancelAnimationFrame(T.raf); clearInterval(T.guidedTimer); stopLive();
     if (T.stream) T.stream.getTracks().forEach((tk) => tk.stop());
     try { speechSynthesis.cancel(); } catch (_) {}
     root.remove();
@@ -74,7 +77,7 @@ export function viewTrain(id, cleanup) {
   async function setSelfView(on) {
     T.selfView = on; store.saveSettings({ selfView: on });
     // Mode guidé : la vidéo sert de miroir (sans analyse) ; on ouvre / ferme la caméra selon le choix.
-    if (T.mode === 'guided' && T.active) { if (on) await mirrorOn(); else { stopCam(); guidedLayout(); } }
+    if (T.mode === 'guided' && T.active) { if (on) await mirrorOn(); else { if (!T.liveAI) stopCam(); guidedLayout(); } }
     paintVideoBtn();
   }
   $('[data-t="video"]').onclick = () => setSelfView(!T.selfView);
@@ -93,6 +96,44 @@ export function viewTrain(id, cleanup) {
     d.onclick = (e) => { if (e.target === d) shut(); };
   }
   $('[data-t="demo"]').onclick = openDemo;
+
+  // Coach IA en direct (Gemini regarde la vidéo) : on/off pendant la séance, sur l'écran de préparation et dans Profil
+  function paintAI() {
+    const b = $('[data-t="ai"]'); const st = T.liveAI ? T.liveState : 'off';
+    b.dataset.state = st; b.setAttribute('aria-pressed', String(T.liveAI));
+    b.title = `${t('liveAI')} · ${t('live_' + st)}`; b.setAttribute('aria-label', b.title);
+    const sw = root.querySelector('[data-t="liveai"]'); if (sw) { sw.classList.toggle('on', T.liveAI); sw.setAttribute('aria-checked', String(T.liveAI)); }
+  }
+  const liveCtx = () => ({
+    exercise: ex.name.en, condition: path.name.en || tr(path.name), target: dose.type === 'hold' ? holdTarget : dose.reps,
+    painLimit: path.painMax ?? 4, steps: ex.steps.en || [], keys: (ex.keys || []).map((k) => k.en || tr(k)),
+  });
+  function liveState() {
+    if (T.mode === 'camera' && T.tracker) {
+      const now = performance.now();
+      const faults = [...(T.recentFaults || new Map())].filter(([, ts]) => now - ts < 6000).map(([k]) => CUES[k]?.en || k);
+      return { reps: T.tracker.reps, target: dose.reps, holdSec: dose.type === 'hold' ? Math.floor(T.lastSt?.holdSec || 0) : null, faults };
+    }
+    const g = T.guidedEl ? T.guidedEl() : { el: 0, reps: 0 };
+    return dose.type === 'hold' ? { holdSec: g.el, target: holdTarget, faults: [] } : { reps: g.reps, target: dose.reps, faults: [] };
+  }
+  function startLive() {
+    if (!T.liveAI || T.live || !T.stream || !T.active) return;
+    T.live = startLiveCoach({
+      video, mirror: T.facing === 'user', context: liveCtx(), getState: liveState,
+      onText: (txt, final) => { showCue(txt, 'ai'); clearTimeout(T.aiCueT); if (final) { T.aiNotes = [...(T.aiNotes || []), txt].slice(-6); T.aiCueT = setTimeout(() => { if ($('.cue span').className === 'ai') showCue(''); }, 4500); } },
+      onState: (st) => { if (st === 'error' && T.liveState !== 'error') toast(t('liveErr'), 4500); T.liveState = st; paintAI(); },
+    });
+  }
+  function stopLive() { if (T.live) { T.live.stop(); T.live = null; } T.liveState = 'off'; paintAI(); }
+  function setLiveAI(on) {
+    if (on && !liveAvailable()) { toast(t('liveNeedKey'), 5000); return; }
+    primeAudio();
+    T.liveAI = on; store.saveSettings({ liveAI: on });
+    if (on) { if (T.mode === 'guided' && T.active && !T.stream) mirrorOn(); else startLive(); } else stopLive();
+    paintAI();
+  }
+  $('[data-t="ai"]').onclick = () => setLiveAI(!T.liveAI);
   $('.mini-fig').onclick = openDemo;
 
   function setLabel() {
@@ -114,28 +155,31 @@ export function viewTrain(id, cleanup) {
       const pl = planeFor(T.set);
       s.innerHTML = `<span class="eyebrow">${t('setupTitle')}</span><h3 style="margin:6px 0 4px">${t(pl === 'side' ? 'setupSide' : 'setupFront')}</h3>
         ${figureBlock(id, { keys: false })}<p class="small muted">${t('setupTip')}</p>
-        ${selfRow('selfViewD')}
+        ${selfRow('selfViewD')}${liveRow()}
         <button class="btn" data-t="go">${icon('cam', 20)} ${t('camStart')}</button>`;
       $('[data-t="guided"]').hidden = false;
     } else {
       s.innerHTML = `<h3>${esc(tr(ex.name))}</h3>${figureBlock(id)}
         <ol class="steplist small" style="margin:6px -16px">${tr(ex.steps).map((x) => `<li>${esc(x)}</li>`).join('')}</ol>
-        ${navigator.mediaDevices?.getUserMedia ? selfRow('mirrorD') : ''}
+        ${navigator.mediaDevices?.getUserMedia ? selfRow('mirrorD') + liveRow() : ''}
         <button class="btn" data-t="go">${IC.play.replace('<svg', '<svg width="18" height="18"')} ${t('start')}</button>`;
       $('[data-t="guided"]').hidden = true;
     }
     mountFigs(s);
     const sv = s.querySelector('[data-t="selfview"]'); if (sv) sv.onclick = () => setSelfView(!T.selfView);
-    paintVideoBtn();
+    const la = s.querySelector('[data-t="liveai"]'); if (la) la.onclick = () => setLiveAI(!T.liveAI);
+    paintVideoBtn(); paintAI();
+    s.querySelector('[data-t="go"]').addEventListener('click', primeAudio);
     s.querySelector('[data-t="go"]').onclick = () => (T.mode === 'camera' ? startCamera() : startGuided());
   }
+  const liveRow = () => `<div class="toggle selfrow"><span><b>${icon('spark', 16)} ${t('liveAI')}</b><br><small class="muted">${t(liveAvailable() ? 'liveAID' : 'liveNeedKey')}</small></span><button class="switch ${T.liveAI ? 'on' : ''}" data-t="liveai" role="switch" aria-checked="${T.liveAI}" aria-label="${t('liveAI')}"></button></div>`;
   const selfRow = (d) => `<div class="toggle selfrow"><span><b>${icon('eye', 16)} ${t('selfView')}</b><br><small class="muted">${t(d)}</small></span><button class="switch ${T.selfView ? 'on' : ''}" data-t="selfview" role="switch" aria-checked="${T.selfView}" aria-label="${t('selfView')}"></button></div>`;
   $('[data-t="guided"]').onclick = () => { T.mode = 'guided'; stopCam(); setup(); };
   $('[data-t="flip"]').onclick = async () => {
     T.facing = T.facing === 'user' ? 'environment' : 'user'; store.saveSettings({ camera: T.facing });
     if (T.stream) { stopCam(); await openCam(); }
   };
-  function stopCam() { if (T.stream) T.stream.getTracks().forEach((tk) => tk.stop()); T.stream = null; video.srcObject = null; video.hidden = true; paintVideoBtn(); }
+  function stopCam() { stopLive(); if (T.stream) T.stream.getTracks().forEach((tk) => tk.stop()); T.stream = null; video.srcObject = null; video.hidden = true; paintVideoBtn(); }
   async function openCam() {
     T.stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: T.facing, width: { ideal: 960 }, height: { ideal: 720 } } });
     video.srcObject = T.stream; await video.play();
@@ -146,7 +190,7 @@ export function viewTrain(id, cleanup) {
   // Mode guidé avec vidéo : le patient se voit en miroir, le schéma passe en vignette
   async function mirrorOn() {
     try { if (!T.stream) await openCam(); } catch (e) { console.warn(e); toast(e && e.name === 'NotAllowedError' ? t('camDenied') : t('mirrorErr'), 4000); T.selfView = false; }
-    guidedLayout();
+    guidedLayout(); startLive();
   }
   function guidedLayout() {
     if (T.mode !== 'guided' || !T.active) return;
@@ -172,7 +216,7 @@ export function viewTrain(id, cleanup) {
 
   function runSet() {
     const pl = planeFor(T.set);
-    const recentFaults = new Map();
+    const recentFaults = new Map(); T.recentFaults = recentFaults;
     T.frame = null;
     T.tracker = new Tracker(ex, pl, {
       romFactor: dose.romFactor,
@@ -188,7 +232,7 @@ export function viewTrain(id, cleanup) {
     $('.counter').hidden = false; $('.depth').hidden = dose.type === 'hold'; $('.mini-fig').hidden = false; paintVideoBtn();
     $('[data-t="end"]').hidden = false; $('[data-t="guided"]').hidden = true;
     $('#cntlbl').textContent = dose.type === 'hold' ? `/ ${holdTarget} ${t('sec')}` : `/ ${dose.reps}`;
-    T.active = true;
+    T.active = true; startLive();
     let lastWarn = 0;
     const loop = () => {
       if (!T.active) return;
@@ -209,7 +253,7 @@ export function viewTrain(id, cleanup) {
           if (dp && dp !== 'between' && dp !== pl && !T.tracker.calibrated) {
             if (now - lastWarn > 3500) { lastWarn = now; const k = pl === 'side' ? 'turnSide' : 'turnFront'; cue(k); showCue(t(k), 'bad'); }
           } else {
-            const st = T.tracker.update(p, now);
+            const st = T.tracker.update(p, now); T.lastSt = st;
             if (st.phase === 'calibrating') showCue(t('calibrating'));
             else if ($('.cue span').textContent === t('calibrating')) showCue('');
             if (dose.type === 'hold') {
@@ -232,7 +276,7 @@ export function viewTrain(id, cleanup) {
 
   function endSet() {
     if (!T.active) return;
-    T.active = false; cancelAnimationFrame(T.raf); g.clearRect(0, 0, canvas.width, canvas.height); showCue('');
+    T.active = false; stopLive(); cancelAnimationFrame(T.raf); g.clearRect(0, 0, canvas.width, canvas.height); showCue('');
     const sum = T.tracker.summary();
     const pl = planeFor(T.set);
     T.sets.push({ plane: pl, mode: sum.mode, reps: sum.reps, full: sum.full, partial: sum.partial, holdSec: sum.holdSec, quality: sum.quality, faults: sum.faults });
@@ -243,7 +287,7 @@ export function viewTrain(id, cleanup) {
   function startGuided() {
     $('.setup').hidden = true; $('.counter').hidden = false; $('[data-t="end"]').hidden = false; $('[data-t="guided"]').hidden = true;
     T.active = true;
-    if (T.selfView && navigator.mediaDevices?.getUserMedia) mirrorOn(); else guidedLayout();
+    if ((T.selfView || T.liveAI) && navigator.mediaDevices?.getUserMedia) mirrorOn(); else guidedLayout();
     const tempo = (dose.tempo || '2-1-2').split('-').map(Number);
     const repSec = Math.max(3, tempo.reduce((a, b) => a + b, 0) + (dose.holdTop || 0));
     let el = 0, reps = 0;
@@ -266,7 +310,7 @@ export function viewTrain(id, cleanup) {
   }
   function endGuided() {
     if (!T.active) return;
-    T.active = false; clearInterval(T.guidedTimer); center(''); $('.mini-fig').hidden = true;
+    T.active = false; stopLive(); clearInterval(T.guidedTimer); center(''); $('.mini-fig').hidden = true;
     const { el, reps } = T.guidedEl();
     const sum = dose.type === 'hold' ? { mode: 'hold', holdSec: el, reps: 0, full: 0, partial: 0, quality: null, faults: {} } : { mode: 'reps', reps, full: reps, partial: 0, quality: null, faults: {} };
     T.sets.push({ plane: 'guided', ...sum });
@@ -292,7 +336,9 @@ export function viewTrain(id, cleanup) {
       kind: 'set', exercise: tr(ex.name), condition: tr(path.name), plane: sum.plane, level, target: dose.type === 'hold' ? `${holdTarget}s` : dose.reps,
       mode: sum.mode, reps: sum.reps, full: sum.full, partial: sum.partial, holdSec: sum.holdSec, quality: sum.quality,
       faults: Object.fromEntries(faults.map(([k, v]) => [k, Math.round(v)])), painLimit: path.painMax, set: T.set + 1, totalSets,
+      liveCoachRemarks: (T.aiNotes || []).slice(-4),
     };
+    T.aiNotes = [];
     coachComment(data, store.settings().sendFrame ? T.frame : null).then(({ text }) => {
       const p = bg.querySelector('#coachtxt'); if (p) { p.textContent = text; p.classList.remove('muted'); }
       speakRich(text);

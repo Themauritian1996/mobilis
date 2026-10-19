@@ -22,6 +22,8 @@ export const CONFIG = {
   coachEndpoint: '',
   geminiModel: 'gemini-flash-latest',
   geminiTtsModel: 'gemini-2.5-flash-preview-tts',
+  // Coach IA en direct (API Live, vidéo 1 image/s → voix). Essayés dans l'ordre ; si aucun ne répond : analyse d'images toutes les 8 s.
+  geminiLiveModels: ['gemini-3.8-live', 'gemini-3.1-flash-live-preview', 'gemini-live-2.5-flash-preview'],
 
   // 3) Vision (MediaPipe, Google) — exécutée sur l'appareil, la vidéo ne quitte jamais le téléphone
   mediapipeBase: new URL('../vendor/mediapipe', import.meta.url).href, // inclus dans l'app (fonctionne hors ligne)

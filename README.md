@@ -13,6 +13,13 @@ Application web + APK Android qui filme le patient pendant ses exercices, analys
 | Comptes et données | Firebase `mobilis-6828b` : Google + courriel, Firestore à Montréal, règles « chaque patient voit seulement ses données » |
 | Coach Gemini | clé personnelle entrée dans **Profil → Coach IA** (GitHub Pages n'a pas de serveur). Pour une clé cachée côté serveur, voir l'option Cloudflare plus bas. |
 
+## Nouveautés 1.4
+
+- **Coach IA en direct (Gemini)** : pendant la série, Gemini regarde la vidéo de la caméra (environ 1 image par seconde via l'API Live) et corrige à voix haute en une courte phrase toutes les ~7 s, en tenant compte des erreurs détectées par l'app. Le texte s'affiche dans une bulle ✦. Fonctionne aussi pour les exercices guidés (caméra en miroir).
+- **On/off** : bouton ✦ pendant la séance (point vert = en direct), interrupteur sur l'écran de préparation et réglage dans Profil → Coach IA. Désactivé par défaut ; demande la clé Gemini personnelle.
+- **Robuste** : si un modèle Live est refusé, l'app essaie le suivant (`CONFIG.geminiLiveModels`) ; si aucun ne répond, elle passe à une analyse d'image toutes les 8 s. Les sessions vidéo Live (limitées à 2 min) sont relancées automatiquement. Les consignes de l'app se taisent pendant que Gemini parle.
+- **Vie privée** : les images vont à Google seulement quand le coach en direct est activé ; Mobilis n'en garde aucune.
+
 ## Nouveautés 1.3
 
 - **Vidéo selfie en direct** : la caméra avant filme le patient, qui se voit en miroir avec le squelette et les corrections en couleur (rouge = articulation à corriger) pendant que la voix le guide. Pour les exercices guidés (mouvements trop fins pour l'analyse), la caméra avant sert de miroir.

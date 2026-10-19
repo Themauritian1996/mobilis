@@ -392,6 +392,7 @@ function viewProfile() {
       <label class="field"><span>${t('geminiKey')}</span><input class="input" id="gk" type="password" value="${esc(st.geminiKey)}" placeholder="AIza…" autocomplete="off"></label>
       <p class="note" style="margin-top:-6px">${t('geminiKeyD')}</p>
       <div class="toggle" style="padding:12px 0 0"><span><span>${t('sendFrame')}</span><br><small class="muted">${t('sendFrameD')}</small></span>${sw('sendFrame', st.sendFrame)}</div>
+      <div class="toggle" style="padding:12px 0 0"><span><span>${t('liveAI')}</span><br><small class="muted">${t(st.geminiKey ? 'liveAID' : 'liveNeedKey')}</small></span>${sw('liveAI', !!st.liveAI)}</div>
     </div>
     <h2>${t('mode')}</h2><div class="list"><div class="toggle"><span><b>${prof.role === 'clinician' ? t('switchToPatient') : t('switchToClin')}</b><br><small class="muted">${t('switchD')}</small></span><button class="btn sm ghost" data-a="role">${t('change')}</button></div></div>
     <h2>${t('about')}</h2><div class="card small"><p style="margin-top:0">${t('aboutD')}</p><p class="muted" style="margin-bottom:0">${t('disclaimer')}</p></div>

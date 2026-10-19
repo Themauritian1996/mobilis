@@ -387,5 +387,14 @@
 "mirrorErr": "Câmera indisponível: mostrando o esquema.",
 "selfViewSetting": "Vídeo selfie durante os exercícios",
 "selfViewSettingD": "Você também pode mostrar ou ocultar durante a sessão (ícone de olho).",
-"exDemoBtn": "Ver como fazer o exercício"
+"exDemoBtn": "Ver como fazer o exercício",
+"liveAI": "Coach IA ao vivo (Gemini)",
+"liveAID": "O Gemini assiste ao seu vídeo durante a série (cerca de 1 imagem por segundo, enviada ao Google) e corrige você em voz alta. O Mobilis não guarda nenhuma imagem.",
+"liveNeedKey": "Adicione sua chave Gemini em Perfil → Coach IA para ativar o coach ao vivo.",
+"liveErr": "Coach IA ao vivo indisponível no momento. As correções da câmera continuam.",
+"live_off": "desativado",
+"live_connecting": "conectando…",
+"live_live": "ao vivo",
+"live_snapshot": "ativo (uma imagem a cada 8 s)",
+"live_error": "erro"
 }
