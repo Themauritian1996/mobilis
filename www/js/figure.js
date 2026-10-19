@@ -1,3 +1,6 @@
+import { STRUCTURES } from './data/anatomy.js';
+import { tr } from './i18n.js';
+
 // Schéma cinétique animé : bonhomme 2D par cinématique directe (vue de côté, de face, main, pied).
 // Angles absolus en degrés : 0 = haut, 90 = avant (droite de l'écran), 180 = bas, 270 = arrière.
 
@@ -236,6 +239,50 @@ function arcPath(c, a, b, r) {
   return { d: `M${s} A${r},${r} 0 0 ${d > 0 ? 1 : 0} ${e}`, deg: Math.abs((d * 180) / Math.PI), mid: a1 + d / 2 };
 }
 
+// Étiquette qui reste dans le cadre du schéma
+function label(g, x, y, anchor, text) {
+  const w = text.length * 3.7;
+  if (anchor === 'end' && x - w < 3) { anchor = 'start'; x = 3; }
+  if (anchor === 'start' && x + w > 237) { anchor = 'end'; x = 237; }
+  if (anchor === 'middle') x = Math.min(237 - w / 2, Math.max(3 + w / 2, x));
+  const tx = el('text', { x, y: Math.min(196, Math.max(8, y)), class: 'fg-an-label', 'text-anchor': anchor }, g);
+  tx.textContent = text;
+}
+
+// Couche anatomique : muscles, tendons, nerfs, fascia, articulations
+function drawAnat(g, j, keys) {
+  for (const key of keys || []) {
+    const st = STRUCTURES[key];
+    if (!st) continue;
+    if (st.kind === 'joint') {
+      const p = j[st.at]; if (!p) continue;
+      el('circle', { cx: p[0], cy: p[1], r: st.r, class: 'fg-an-joint' }, g);
+      label(g, p[0] + st.r + 3, p[1] + st.r + 9, 'start', tr(st.name));
+      continue;
+    }
+    const parts = [[st.seg[0], st.seg[1], st.off, st.t]];
+    if (st.mirror) parts.push([st.mirror[0], st.mirror[1], st.mirror[2], st.t]);
+    for (const m of st.more || []) parts.push([m[0], m[1], m[2], [0, 1]]);
+    let labelled = false;
+    parts.forEach(([A, B, off, t], i) => {
+      const a = j[A], b = j[B];
+      if (!a || !b) return;
+      const dx = b[0] - a[0], dy = b[1] - a[1], len = Math.hypot(dx, dy) || 1;
+      const n = [dy / len, -dx / len];
+      const P = (u) => [a[0] + dx * u + n[0] * off, a[1] + dy * u + n[1] * off];
+      const p0 = P(t[0]), p1 = P(t[1]);
+      el('line', { x1: p0[0], y1: p0[1], x2: p1[0], y2: p1[1], class: `fg-an fg-an-${st.kind}`, 'stroke-width': st.w }, g);
+      if (!labelled && i === 0) {
+        labelled = true;
+        const m = P((t[0] + t[1]) / 2);
+        const side = off >= 0 ? 1 : -1;
+        const lx = m[0] + n[0] * side * (st.w / 2 + 5), ly = m[1] + n[1] * side * (st.w / 2 + 5) + 3;
+        label(g, lx, ly, n[0] * side >= 0.2 ? 'start' : n[0] * side <= -0.2 ? 'end' : 'middle', tr(st.name));
+      }
+    });
+  }
+}
+
 export function renderFigure(svg, fig, opts = {}) {
   const keys = opts.keys || [];
   svg.innerHTML = '';
@@ -245,7 +292,9 @@ export function renderFigure(svg, fig, opts = {}) {
   const gGhost = el('g', {}, svg);
   const gTrace = el('g', {}, svg);
   const gBody = el('g', {}, svg);
+  const gAnat = el('g', { class: 'fg-anat' }, svg);
   const gArc = el('g', {}, svg);
+  let showAnat = !!opts.showAnatomy;
   const gKeys = el('g', {}, svg);
   drawProps(gProps, fig, pose(fig, frames[0]));
   // fantômes : position de départ et position cible
@@ -266,7 +315,7 @@ export function renderFigure(svg, fig, opts = {}) {
       poly(gTrace, [h(0.5), b, h(-0.5)], 'fg-trace fg-arrow');
     }
   }
-  let raf = 0, start = 0, stopped = false;
+  let raf = 0, start = 0, stopped = false, lastMs = 0, animated = false;
   const period = (fig.period || 3.2) * 1000;
   const seq = frames.length > 2 ? frames.concat([frames[0]]) : frames.length === 2 ? [frames[0], frames[1], frames[0]] : [frames[0], frames[0]];
 
@@ -285,6 +334,8 @@ export function renderFigure(svg, fig, opts = {}) {
     const j = pose(fig, paramsAt(ms));
     drawBody(gBody, fig, j, '');
     drawHeld(gBody, fig, j);
+    gAnat.innerHTML = '';
+    if (showAnat) drawAnat(gAnat, j, opts.anatomy);
     if (fig.arc && j[fig.arc[0]]) {
       const [c, a, b] = fig.arc.map((k) => j[k]);
       if (a && b) {
@@ -309,10 +360,14 @@ export function renderFigure(svg, fig, opts = {}) {
   function loop(ts) {
     if (stopped) return;
     if (!start) start = ts;
-    draw(ts - start);
+    lastMs = ts - start;
+    draw(lastMs);
     raf = requestAnimationFrame(loop);
   }
-  if (opts.static || reduce || frames.length < 2) draw(period * (frames.length > 1 ? 0.3 : 0));
-  else raf = requestAnimationFrame(loop);
-  return { stop() { stopped = true; cancelAnimationFrame(raf); } };
+  if (opts.static || reduce || frames.length < 2) { lastMs = period * (frames.length > 1 ? 0.3 : 0); draw(lastMs); }
+  else { animated = true; raf = requestAnimationFrame(loop); }
+  return {
+    stop() { stopped = true; cancelAnimationFrame(raf); },
+    setAnatomy(on) { showAnat = !!on; if (!animated) draw(lastMs); },
+  };
 }

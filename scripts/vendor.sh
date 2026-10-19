@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-# Regénère les librairies incluses dans www/vendor (Firebase + MediaPipe). Utile seulement pour les mettre à jour.
+# Regénère les librairies incluses dans www/vendor (Firebase, MediaPipe, Capacitor, QR). Utile seulement pour les mettre à jour.
 set -e
 npx esbuild scripts/firebase-entry.js --bundle --format=esm --minify --outfile=www/vendor/firebase.js
+npx esbuild scripts/capacitor-entry.js --bundle --format=esm --minify --outfile=www/vendor/capacitor.js
+npx esbuild scripts/qrcode-entry.js --bundle --format=esm --minify --outfile=www/vendor/qrcode.js
 mkdir -p www/vendor/mediapipe/wasm
 cp node_modules/@mediapipe/tasks-vision/vision_bundle.mjs www/vendor/mediapipe/
 cp node_modules/@mediapipe/tasks-vision/wasm/vision_wasm_internal.* www/vendor/mediapipe/wasm/

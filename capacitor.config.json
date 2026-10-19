@@ -2,9 +2,11 @@
   "appId": "ca.mobilis.app",
   "appName": "Mobilis",
   "webDir": "www",
-  "android": { "allowMixedContent": false },
-  "server": { "androidScheme": "https" },
-  "plugins": {
-    "FirebaseAuthentication": { "skipNativeAuth": true, "providers": ["google.com"] }
-  }
+  "android": {
+    "allowMixedContent": false
+  },
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {}
 }

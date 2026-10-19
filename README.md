@@ -13,13 +13,24 @@ Application web + APK Android qui filme le patient pendant ses exercices, analys
 | Comptes et données | Firebase `mobilis-6828b` : Google + courriel, Firestore à Montréal, règles « chaque patient voit seulement ses données » |
 | Coach Gemini | clé personnelle entrée dans **Profil → Coach IA** (GitHub Pages n'a pas de serveur). Pour une clé cachée côté serveur, voir l'option Cloudflare plus bas. |
 
+## Nouveautés 1.1
+
+- **Départ sans jargon** : le patient écrit son diagnostic dans ses mots (reconnu automatiquement), sinon il répond à des questions simples par région. Les problèmes sont affichés avec un nom compréhensible (ex. « Douleur à l’épaule en levant le bras ») et le terme médical en petit.
+- **Point de départ adapté** : durée du problème, exercices déjà commencés et tolérance → phase et niveau de départ.
+- **Mode clinicien** : choisir région, problème, phase, exercices et niveaux, ajouter une note et le prochain rendez-vous, puis envoyer par **code à 6 caractères, QR ou lien**. Le patient reçoit le programme tout prêt. Le clinicien voit l’assiduité, la douleur et la qualité si le patient partage son suivi, et peut **ajuster** : le patient reçoit la mise à jour à la prochaine ouverture. Progression automatique ou gérée par le clinicien.
+- **Calendrier de suivi** : séances faites / prévues / manquées, rendez-vous, jours d’exercices, rappels (notifications dans l’APK, fichier agenda sur le web).
+- **Anatomie sur les schémas** (bouton « Anatomie ») : muscles, tendons, nerfs, fascia, articulations.
+- **Journal de douleur**, **journée difficile** (programme allégé 2 jours), **prochaine étape** (ce qui manque pour changer de phase), **rapport pour le clinicien** (copier / partager), **ajuster mon programme**.
+- **Design sobre** noir et blanc, vert = progrès, rouge = douleur ; thème auto / clair / sombre ; barre latérale sur ordinateur.
+- **Connexion Google dans l’APK** : ouverture dans le navigateur du téléphone (page `auth.html`) puis retour automatique dans l’app.
+
 ## Ce que fait l'app
 
 | Fonction | Détail |
 |---|---|
 | Comptes | Google ou courriel (Firebase). Sans configuration : mode local (données sur l'appareil). |
 | Langues | Français / anglais, partout (interface, consignes vocales, coach IA). |
-| Bibliothèque | 10 régions, 40 pathologies fréquentes en physiatrie, 61 exercices avec schéma cinétique animé, points clés numérotés et étapes. |
+| Bibliothèque | 10 régions, 40 pathologies fréquentes en physiatrie, 61 exercices avec schéma cinétique animé, anatomie activable, points clés numérotés et étapes. |
 | Analyse caméra | 34 exercices suivis en 2D. Chaque exercice est filmé **en alternance vue de côté (plan sagittal) / vue de face (plan frontal)** selon les séries. |
 | Corrections en direct | Valgus du genou, tronc penché, cambrure, haussement d'épaules, bassin qui tombe, asymétrie, talon qui décolle, amplitude incomplète, vitesse… |
 | Coach vocal | Consignes instantanées (voix de l'appareil, sans latence) + commentaire de fin de série par Gemini (texte, option voix Gemini, option image fixe). |

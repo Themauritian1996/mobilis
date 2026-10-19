@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex">
+  <title>Connexion Mobilis</title>
+  <style>
+    :root { --bg: #f4f4f3; --fg: #15171a; --muted: #5c5e62; --card: #fff; --line: #e4e4e2; color-scheme: light; }
+    @media (prefers-color-scheme: dark) { :root { --bg: #0b0b0c; --fg: #f4f4f5; --muted: #8e8e93; --card: #161618; --line: #2a2a2e; color-scheme: dark; } }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: var(--bg); color: var(--fg); font: 16px/1.5 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; padding: 24px; box-sizing: border-box; }
+    main { width: 100%; max-width: 380px; background: var(--card); border: 1px solid var(--line); border-radius: 22px; padding: 28px 22px; text-align: center; }
+    h1 { font-size: 20px; margin: 0 0 6px; }
+    p { color: var(--muted); margin: 0 0 20px; font-size: 14.5px; }
+    button, a.btn { display: block; width: 100%; box-sizing: border-box; border: 0; border-radius: 14px; padding: 15px; font: 600 16px system-ui, sans-serif; background: var(--fg); color: var(--bg); text-decoration: none; cursor: pointer; }
+    .err { color: #d93b3b; font-size: 14px; margin-top: 12px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1 id="t">Connexion à Mobilis</h1>
+    <p id="d">Choisis ton compte Google. Tu reviendras ensuite dans l’application.</p>
+    <button id="go">Continuer avec Google</button>
+    <a class="btn" id="back" href="#" hidden>Retourner dans Mobilis</a>
+    <div class="err" id="err" hidden></div>
+  </main>
+  <script type="module">
+    import { CONFIG } from './js/config.js';
+    const m = await import('./vendor/firebase.js');
+    const params = new URLSearchParams(location.search);
+    const en = params.get('lang') === 'en';
+    if (en) {
+      document.documentElement.lang = 'en';
+      t.textContent = 'Sign in to Mobilis';
+      d.textContent = 'Choose your Google account. You will then return to the app.';
+      go.textContent = 'Continue with Google';
+      back.textContent = 'Return to Mobilis';
+    }
+    const app = m.initializeApp(CONFIG.firebase);
+    const auth = m.getAuth(app);
+    const provider = new m.GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+
+    function done(result) {
+      const cred = m.GoogleAuthProvider.credentialFromResult(result);
+      if (!cred || !cred.idToken) throw new Error('no token');
+      const url = 'ca.mobilis.app://auth#id_token=' + encodeURIComponent(cred.idToken);
+      back.href = url; back.hidden = false; go.hidden = true;
+      d.textContent = en ? 'Signed in. Tap the button to return to the app.' : 'Connexion réussie. Touche le bouton pour revenir dans l’application.';
+      location.href = url;
+    }
+    function fail(e) { err.hidden = false; err.textContent = (en ? 'Sign-in failed: ' : 'Connexion impossible : ') + (e.code || e.message); }
+
+    try { const r = await m.getRedirectResult(auth); if (r) done(r); } catch (e) { fail(e); }
+    go.onclick = async () => {
+      try { done(await m.signInWithPopup(auth, provider)); }
+      catch (e) {
+        if (String(e.code).includes('popup')) { try { await m.signInWithRedirect(auth, provider); } catch (e2) { fail(e2); } }
+        else fail(e);
+      }
+    };
+  </script>
+</body>
+</html>

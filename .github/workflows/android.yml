@@ -15,7 +15,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      HAS_GOOGLE: ${{ secrets.GOOGLE_SERVICES_JSON != '' }}
       HAS_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
     steps:
       - uses: actions/checkout@v4
@@ -43,15 +42,9 @@ jobs:
           npx cap add android
           # Permission caméra
           sed -i 's#</manifest>#    <uses-permission android:name="android.permission.CAMERA" />\n    <uses-feature android:name="android.hardware.camera" android:required="false" />\n</manifest>#' android/app/src/main/AndroidManifest.xml
-
-      - name: Connexion Google native (facultatif)
-        if: env.HAS_GOOGLE == 'true'
-        env:
-          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
-        run: |
-          npm install --no-save @capacitor-firebase/authentication@^8.5.2
-          echo "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
-          sed -i 's/ext {/ext {\n    rgcfaIncludeGoogle = true/' android/variables.gradle
+          # Retour de la connexion Google (ca.mobilis.app://auth)
+          sed -i '0,/<\/activity>/s##    <intent-filter>\n                <action android:name="android.intent.action.VIEW" />\n                <category android:name="android.intent.category.DEFAULT" />\n                <category android:name="android.intent.category.BROWSABLE" />\n                <data android:scheme="ca.mobilis.app" />\n            </intent-filter>\n        </activity>#' android/app/src/main/AndroidManifest.xml
+          cat android/app/src/main/AndroidManifest.xml
 
       - name: Signature (facultatif)
         if: env.HAS_KEYSTORE == 'true'
