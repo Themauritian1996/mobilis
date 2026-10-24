@@ -923,3 +923,9 @@ export const EQUIP = {
   towel: S('Serviette', 'Towel'), flexbar: S('Barre flexible', 'Flexbar'), hammer: S('Marteau', 'Hammer'),
   putty: S('Pâte', 'Putty'), weight: S('Poids cheville', 'Ankle weight'),
 };
+
+// Exercices qui se font un côté à la fois (le patient choisit gauche, droite ou les deux)
+export const UNILATERAL = new Set(['pendulum', 'er_band', 'elbow_curl', 'iso_wrist_ext', 'ecc_wrist_ext', 'ecc_wrist_flex', 'tyler_twist', 'pron_sup',
+  'tendon_glides', 'median_glide', 'wrist_rom', 'radial_dev', 'thumb_opp', 'thumb_cmc', 'grip_putty', 'open_book', 'side_plank', 'sciatic_glide',
+  'clamshell', 'hip_abd_stand', 'iso_hip_abd', 'step_up', 'hip_flex_stretch', 'sl_balance', 'slr', 'knee_ext_sit', 'step_down', 'tke',
+  'ecc_heel_drop', 'knee_to_wall', 'calf_stretch', 'ankle_alpha', 'eversion_band', 'inversion_band', 'short_foot', 'plantar_stretch', 'towel_curl', 'hallux_mob']);

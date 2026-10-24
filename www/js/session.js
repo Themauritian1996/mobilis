@@ -7,6 +7,7 @@ import { LAY } from './data/triage.js';
 import { state, go, profile, todaySession, updateProfile, navRole } from './state.js';
 import { esc, icon, IC, toast, mountFigs, figSvg, nav } from './ui.js';
 import { doseText } from './train.js';
+import { EQUIP_IDS, haveList, missing, alternatives } from './equip.js';
 
 const $app = () => document.getElementById('app');
 const mins = (sec) => Math.max(1, Math.round(sec / 60));
@@ -23,6 +24,7 @@ export function viewSession() {
   const path = P.pathologyById(prof.pathology);
   const total = todo.reduce((a, x) => a + P.exerciseSeconds(x.dose), 0);
   const equip = [...new Set(active.flatMap((x) => EXERCISES[x.id].equip || []))];
+  const have = haveList(prof);
   const cam = active.filter((x) => EXERCISES[x.id].track);
   const planes = [...new Set(cam.flatMap((x) => Object.keys(EXERCISES[x.id].track.planes)))];
   const floor = active.some((x) => (EXERCISES[x.id].equip || []).includes('mat'));
@@ -31,6 +33,8 @@ export function viewSession() {
 
   const row = (x) => {
     const ex = EXERCISES[x.id], d = x.dose, isDone = done.has(x.id), isOpen = open === x.id;
+    const miss = missing(x.id, have), from = P.swappedFrom(prof, x.id);
+    const alts = miss.length ? alternatives(x.id, have) : [];
     return `<div class="sess-item ${x.skipped ? 'skipped' : ''} ${isDone ? 'done' : ''}">
       <div class="ex-item" style="padding:10px 12px 10px 10px">
         <div class="ex-thumb">${figSvg(x.id, { stat: true })}</div>
@@ -41,8 +45,12 @@ export function viewSession() {
             ${(ex.equip || []).map((e) => `<span class="chip sm">${esc(tr(EQUIP[e]))}</span>`).join('')}
             ${d.custom ? `<span class="chip sm ink">${t(x.kept ? 'sessCustomKept' : 'sessCustomToday')}</span>` : ''}
           </div></div>
-        ${isDone ? `<span class="chip pos">${icon('check', 14)}</span>` : `<button class="btn sm ghost" data-edit="${x.id}" aria-expanded="${isOpen}">${t(isOpen ? 'close' : 'sessEdit')}</button>`}
+        ${isDone ? `<div class="stack" style="gap:6px;align-items:flex-end"><span class="chip pos">${icon('check', 14)} ${t('doneShort')}</span><button class="btn sm ghost" data-redo="${x.id}">${icon('flip', 14)} ${t('redoEx')}</button></div>` : `<button class="btn sm ghost" data-edit="${x.id}" aria-expanded="${isOpen}">${t(isOpen ? 'close' : 'sessEdit')}</button>`}
       </div>
+      ${miss.length ? `<div class="sess-miss"><b>${icon('shield', 14)} ${t('missingEq')} ${miss.map((e) => esc(tr(EQUIP[e]))).join(', ')}</b>
+        <div class="small">${miss.map((e) => `${t('subFor')} ${esc(tr(EQUIP[e]).toLowerCase())} : ${t('sub_' + e)}`).join('<br>')}</div>
+        ${alts.length ? `<div class="small muted" style="margin-top:6px">${t('orSwap')}</div><div class="row wrap" style="gap:6px;margin-top:4px">${alts.map((a) => `<button class="btn sm ghost" data-swap="${x.id}" data-to="${a}">${esc(tr(EXERCISES[a].name))}</button>`).join('')}</div>` : ''}</div>` : ''}
+      ${from ? `<div class="sess-miss ok small">${t('swappedFrom')} ${esc(tr(EXERCISES[from].name))} <button class="link" data-unswap="${from}">${t('undoSwap')}</button></div>` : ''}
       ${isOpen && !isDone ? editor(x) : ''}</div>`;
   };
   const editor = (x) => {
@@ -67,7 +75,10 @@ export function viewSession() {
     ${P.inFlare(prof) ? `<div class="banner neg" style="margin-top:10px">${icon('flame', 20)}<div><b>${t('flareOn')}</b><br>${t('flareOnD')}</div></div>` : ''}
     ${prof.rxNotes ? `<div class="banner" style="margin-top:10px">${icon('stetho', 20)}<div><b>${t('fromClinician')}</b><br>${esc(prof.rxNotes)}</div></div>` : ''}
     <h2>${t('sessEquip')}</h2>
-    <div class="card"><div class="row wrap" style="gap:6px">${equip.length ? equip.map((e) => `<span class="chip">${esc(tr(EQUIP[e]))}</span>`).join('') : `<span class="muted">${t('sessNoEquip')}</span>`}</div>
+    <div class="card"><div class="row wrap" style="gap:6px">${equip.length ? equip.map((e) => `<span class="chip ${have && !have.includes(e) ? 'neg' : ''}">${esc(tr(EQUIP[e]))}</span>`).join('') : `<span class="muted">${t('sessNoEquip')}</span>`}</div>
+      <details class="my-equip" ${state.equipOpen ? 'open' : ''}><summary>${t('myEquip')}${have ? '' : ` · <span class="muted">${t('myEquipUnset')}</span>`}</summary>
+        <p class="small muted" style="margin:6px 0 8px">${t('myEquipD')}</p>
+        <div class="row wrap" style="gap:6px">${EQUIP_IDS.map((e) => `<button class="pill ${!have || have.includes(e) ? 'on' : ''}" data-eq="${e}">${esc(tr(EQUIP[e]))}</button>`).join('')}</div></details>
       <ul class="list-plain small" style="margin-top:10px">
         ${cam.length ? `<li>${t('sessCamSpace')}</li>${planes.length > 1 ? `<li>${t('sessBothPlanes')}</li>` : ''}` : ''}
         ${floor ? `<li>${t('sessFloor')}</li>` : ''}
@@ -79,11 +90,26 @@ export function viewSession() {
     <h2>${t('sessList')}</h2>
     <div class="list">${items.map(row).join('')}</div>
     <p class="note">${t('sessOverNote')}</p>
-    <div class="sticky-cta"><div>${todo.length ? `<button class="btn" data-a="start">${IC.play.replace('<svg', '<svg width="16" height="16"')} ${t(done.size ? 'continueSession' : 'startSession')} · ~${mins(total)} min</button>` : `<button class="btn soft" disabled>${t('sessionDone')}</button>`}</div></div>
+    <div class="sticky-cta"><div>${todo.length ? `<button class="btn" data-a="start">${IC.play.replace('<svg', '<svg width="16" height="16"')} ${t(done.size ? 'continueSession' : 'startSession')} · ~${mins(total)} min</button>` : `<button class="btn" data-a="again">${icon('flip', 16)} ${t('redoSession')}</button>`}</div></div>
   </section>`;
   mountFigs($app());
 
   const q = (s) => $app().querySelector(s);
+  // Refaire un exercice ou toute la séance le même jour (les séances refaites s'ajoutent à l'historique)
+  $app().querySelectorAll('[data-redo]').forEach((b) => (b.onclick = () => { state.redo = true; go(`#/train/${b.dataset.redo}`); }));
+  // Matériel du patient et remplacements
+  $app().querySelectorAll('[data-eq]').forEach((b) => (b.onclick = async () => {
+    const cur = haveList(profile()) || [...EQUIP_IDS]; const e = b.dataset.eq;
+    state.equipOpen = true; const y = scrollY;
+    await updateProfile({ equipment: cur.includes(e) ? cur.filter((x) => x !== e) : [...cur, e] }); viewSession(); scrollTo(0, y);
+  }));
+  $app().querySelectorAll('[data-swap]').forEach((b) => (b.onclick = async () => {
+    const y = scrollY; await updateProfile({ swaps: { ...(profile().swaps || {}), [b.dataset.swap]: b.dataset.to } }); toast(t('swapDone')); viewSession(); scrollTo(0, y);
+  }));
+  $app().querySelectorAll('[data-unswap]').forEach((b) => (b.onclick = async () => {
+    const sw = { ...(profile().swaps || {}) }; delete sw[b.dataset.unswap]; const y = scrollY; await updateProfile({ swaps: sw }); viewSession(); scrollTo(0, y);
+  }));
+  const ag = q('[data-a="again"]'); if (ag) ag.onclick = () => { state.redoQueue = active.map((x) => x.id); state.redo = true; go(`#/train/${active[0].id}`); };
   const st = q('[data-a="start"]'); if (st) st.onclick = () => { state.sessOpen = null; go(`#/train/${todo[0].id}`); };
   $app().querySelectorAll('[data-edit]').forEach((b) => (b.onclick = () => { state.sessOpen = open === b.dataset.edit ? null : b.dataset.edit; const y = scrollY; viewSession(); scrollTo(0, y); }));
 

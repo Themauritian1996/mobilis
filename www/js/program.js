@@ -30,10 +30,14 @@ export function doseFor(exId, level = 3, flare = false) {
 
 // Exercices de la phase : plan du clinicien s'il correspond à la phase, sinon protocole de la pathologie
 export function exerciseIds(profile, phase = profile.phase || 1) {
-  if (profile.plan && profile.plan.phase === phase && profile.plan.ids?.length) return profile.plan.ids;
-  const path = pathologyById(profile.pathology);
-  return path ? path.phases[phase] || path.phases[1] : [];
+  let ids;
+  if (profile.plan && profile.plan.phase === phase && profile.plan.ids?.length) ids = profile.plan.ids;
+  else { const path = pathologyById(profile.pathology); ids = path ? path.phases[phase] || path.phases[1] : []; }
+  // Remplacements choisis (matériel manquant) : exercice d'origine → exercice équivalent
+  const sw = profile.swaps || {};
+  return [...new Set(ids.map((id) => (sw[id] && EXERCISES[sw[id]] ? sw[id] : id)))];
 }
+export const swappedFrom = (profile, id) => Object.entries(profile.swaps || {}).find(([, v]) => v === id)?.[0] || null;
 
 export function levelOf(profile, id) {
   return profile.levels?.[id] ?? profile.baseLevel ?? startLevel(profile.irritability);

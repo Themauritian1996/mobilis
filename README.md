@@ -13,6 +13,16 @@ Application web + APK Android qui filme le patient pendant ses exercices, analys
 | Comptes et données | Firebase `mobilis-6828b` : Google + courriel, Firestore à Montréal, règles « chaque patient voit seulement ses données » |
 | Coach Gemini | clé personnelle entrée dans **Profil → Coach IA** (GitHub Pages n'a pas de serveur). Pour une clé cachée côté serveur, voir l'option Cloudflare plus bas. |
 
+## Nouveautés 1.7
+
+- **Voix dans l'APK** : la WebView Android n'a pas de synthèse vocale ; l'app utilise maintenant la voix native d'Android (plugin `@capacitor-community/text-to-speech`) pour toutes les consignes, le comptage et le coach IA. « Coach IA activé » est annoncé au démarrage.
+- **Côté travaillé** (exercices unilatéraux) : gauche, droit ou les deux (séries alternées, côté annoncé à voix haute et analysé par la caméra). Le clinicien indique le côté atteint dans le programme.
+- **Refaire** : refaire une série (dans le résumé), refaire un exercice déjà fait ou toute la séance le même jour (aperçu de séance et accueil).
+- **Matériel** : « Mon matériel » dans l'aperçu de séance (et « Matériel du patient » dans l'éditeur du clinicien). Pour tout matériel manquant : remplacement maison (bouteille d'eau, serviette, marche d'escalier…) et exercices équivalents sans ce matériel (même région, mêmes structures), à appliquer en un toucher.
+- **Diagnostic écrit** : phrases du quotidien mieux reconnues (« douleur genou en descendant les escaliers » → douleur à l'avant du genou).
+- **Correctif** : l'écran d'exercice pouvait rester affiché par-dessus l'app après une séance.
+- **Vérification complète** : parcours patient et clinicien testés de bout en bout (26 points, aucun échec).
+
 ## Nouveautés 1.6
 
 - **Contrôle « bon mouvement » (fiable, sur le téléphone)** : en continu, les angles du patient (tronc, épaule, coude, hanche, genou) sont comparés à ceux de la **démonstration** de l'exercice (cinématique du schéma, de l'image de départ à celle d'arrivée). Articulations qui doivent rester fixes : écart et mouvement parasite ; articulations qui doivent bouger : amplitude et zone. Exemple : flexion du biceps à la place du pendule de Codman → « Ce n'est pas le mouvement prévu. Penche le tronc vers l'avant… » puis « Garde le coude tendu ». Fonctionne aussi pour les exercices guidés quand la caméra miroir est active. Test : 43/43 exercices reconnus sans fausse alerte, biceps au lieu du pendule signalé 100 % du temps (`tests/movematch.test.mjs`).

@@ -189,7 +189,7 @@ const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-
 const REGION_WORDS = {
   cervical: ['cou', 'nuque', 'cervical', 'neck'], thoracic: ['dorsal', 'omoplate', 'thoracique', 'milieu du dos', 'upper back'],
   shoulder: ['epaule', 'shoulder', 'coiffe'], elbow: ['coude', 'elbow'], wrist: ['poignet', 'main', 'pouce', 'doigt', 'wrist', 'hand', 'thumb', 'finger'],
-  lumbar: ['lombaire', 'bas du dos', 'reins', 'low back', 'sciatique', 'lumbar'], hip: ['hanche', 'aine', 'fesse', 'hip', 'groin', 'buttock'],
+  lumbar: ['lombaire', 'bas du dos', 'reins', 'low back', 'sciatique', 'lumbar', 'dos', 'back'], hip: ['hanche', 'aine', 'fesse', 'hip', 'groin', 'buttock'],
   knee: ['genou', 'rotule', 'knee', 'kneecap'], ankle: ['cheville', 'achille', 'ankle'], foot: ['pied', 'talon', 'orteil', 'foot', 'heel', 'toe'],
 };
 const STOP = new Set(['douleur', 'douleurs', 'apres', 'avant', 'quand', 'surtout', 'arthritis', 'pain', 'after', 'when', 'tendon']);
@@ -198,12 +198,12 @@ const STOP = new Set(['douleur', 'douleurs', 'apres', 'avant', 'quand', 'surtout
 const normU = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f\u064b-\u0652]/g, '').replace(/[^\p{L}\p{N} ]+/gu, ' ').replace(/\s+/g, ' ').trim();
 const CJK = /[\u3400-\u9fff]/;
 const grams = (s) => { const c = s.replace(/ /g, ''); const g = new Set(); for (let i = 0; i < c.length - 1; i++) g.add(c.slice(i, i + 2)); return g; };
-const XSTOP = new Set(['dolor', 'dores', 'dolores', 'pain', 'despues', 'depois', 'quando', 'cuando', 'muito', 'mucho', 'para', 'como', 'with', 'sobre', 'todo', 'toda', 'tiempo', 'tempo']);
+const XSTOP = new Set(['douleur', 'quand', 'apres', 'avant', 'dans', 'avec', 'pain', 'when', 'after', 'dolor', 'dores', 'dolores', 'pain', 'despues', 'depois', 'quando', 'cuando', 'muito', 'mucho', 'para', 'como', 'with', 'sobre', 'todo', 'toda', 'tiempo', 'tempo']);
 function xScore(t, cand) {
   const c = normU(cand); if (!c) return 0;
   if (CJK.test(c)) { const tg = grams(t); let n = 0; for (const g of grams(c)) if (tg.has(g)) n++; return n * 1.5; }
   let n = 0;
-  for (const w of new Set(c.split(' '))) if (w.length > 3 && !XSTOP.has(w) && (' ' + t + ' ').includes(' ' + w)) n += 2;
+  for (const w of new Set(c.split(' '))) if (w.length > 3 && !XSTOP.has(w) && (' ' + t + ' ').includes(' ' + (w.length > 6 ? w.slice(0, 6) : w))) n += 2;
   // arabe : racines collées aux articles (ال) → recherche sans espaces
   if (!n && /[\u0600-\u06ff]/.test(c)) for (const w of new Set(c.split(' '))) { const r = w.replace(/^ال/, ''); if (r.length > 2 && t.includes(r)) n += 2; }
   return n;
@@ -222,6 +222,7 @@ export function matchDiagnosis(text, pathologies, opts = {}) {
     for (const k of lay.kw) { const ws = norm(k).split(' ').filter((w) => w.length > 1); if (ws.length && ws.every((w) => t.includes(' ' + w))) score += ws.length * 2 + 1; }
     for (const w of new Set(norm(p.name.fr + ' ' + p.name.en).split(' '))) if (w.length > 5 && !STOP.has(w) && t.includes(' ' + w)) score += 1;
     if (xl) score += Math.max(xScore(tu, xl(lay.name)), xScore(tu, xl(p.name)));
+    else score += Math.max(xScore(tu, lay.name.fr), xScore(tu, lay.name.en), xScore(tu, p.name.fr) * 0.75, xScore(tu, p.name.en) * 0.75) * 0.75;
     if (regions.length) score += regions.includes(p.region) ? 3 : -3;
     if (score > (regions.length ? 3 : 1)) out.push({ id: p.id, score });
   }

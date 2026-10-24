@@ -1,7 +1,8 @@
 // Mode clinicien : préparer un programme, l'envoyer par code / QR / lien, suivre et ajuster la progression du patient.
 import { t, tr, getLang, locale, LANGS, langInfo } from './i18n.js';
 import { REGIONS, PATHOLOGIES } from './data/pathologies.js';
-import { EXERCISES } from './data/exercises.js';
+import { EXERCISES, EQUIP } from './data/exercises.js';
+import { EQUIP_IDS, missing, alternatives } from './equip.js';
 import { CONFIG } from './config.js';
 import * as store from './store.js';
 import { state, go, profile } from './state.js';
@@ -73,12 +74,18 @@ export async function viewRxEditor(code) {
     code: code || null, clinician: rx?.clinician || prof.clinicianName || prof.name || '', region: rx?.region || 'shoulder', pathology: rx?.pathology || null,
     phase: rx?.phase || 1, ids: rx?.ids || [], levels: { ...(rx?.levels || {}) }, auto: rx ? !!rx.auto : true, notes: rx?.notes || '', nextVisit: rx?.nextVisit || '',
     label: rx?.label || '', version: rx?.version || 0, created: rx?.created || null, days: rx?.days || [1, 3, 5],
-    lang: rx?.lang || getLang(), localId: rx?.localId || null,
+    lang: rx?.lang || getLang(), localId: rx?.localId || null, equip: rx?.equip || null, side: rx?.side || null,
   });
   const path = PATHOLOGIES.find((p) => p.id === f.pathology);
   const regionEx = [...new Set(PATHOLOGIES.filter((p) => p.region === f.region).flatMap((p) => Object.values(p.phases).flat()))];
   const others = regionEx.filter((id) => !f.ids.includes(id));
   const draw = () => viewRxEditor(code);
+  // Matériel manquant → remplacement maison ou exercice équivalent proposé au clinicien
+  const missEq = (id) => {
+    const m = missing(id, f.equip); if (!m.length) return '';
+    const alts = alternatives(id, f.equip, { exclude: f.ids });
+    return `<small class="neg" style="display:block">${t('missingEq')} ${m.map((e) => esc(tr(EQUIP[e]))).join(', ')}${alts.length ? ` · ${alts.map((a) => `<button class="link" data-rep="${id}" data-to="${a}">↔ ${esc(tr(EXERCISES[a].name))}</button>`).join(' ')}` : ` · ${t('sub_' + m[0])}`}</small>`;
+  };
   const scroll = (fn) => { const y = window.scrollY; fn(); draw(); window.scrollTo(0, y); };
 
   $app().innerHTML = `<section class="screen"><div class="topbar"><button class="icon-btn" data-go="#/clinic" aria-label="${t('back')}">${icon('back', 20)}</button><h1>${code ? t('adjustRx') : t('newRx')}</h1></div>
@@ -89,10 +96,13 @@ export async function viewRxEditor(code) {
     ${path ? `
     <h2>${t('phase')}</h2><div class="seg">${[1, 2, 3].map((n) => `<button data-ph="${n}" class="${f.phase === n ? 'on' : ''}">${n} · ${t('phaseName' + n)}</button>`).join('')}</div>
     <h2>${t('exercises')} (${f.ids.length})</h2>
-    <div class="list">${f.ids.map((id) => `<div class="ex-item"><span class="ex-thumb">${figSvg(id, { stat: true })}</span><span class="meta"><b>${esc(tr(EXERCISES[id].name))}</b><small>${EXERCISES[id].track ? t('tracked') : t('guidedShort')}</small></span>
+    <div class="list">${f.ids.map((id) => `<div class="ex-item"><span class="ex-thumb">${figSvg(id, { stat: true })}</span><span class="meta"><b>${esc(tr(EXERCISES[id].name))}</b>${missEq(id)}<small>${EXERCISES[id].track ? t('tracked') : t('guidedShort')}</small></span>
       <span class="stepper"><button data-lv="${id}" data-d="-1" aria-label="-">−</button><b class="tnum">${f.levels[id] || 2}</b><button data-lv="${id}" data-d="1" aria-label="+">+</button></span>
       <button class="icon-btn" data-rm="${id}" aria-label="${t('remove')}" style="width:34px;height:34px">${icon('close', 16)}</button></div>`).join('') || `<div class="toggle muted">${t('noExSelected')}</div>`}</div>
     ${others.length ? `<details style="margin-top:10px"><summary class="small" style="cursor:pointer;font-weight:700">${t('addExercise')} (${others.length})</summary><div class="list" style="margin-top:8px">${others.map((id) => `<button class="ex-item" data-add="${id}"><span class="ex-thumb">${figSvg(id, { stat: true })}</span><span class="meta"><b>${esc(tr(EXERCISES[id].name))}</b></span>${icon('plus', 18)}</button>`).join('')}</div></details>` : ''}
+    <h2>${t('patientEquip')}</h2><p class="small muted" style="margin:-4px 0 8px">${t('patientEquipD')}</p>
+    <div class="pills">${EQUIP_IDS.map((e) => `<button class="pill ${!f.equip || f.equip.includes(e) ? 'on' : ''}" data-peq="${e}">${esc(tr(EQUIP[e]))}</button>`).join('')}</div>
+    <h2>${t('patientSide')}</h2><div class="seg">${['L', 'R', 'both'].map((v) => `<button data-pside="${v}" class="${(f.side || 'both') === v ? 'on' : ''}">${t(v === 'L' ? 'sideLeft' : v === 'R' ? 'sideRight' : 'sideBoth')}</button>`).join('')}</div>
     <h2>${t('trainDays')}</h2><div class="seg">${[2, 3, 4, 5, 6].map((n) => `<button data-pw="${n}" class="${f.days.length === n ? 'on' : ''}">${n}×</button>`).join('')}</div>
     <div class="list" style="margin-top:14px"><div class="toggle"><span><b>${t('autoProg')}</b><br><small class="muted">${t('autoProgD')}</small></span><button class="switch ${f.auto ? 'on' : ''}" id="auto" role="switch" aria-checked="${f.auto}"></button></div></div>
     <label class="field" style="margin-top:14px"><span>${t('notesForPatient')}</span><textarea class="input" id="nt" placeholder="${t('notesPh')}">${esc(f.notes)}</textarea></label>
@@ -111,6 +121,9 @@ export async function viewRxEditor(code) {
   qa('[data-lv]').forEach((b) => (b.onclick = () => scroll(() => { const id = b.dataset.lv; f.levels[id] = Math.max(1, Math.min(5, (f.levels[id] || 2) + +b.dataset.d)); })));
   qa('[data-rm]').forEach((b) => (b.onclick = () => scroll(() => { f.ids = f.ids.filter((x) => x !== b.dataset.rm); })));
   qa('[data-add]').forEach((b) => (b.onclick = () => scroll(() => { f.ids = [...f.ids, b.dataset.add]; })));
+  qa('[data-peq]').forEach((b) => (b.onclick = () => scroll(() => { const cur = f.equip || [...EQUIP_IDS]; const e = b.dataset.peq; f.equip = cur.includes(e) ? cur.filter((x) => x !== e) : [...cur, e]; })));
+  qa('[data-pside]').forEach((b) => (b.onclick = () => scroll(() => { f.side = b.dataset.pside; })));
+  qa('[data-rep]').forEach((b) => (b.onclick = (e) => { e.stopPropagation(); scroll(() => { const i = f.ids.indexOf(b.dataset.rep); if (i >= 0) { f.ids[i] = b.dataset.to; f.levels[b.dataset.to] = f.levels[b.dataset.rep] || 2; } }); }));
   qa('[data-pw]').forEach((b) => (b.onclick = () => scroll(() => { f.days = { 2: [1, 4], 3: [1, 3, 5], 4: [1, 2, 4, 5], 5: [1, 2, 3, 4, 5], 6: [1, 2, 3, 4, 5, 6] }[+b.dataset.pw]; })));
   const au = q('#auto'); if (au) au.onclick = () => scroll(() => { f.auto = !f.auto; });
   const nt = q('#nt'); if (nt) nt.oninput = (e) => { f.notes = e.target.value; };
@@ -121,7 +134,7 @@ export async function viewRxEditor(code) {
   q('#save').onclick = async () => {
     q('#save').disabled = true;
     const levels = levelsOf();
-    const data = { code: f.code, clinician: f.clinician.trim(), label: f.label.trim(), region: f.region, pathology: f.pathology, phase: f.phase, ids: f.ids, levels, auto: f.auto, notes: f.notes.trim(), nextVisit: f.nextVisit || null, days: f.days, version: f.version, created: f.created, lang: f.lang || getLang() };
+    const data = { code: f.code, clinician: f.clinician.trim(), label: f.label.trim(), region: f.region, pathology: f.pathology, phase: f.phase, ids: f.ids, levels, auto: f.auto, notes: f.notes.trim(), nextVisit: f.nextVisit || null, days: f.days, version: f.version, created: f.created, lang: f.lang || getLang(), equip: f.equip || null, side: f.side || null };
     if (f.localId) data.localId = f.localId;
     try {
       const res = await store.saveRx(data);

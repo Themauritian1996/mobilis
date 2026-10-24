@@ -425,3 +425,14 @@ html[dir="rtl"] .switch.on::after { transform: translateX(-20px); }
 .reps-tbl th { text-align: start; font-weight: 600; color: var(--muted); padding: 4px 6px; border-bottom: 1px solid var(--line); }
 .reps-tbl td { padding: 5px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
 .reps-tbl td.pos { color: var(--pos); font-weight: 700; } .reps-tbl td.neg { color: var(--neg); font-weight: 700; }
+
+/* 1.7 : matériel, côté, refaire */
+.my-equip { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
+.my-equip summary { font-weight: 700; font-size: 14px; cursor: pointer; }
+.my-equip .pill { font-size: 13px; }
+.sess-miss { margin: 0 12px 12px; padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, var(--neg) 9%, var(--surface)); border: 1px solid color-mix(in srgb, var(--neg) 25%, transparent); font-size: 13.5px; }
+.sess-miss b { display: inline-flex; gap: 6px; align-items: center; margin-bottom: 4px; }
+.sess-miss b svg { width: 14px; height: 14px; }
+.sess-miss.ok { background: var(--surface-2); border-color: var(--line); }
+.train .side-now { display: inline-flex; gap: 6px; align-items: center; font-weight: 700; font-size: 14px; padding: 6px 12px; border-radius: 99px; background: var(--surface-2); margin: 2px 0 8px; }
+.train .side-now svg { width: 16px; height: 16px; }

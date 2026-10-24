@@ -43,7 +43,8 @@ document.addEventListener('change', async (e) => {
 
 function route() {
   stopFigs();
-  cleanup.forEach((f) => { try { f(); } catch (_) {} }); cleanup = [];
+  cleanup.forEach((f) => { try { f(); } catch (e) { console.error('cleanup', e); } }); cleanup = [];
+  document.querySelectorAll('body > .train').forEach((x) => x.remove()); // jamais d'écran de séance resté par-dessus
   document.querySelectorAll('.sheet-bg').forEach((x) => x.remove());
   window.scrollTo(0, 0);
   const r = location.hash.replace(/^#\/?/, '');
@@ -81,7 +82,7 @@ document.addEventListener('click', (e) => {
   const g = e.target.closest('[data-go]');
   if (g) { e.preventDefault(); go(g.dataset.go); return; }
   const a = e.target.closest('[data-act="quickstart"]');
-  if (a) { const n = nextExercise(); go(n ? '#/session' : '#/home'); }
+  if (a) go(profile()?.pathology ? '#/session' : '#/home');
 });
 
 // ---------- Connexion ----------
@@ -168,7 +169,7 @@ function viewHome() {
       <div class="row between"><div class="grow"><span class="eyebrow">${t('week')} ${week} · ${t('phase')} ${phase} · ${t('phaseName' + phase)}</span><h3 style="margin-top:6px">${esc(layName(prof.pathology))}</h3></div><div class="big">${pct}<span style="font-size:18px">%</span></div></div>
       <div class="bar pos" style="margin:14px 0"><i style="width:${pct}%"></i></div>
       ${flare ? `<div class="banner neg" style="margin-bottom:12px">${icon('flame', 20)}<div><b>${t('flareOn')}</b><br>${t('flareOnD')} <button class="link" data-a="flareOff">${t('flareEnd')}</button></div></div>` : ''}
-      ${next ? `<button class="btn" data-go="#/session">${IC.play.replace('<svg', '<svg width="16" height="16"')} ${nDone ? t('continueSession') : isTrainDay ? t('startSession') : t('startExtra')}</button>` : `<button class="btn soft" disabled>${t('sessionDone')}</button>`}
+      ${next ? `<button class="btn" data-go="#/session">${IC.play.replace('<svg', '<svg width="16" height="16"')} ${nDone ? t('continueSession') : isTrainDay ? t('startSession') : t('startExtra')}</button>` : `<button class="btn soft" data-go="#/session">${icon('check', 16)} ${t('sessionDone')} · ${t('redoSession')}</button>`}
     </div>
 
     ${journal ? '' : `<div class="card" style="margin-top:10px"><div class="row between"><b>${t('dailyQ')}</b><span class="small muted">0–10</span></div>

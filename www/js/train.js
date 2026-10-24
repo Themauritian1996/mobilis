@@ -1,15 +1,17 @@
 // Séance d'un exercice : caméra (pose 2D, 2 plans) ou mode guidé, résumé, rétroaction et ajustement du niveau.
 import { t, tr } from './i18n.js';
-import { EXERCISES } from './data/exercises.js';
+import { EXERCISES, UNILATERAL } from './data/exercises.js';
 import * as P from './program.js';
 import * as store from './store.js';
 import { loadPose, detect, toPx, Tracker, drawSkeleton, FAULT_JOINTS, detectPlane, bodyVisible } from './pose.js';
-import { speak, cue, cueText, countAloud, coachComment, localComment, coachReply, speakRich, grabFrame, startDictation, dictationMode, aiAvailable } from './coach.js';
-import { state, go, profile, sessions, todaySession, nextExercise, syncProgress } from './state.js';
+import { speak, stopSpeech, cue, cueText, countAloud, coachComment, localComment, coachReply, speakRich, grabFrame, startDictation, dictationMode, aiAvailable } from './coach.js';
+import { state, go, profile, sessions, todaySession, nextExercise, syncProgress, updateProfile } from './state.js';
 import { esc, icon, IC, toast, mountFigs, figSvg, figureBlock, sleep } from './ui.js';
 import { startLiveCoach, liveAvailable, primeAudio } from './live.js';
 import { createPreciseCoach } from './ai-coach.js';
 import { MoveMatcher, drawGuides, hintKey } from './movematch.js';
+import { haveList, missing } from './equip.js';
+import { EQUIP } from './data/exercises.js';
 import { CUES } from './i18n.js';
 
 const RING = 276.5;
@@ -27,7 +29,13 @@ export function viewTrain(id, cleanup) {
   const dose = item ? item.dose : P.doseFor(id, level, P.inFlare(prof));
   const path = P.pathologyById(prof.pathology) || { name: { fr: 'Exercice libre', en: 'Free exercise' }, painMax: 4 };
   const planes = ex.track ? Object.keys(ex.track.planes) : [];
-  const totalSets = dose.type === 'hold' ? dose.sets * (dose.reps || 1) : dose.sets;
+  const baseSets = dose.type === 'hold' ? dose.sets * (dose.reps || 1) : dose.sets;
+  // Côté travaillé (exercices unilatéraux) : gauche, droit ou les deux (séries alternées)
+  const uni = UNILATERAL.has(id);
+  let sideMode = uni ? (prof.sides?.[id] || prof.side || 'both') : null;
+  let totalSets = sideMode === 'both' ? baseSets * 2 : baseSets;
+  const curSide = () => (!uni ? null : sideMode === 'both' ? (T.set % 2 === 0 ? 'L' : 'R') : sideMode);
+  const setIdx = () => (sideMode === 'both' ? Math.floor(T.set / 2) : T.set);
   const T = { set: 0, sets: [], stream: null, raf: 0, tracker: null, mode: ex.track ? 'camera' : 'guided', facing: store.settings().camera, active: false, guidedTimer: null, selfView: store.settings().selfView !== false, guides: store.settings().guides !== false, liveAI: !!store.settings().liveAI && liveAvailable(), live: null, liveState: 'off' };
   const planeFor = (i) => planes[i % planes.length];
   const holdTarget = dose.type === 'hold' ? dose.hold : 0;
@@ -57,9 +65,10 @@ export function viewTrain(id, cleanup) {
   mountFigs(root);
 
   function close() {
-    T.active = false; cancelAnimationFrame(T.raf); clearInterval(T.guidedTimer); clearInterval(T.restTimer); stopLive();
+    T.active = false; cancelAnimationFrame(T.raf); clearInterval(T.guidedTimer); clearInterval(T.restTimer);
+    try { stopLive(); } catch (e) { console.error('close', e); }
     if (T.stream) T.stream.getTracks().forEach((tk) => tk.stop());
-    try { speechSynthesis.cancel(); } catch (_) {}
+    stopSpeech();
     root.remove();
   }
   cleanup.push(close);
@@ -108,7 +117,7 @@ export function viewTrain(id, cleanup) {
   }
   const liveCtx = () => ({
     exercise: ex.name.en, condition: path.name.en || tr(path.name), target: dose.type === 'hold' ? holdTarget : dose.reps,
-    painLimit: path.painMax ?? 4, steps: ex.steps.en || [], keys: (ex.keys || []).map((k) => k.en || tr(k)), plane: T.mode === 'camera' ? planeFor(T.set) : 'guided',
+    painLimit: path.painMax ?? 4, steps: ex.steps.en || [], keys: (ex.keys || []).map((k) => k.en || tr(k)), plane: T.mode === 'camera' ? planeFor(setIdx()) : 'guided',
   });
   function liveState() {
     if (T.mode === 'camera' && T.tracker) {
@@ -149,7 +158,8 @@ export function viewTrain(id, cleanup) {
       });
       return;
     }
-    const plane = T.mode === 'camera' ? planeFor(T.set) : 'guided';
+    const plane = T.mode === 'camera' ? planeFor(setIdx()) : 'guided';
+    if (!T.aiAnnounced) { T.aiAnnounced = true; speak(t('aiOnSpoken')); }
     const c = liveCtx();
     const coach = createPreciseCoach({ ex, exercise: c.exercise, condition: c.condition, steps: c.steps, plane, mode: T.mode === 'camera' ? (dose.type === 'hold' ? 'hold' : 'reps') : 'guided', target: c.target, tempo: dose.tempo || '2-1-2' }, {
       onResult: (v) => { aiText(v.text, true, v.seen); speak(v.text); },
@@ -181,7 +191,7 @@ export function viewTrain(id, cleanup) {
     if (T.lastLm) drawSkeleton(g2, T.lastLm, w, shot.height, T.lastFj || new Set(), mirror, true);
     if (T.lastSt?.value != null && T.mode === 'camera') {
       g2.fillStyle = 'rgba(0,0,0,.6)'; g2.fillRect(0, 0, w, 22); g2.fillStyle = '#fff'; g2.font = '13px sans-serif';
-      g2.fillText(`${ex.track.planes[planeFor(T.set)].metric}: ${Math.round(T.lastSt.value * 100) / 100}`, 6, 15);
+      g2.fillText(`${ex.track.planes[planeFor(setIdx())].metric}: ${Math.round(T.lastSt.value * 100) / 100}`, 6, 15);
     }
     return shot.toDataURL('image/jpeg', 0.7).split(',')[1];
   }
@@ -226,9 +236,9 @@ export function viewTrain(id, cleanup) {
   $('.mini-fig').onclick = openDemo;
 
   function setLabel() {
-    $('#setlbl').textContent = `${t('set')} ${T.set + 1} ${t('of')} ${totalSets} · ${doseText(dose)}${item?.flare ? ' · ' + t('flareShort') : ''}`;
+    $('#setlbl').textContent = `${t('set')} ${T.set + 1} ${t('of')} ${totalSets} · ${doseText(dose)}${curSide() ? ' · ' + t(curSide() === 'L' ? 'sideL' : 'sideR') : ''}${item?.flare ? ' · ' + t('flareShort') : ''}`;
     if (T.mode === 'camera') {
-      const pl = planeFor(T.set);
+      const pl = planeFor(setIdx());
       $('#pbadge').innerHTML = `<span class="plane-badge">${icon(pl === 'side' ? 'side' : 'front', 14)} ${t(pl === 'side' ? 'planeSide' : 'planeFront')} · ${t(pl === 'side' ? 'planeSideD' : 'planeFrontD')}</span>`;
     } else $('#pbadge').innerHTML = '';
   }
@@ -241,14 +251,14 @@ export function viewTrain(id, cleanup) {
     $('[data-t="end"]').hidden = true; $('.counter').hidden = true; $('.depth').hidden = true; $('.mini-fig').hidden = true;
     const s = $('.setup'); s.hidden = false;
     if (T.mode === 'camera') {
-      const pl = planeFor(T.set);
+      const pl = planeFor(setIdx());
       s.innerHTML = `<span class="eyebrow">${t('setupTitle')}</span><h3 style="margin:6px 0 4px">${t(pl === 'side' ? 'setupSide' : 'setupFront')}</h3>
-        ${figureBlock(id, { keys: false })}<p class="small muted">${t('setupTip')}</p>
+        ${sideRow()}${eqNote()}${figureBlock(id, { keys: false })}<p class="small muted">${t('setupTip')}</p>
         ${selfRow('selfViewD')}${liveRow()}
         <button class="btn" data-t="go">${icon('cam', 20)} ${t('camStart')}</button>`;
       $('[data-t="guided"]').hidden = false;
     } else {
-      s.innerHTML = `<h3>${esc(tr(ex.name))}</h3>${figureBlock(id)}
+      s.innerHTML = `<h3>${esc(tr(ex.name))}</h3>${sideRow()}${eqNote()}${figureBlock(id)}
         <ol class="steplist small" style="margin:6px -16px">${tr(ex.steps).map((x) => `<li>${esc(x)}</li>`).join('')}</ol>
         ${navigator.mediaDevices?.getUserMedia ? selfRow('mirrorD') + liveRow() : ''}
         <button class="btn" data-t="go">${IC.play.replace('<svg', '<svg width="18" height="18"')} ${t('start')}</button>`;
@@ -257,10 +267,23 @@ export function viewTrain(id, cleanup) {
     mountFigs(s);
     const sv = s.querySelector('[data-t="selfview"]'); if (sv) sv.onclick = () => setSelfView(!T.selfView);
     const la = s.querySelector('[data-t="liveai"]'); if (la) la.onclick = () => setLiveAI(!T.liveAI);
+    s.querySelectorAll('[data-side]').forEach((b) => (b.onclick = () => {
+      sideMode = b.dataset.side; totalSets = sideMode === 'both' ? baseSets * 2 : baseSets;
+      updateProfile({ sides: { ...(profile().sides || {}), [id]: sideMode }, side: profile().side || sideMode });
+      setup();
+    }));
+    s.querySelector('[data-t="go"]').addEventListener('click', () => { if (curSide()) speak(t(curSide() === 'L' ? 'sideLSpoken' : 'sideRSpoken'), { interrupt: true }); });
     paintVideoBtn(); paintAI();
     s.querySelector('[data-t="go"]').addEventListener('click', primeAudio);
     s.querySelector('[data-t="go"]').onclick = () => (T.mode === 'camera' ? startCamera() : startGuided());
   }
+  // Choix du côté : modifiable avant la 1re série ; ensuite on affiche le côté de la série en cours
+  const sideRow = () => {
+    if (!uni) return '';
+    if (T.sets.length) return `<div class="side-now">${icon('user', 16)} ${t(curSide() === 'L' ? 'sideL' : 'sideR')}${sideMode === 'both' ? ` · ${t('sideBothNote')}` : ''}</div>`;
+    return `<div class="toggle selfrow" style="display:block"><span><b>${t('sideLbl')}</b></span><div class="seg" style="margin-top:8px">${['L', 'R', 'both'].map((v) => `<button data-side="${v}" class="${sideMode === v ? 'on' : ''}">${t(v === 'L' ? 'sideLeft' : v === 'R' ? 'sideRight' : 'sideBoth')}</button>`).join('')}</div>${sideMode === 'both' ? `<small class="muted">${t('sideBothD', { n: baseSets })}</small>` : ''}</div>`;
+  };
+  const eqNote = () => { const m = missing(id, haveList(prof)); return m.length ? `<div class="banner neg small" style="margin:4px 0 8px">${icon('shield', 18)}<div>${m.map((e) => `<b>${esc(tr(EQUIP[e]))}</b> → ${t('sub_' + e)}`).join('<br>')}</div></div>` : ''; };
   const liveRow = () => `<div class="toggle selfrow"><span><b>${icon('spark', 16)} ${t('liveAI')}</b><br><small class="muted">${t(liveAvailable() ? 'liveAID' : 'liveNeedKey')}</small></span><button class="switch ${T.liveAI ? 'on' : ''}" data-t="liveai" role="switch" aria-checked="${T.liveAI}" aria-label="${t('liveAI')}"></button></div>`;
   const selfRow = (d) => `<div class="toggle selfrow"><span><b>${icon('eye', 16)} ${t('selfView')}</b><br><small class="muted">${t(d)}</small></span><button class="switch ${T.selfView ? 'on' : ''}" data-t="selfview" role="switch" aria-checked="${T.selfView}" aria-label="${t('selfView')}"></button></div>`;
   $('[data-t="guided"]').onclick = () => { T.mode = 'guided'; stopCam(); setup(); };
@@ -304,11 +327,11 @@ export function viewTrain(id, cleanup) {
   }
 
   function runSet() {
-    const pl = planeFor(T.set);
+    const pl = planeFor(setIdx());
     const recentFaults = new Map(); T.recentFaults = recentFaults;
     T.mm = new MoveMatcher(ex); T.mvKey = null; T.mvWrongInRep = false;
     T.frame = null;
-    T.tracker = new Tracker(ex, pl, {
+    T.tracker = new Tracker(ex, pl, { side: curSide(),
       romFactor: dose.romFactor,
       onCue: (k) => { if (cue(k)) { showCue(cueText(k), k === 'holdIt' || k === 'depth' ? '' : 'bad'); recentFaults.set(k, performance.now()); setTimeout(() => showCue(''), 2200); } },
       onRep: (rep) => {
@@ -378,8 +401,8 @@ export function viewTrain(id, cleanup) {
     if (!T.active) return;
     T.active = false; stopLive(); cancelAnimationFrame(T.raf); g.clearRect(0, 0, canvas.width, canvas.height); showCue('');
     const sum = T.tracker.summary();
-    const pl = planeFor(T.set);
-    T.sets.push({ plane: pl, mode: sum.mode, reps: sum.reps, full: sum.full, partial: sum.partial, holdSec: sum.holdSec, quality: sum.quality, faults: sum.faults });
+    const pl = planeFor(setIdx());
+    T.sets.push({ side: curSide(), plane: pl, mode: sum.mode, reps: sum.reps, full: sum.full, partial: sum.partial, holdSec: sum.holdSec, quality: sum.quality, faults: sum.faults });
     speak(cueText('setDone'), { interrupt: true });
     summarySheet({ ...sum, plane: pl });
   }
@@ -413,7 +436,7 @@ export function viewTrain(id, cleanup) {
     T.active = false; stopLive(); clearInterval(T.guidedTimer); center(''); $('.mini-fig').hidden = true;
     const { el, reps } = T.guidedEl();
     const sum = dose.type === 'hold' ? { mode: 'hold', holdSec: el, reps: 0, full: 0, partial: 0, quality: null, faults: {} } : { mode: 'reps', reps, full: reps, partial: 0, quality: null, faults: {} };
-    T.sets.push({ plane: 'guided', ...sum });
+    T.sets.push({ side: curSide(), plane: 'guided', ...sum });
     speak(cueText('setDone'), { interrupt: true });
     summarySheet({ ...sum, plane: 'guided' });
   }
@@ -464,7 +487,8 @@ export function viewTrain(id, cleanup) {
         ${reps.map((r) => `<tr><td>${r.n}</td><td class="${(r.meas?.romPct ?? 100) >= 90 ? 'pos' : 'neg'}">${r.meas ? Math.min(150, r.meas.romPct) + '%' : '–'}</td><td>${r.dur}s</td><td>${r.faults.length ? r.faults.map((f) => esc(cueText(f))).join(', ') : '✓'}</td></tr>`).join('')}
         </tbody></table></details>` : ''}
       <div class="list"><div class="coach-box"><span class="ai">${icon('spark', 18)}</span><div><b class="small">${t('coachSays')}</b><p id="coachtxt">${esc(local)}</p>${hasAI ? `<small id="aist" class="muted">${t('aiPending')}</small>` : ''}</div></div></div>
-      <div class="row" style="margin-top:14px">${last ? `<button class="btn" data-s="finish">${t('finishEx')}</button>` : `<button class="btn ghost" data-s="finish">${t('finishEx')}</button><button class="btn" data-s="next">${t('nextSet')}</button>`}</div></div>`;
+      <div class="row" style="margin-top:14px">${last ? `<button class="btn" data-s="finish">${t('finishEx')}</button>` : `<button class="btn ghost" data-s="finish">${t('finishEx')}</button><button class="btn" data-s="next">${t('nextSet')}</button>`}</div>
+      <button class="btn soft" data-s="redo" style="margin-top:10px">${icon('flip', 16)} ${t('redoSet')}</button></div>`;
     root.appendChild(bg);
     T.aiNotes = [];
     if (!hasAI || (moveOk != null && moveOk < 70)) { speak(local); bg.querySelector('#aist')?.remove(); }
@@ -475,6 +499,7 @@ export function viewTrain(id, cleanup) {
       else speak(local);
     });
     bg.querySelector('[data-s="finish"]').onclick = () => { bg.remove(); feedbackSheet(); };
+    bg.querySelector('[data-s="redo"]').onclick = () => { bg.remove(); T.sets.pop(); setup(); }; // reprendre la même série
     const nx = bg.querySelector('[data-s="next"]');
     if (nx) nx.onclick = () => { bg.remove(); T.set++; restThen(setup); };
   }
@@ -534,13 +559,16 @@ export function viewTrain(id, cleanup) {
       if (needCheckin) sess.checkin = fb.checkin;
       const adj = P.adjustLevel(prof, it, all, sess.checkin);
       it.change = adj.change;
+      const prev = sess.items.find((i) => i.id === id);
+      if (prev) it.redo = (prev.redo || 0) + 1; // exercice refait le même jour : on garde le dernier essai
       sess.items = sess.items.filter((i) => i.id !== id).concat(it);
       await store.saveSession(sess);
       await store.saveProfile({ ...profile(), levels: { ...(profile().levels || {}), [id]: adj.level } });
       state.data = await store.loadData();
       syncProgress();
       toast(adj.reason === 'flare' ? t('flareKeep') : adj.change > 0 ? `${t('lvlUp')} ${adj.level}` : adj.change < 0 ? `${t('lvlDown')} ${adj.level}` : `${t('lvlSame')} ${adj.level}`);
-      const nxt = nextExercise();
+      let nxt = nextExercise();
+      if (state.redoQueue?.length) { const q = state.redoQueue; const i = q.indexOf(id); const n = q[i + 1]; if (n) nxt = { id: n }; else { state.redoQueue = null; nxt = null; } }
       const leave = () => { bg.remove(); go(nxt ? `#/ex/${nxt.id}` : '#/home'); };
       if (!noteTxt) return leave();
       // Le coach répond au commentaire (Gemini si disponible, sinon accusé de réception)

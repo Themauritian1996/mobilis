@@ -184,7 +184,8 @@ export function bodyVisible(p) {
 
 // ---------- Compteur de répétitions / maintien ----------
 export class Tracker {
-  constructor(ex, planeKey, { romFactor = 1, holdTarget = 0, onRep = () => {}, onCue = () => {} } = {}) {
+  constructor(ex, planeKey, { romFactor = 1, holdTarget = 0, onRep = () => {}, onCue = () => {}, side = null } = {}) {
+    this.forceSide = side; // 'L' | 'R' : côté travaillé choisi par le patient
     this.ex = ex; this.mode = ex.track.mode;
     this.spec = ex.track.planes[planeKey];
     this.rom = romFactor; this.holdTarget = holdTarget;
@@ -209,7 +210,7 @@ export class Tracker {
     const dt = this.lastT ? Math.min(0.2, (t - this.lastT) / 1000) : 0;
     this.lastT = t;
     const s = this.spec;
-    if (!this.side) this.side = visibleSide(p);
+    if (!this.side) this.side = this.forceSide || visibleSide(p);
 
     // Calibration : ~0,6 s immobile en position de départ
     if (!this.base) {
@@ -231,7 +232,7 @@ export class Tracker {
       const to = s.rel ? this.base[sd] + s.delta * this.rom : s.from + (s.to - s.from) * this.rom;
       return { pr: (val - from) / ((to - from) || 1), from, to };
     };
-    if (s.side === 'auto') {
+    if (s.side === 'auto' && !this.forceSide) {
       const vL = this.valueFor(p, 'L'), vR = this.valueFor(p, 'R');
       const a = prog(vL, 'L').pr, b = prog(vR, 'R').pr;
       side = a >= b ? 'L' : 'R'; v = side === 'L' ? vL : vR;

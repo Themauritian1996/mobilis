@@ -14,8 +14,27 @@ function pickVoice() {
   return null;
 }
 
+// APK : la voix du navigateur n'existe pas dans la WebView Android → synthèse vocale native (plugin TextToSpeech).
+const isNative = () => !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+let nativeTTS = null;
+async function tts() {
+  if (!nativeTTS) { try { nativeTTS = (await import('../vendor/capacitor.js')).TextToSpeech || false; } catch (_) { nativeTTS = false; } }
+  return nativeTTS;
+}
+export function stopSpeech() {
+  try { speechSynthesis.cancel(); } catch (_) {}
+  if (isNative()) tts().then((T) => T && T.stop().catch(() => {}));
+}
 export function speak(text, { interrupt = false } = {}) {
-  if (settings().voice === 'off' || !('speechSynthesis' in window) || !text) return;
+  if (settings().voice === 'off' || !text) return;
+  if (isNative()) {
+    tts().then((T) => {
+      if (!T) return;
+      T.speak({ text, lang: langInfo().voice[0], rate: 1.0, pitch: 1.0, volume: 1.0, category: 'playback', queueStrategy: interrupt ? 0 : 1 }).catch((e) => console.warn('tts', e));
+    });
+    return;
+  }
+  if (!('speechSynthesis' in window)) return;
   try {
     if (interrupt) speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
@@ -30,7 +49,7 @@ export function speak(text, { interrupt = false } = {}) {
 const lastSaid = {}; let lastAny = 0;
 // Pendant que le coach IA en direct parle, les consignes locales se taisent (sauf le comptage).
 let liveTalking = false;
-export const setLiveTalking = (v) => { liveTalking = v; if (v) { try { speechSynthesis.cancel(); } catch (_) {} } };
+export const setLiveTalking = (v) => { liveTalking = v; if (v) stopSpeech(); };
 export function cue(key) {
   const now = Date.now();
   if (liveTalking) return false;
@@ -164,7 +183,7 @@ async function nativeDictation({ onText, onState }) {
   await SpeechRecognition.removeAllListeners().catch(() => {});
   await SpeechRecognition.addListener('partialResults', (d) => { if (d.matches && d.matches[0]) { last = d.matches[0]; onText(last, false); } });
   await SpeechRecognition.addListener('listeningState', (d) => { if (d.status === 'stopped') setTimeout(finish, 250); });
-  try { speechSynthesis.cancel(); } catch (_) {}
+  stopSpeech();
   SpeechRecognition.start({ language: langInfo().voice[0], maxResults: 1, partialResults: true, popup: false })
     .then((r) => { if (r && r.matches && r.matches[0]) last = r.matches[0]; })
     .catch(() => { if (!last) { ended = true; onState('error'); } });
@@ -194,7 +213,7 @@ export async function startDictation({ onText, onState }) {
     };
     rec.onerror = (e) => onState(e.error === 'not-allowed' || e.error === 'service-not-allowed' ? 'denied' : 'error');
     rec.onend = () => { onText(finalTxt.trim(), true); onState('idle'); };
-    try { speechSynthesis.cancel(); } catch (_) {}
+    stopSpeech();
     rec.start(); onState('listening');
     return { stop: () => rec.stop() };
   }

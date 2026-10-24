@@ -226,7 +226,8 @@ function rxToProfile(rx, prev, extra = {}) {
     phase: rx.phase, plan: { phase: rx.phase, ids: rx.ids }, levels: { ...(rx.levels || {}) }, baseLevel: 2, lockPhase: !rx.auto,
     irritability: prev?.irritability || 'med', painBase: prev?.painBase ?? 3, days: rx.days || prev?.days || [1, 3, 5], perWeek: (rx.days || prev?.days || [1, 3, 5]).length,
     startDate: Date.now() - weeks * 7 * DAY, joinedAt: prev?.joinedAt || Date.now(), rxCode: rx.code || null, rxVersion: rx.version || 1, clinician: rx.clinician || '', rxNotes: rx.notes || '',
-    nextVisit: rx.nextVisit || prev?.nextVisit || null, lang: getLang(), flareUntil: 0, ...extra,
+    nextVisit: rx.nextVisit || prev?.nextVisit || null, lang: getLang(), flareUntil: 0,
+    equipment: rx.equip || prev?.equipment || null, side: rx.side || prev?.side || null, ...extra,
   };
 }
 
