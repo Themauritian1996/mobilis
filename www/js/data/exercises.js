@@ -122,7 +122,7 @@ export const EXERCISES = {
       ['Expire en ouvrant, reviens lentement.', 'Breathe out as you open, return slowly.']),
     keys: [k('knee', 'Genoux immobiles', 'Knees stay put', [10, 8]), k('wrist', 'La main suit un arc', 'Hand traces an arc', [8, -10])],
     dose: { type: 'reps', sets: 2, reps: 8, holdTop: 3 },
-    fig: { view: 'side', anchor: { j: 'pelvis', x: 140, y: 120 }, frames: [{ trunk: 270, head: 0, thigh: 0, shank: 90, foot: 0, uarm: 0, farm: 0, uarm2: 0, farm2: 0 }, { trunk: 270, head: 25, thigh: 0, shank: 90, foot: 0, uarm: 175, farm: 175, uarm2: 0, farm2: 0 }], trace: 'wrist', period: 4 },
+    fig: { view: 'side', ground: false, anchor: { j: 'pelvis', x: 150, y: 110 }, frames: [{ trunk: 270, head: 0, thigh: 0, shank: 90, foot: 0, thigh2: 0, shank2: 90, foot2: 0, uarm: 0, farm: 0, uarm2: 0, farm2: 0 }, { trunk: 270, head: 25, thigh: 0, shank: 90, foot: 0, thigh2: 0, shank2: 90, foot2: 0, uarm: 175, farm: 175, uarm2: 0, farm2: 0 }], trace: 'wrist', period: 4 },
     track: null,
   },
 
@@ -137,7 +137,7 @@ export const EXERCISES = {
       ['30 à 60 s dans chaque sens.', '30–60 s each direction.']),
     keys: [k('wrist', 'Le bras est passif', 'Arm is passive', [10, 6]), k('shoulder', 'Mouvement initié par le tronc', 'Motion driven by trunk', [8, -10])],
     dose: { type: 'hold', sets: 2, reps: 2, hold: 45 },
-    fig: { view: 'side', anchor: { j: 'ankle', x: 66, y: 178 }, frames: [{ trunk: 72, head: 18, uarm: 168, farm: 168, uarm2: 120, farm2: 160, thigh: 186, shank: 178, thigh2: 170, shank2: 182 }, { trunk: 72, head: 18, uarm: 195, farm: 195, uarm2: 120, farm2: 160, thigh: 186, shank: 178, thigh2: 170, shank2: 182 }], trace: 'wrist', props: [['table', 124, 121]], period: 2.4 },
+    fig: { view: 'side', anchor: { j: 'ankle', x: 66, y: 178 }, frames: [{ trunk: 72, head: 18, uarm: 168, farm: 168, uarm2: 145, farm2: 95, thigh: 186, shank: 178, thigh2: 170, shank2: 182 }, { trunk: 72, head: 18, uarm: 195, farm: 195, uarm2: 145, farm2: 95, thigh: 186, shank: 178, thigh2: 170, shank2: 182 }], trace: 'wrist', props: [['table', 124, 121]], period: 2.4 },
     track: null,
   },
   stick_flex: {
@@ -245,7 +245,7 @@ export const EXERCISES = {
       ['Tiens 30–45 s, repos 1 min.', 'Hold 30–45 s, rest 1 min.']),
     keys: [k('wrist', 'Poignet neutre, aucun mouvement', 'Wrist neutral, no motion', [0, -14]), k('elbow', 'Coude fléchi, appuyé', 'Elbow bent, supported', [0, 14])],
     dose: { type: 'hold', sets: 1, reps: 5, hold: 40 },
-    fig: { view: 'hand', frames: [{ wrist: -8, mcp: 10, pip: 10 }], props: ['table'], arc: ['wrist', 'elbow', 'mcp'] },
+    fig: { view: 'hand', zoom: 1.3, anchor: { j: 'elbow', x: 8, y: 80 }, frames: [{ wrist: -4, mcp: 12, pip: 14, dip: 6, thumb: 25 }], props: ['table'], arc: ['wrist', 'elbow', 'mcp'] },
     track: null,
   },
   ecc_wrist_ext: {
@@ -258,7 +258,7 @@ export const EXERCISES = {
       ['Douleur tolérée ≤ 4/10, qui se calme en 24 h.', 'Pain ≤4/10, settling within 24 h.']),
     keys: [k('wrist', 'Descente lente (3–4 s)', 'Slow lowering (3–4 s)', [0, -16]), k('elbow', 'Avant-bras immobile', 'Forearm still', [0, 14])],
     dose: { type: 'reps', sets: 3, reps: 15, tempo: '0-0-4' },
-    fig: { view: 'hand', frames: [{ wrist: -40, mcp: 50, pip: 70 }, { wrist: 40, mcp: 50, pip: 70 }], props: ['table'], held: [['dumbbell', 'mcp']], trace: 'mcp', arc: ['wrist', 'elbow', 'mcp'] },
+    fig: { view: 'hand', zoom: 1.3, anchor: { j: 'elbow', x: 8, y: 80 }, frames: [{ wrist: -45, mcp: 85, pip: 100, dip: 65, thumb: 60, thumbIp: 30 }, { wrist: 45, mcp: 85, pip: 100, dip: 65, thumb: 60, thumbIp: 30 }], props: ['table'], held: [['dumbbell', 'pip']], trace: 'mcp', arc: ['wrist', 'elbow', 'mcp'] },
     track: null,
   },
   ecc_wrist_flex: {
@@ -271,7 +271,7 @@ export const EXERCISES = {
       ['Garde le coude fléchi et appuyé.', 'Keep the elbow bent and supported.']),
     keys: [k('wrist', 'Descente lente', 'Slow lowering', [0, -16])],
     dose: { type: 'reps', sets: 3, reps: 15, tempo: '0-0-4' },
-    fig: { view: 'hand', frames: [{ wrist: -40, mcp: 50, pip: 70 }, { wrist: 35, mcp: 50, pip: 70 }], props: ['table'], held: [['dumbbell', 'mcp']], trace: 'mcp' },
+    fig: { view: 'hand', zoom: 1.3, anchor: { j: 'elbow', x: 8, y: 80 }, frames: [{ wrist: 45, mcp: 85, pip: 100, dip: 65, thumb: 60, thumbIp: 30, side: 'palmUp' }, { wrist: -40, mcp: 85, pip: 100, dip: 65, thumb: 60, thumbIp: 30, side: 'palmUp' }], props: ['table'], held: [['dumbbell', 'pip']], trace: 'mcp' },
     track: null,
   },
   tyler_twist: {
@@ -284,7 +284,7 @@ export const EXERCISES = {
       ['Laisse la main atteinte se dérouler lentement (excentrique).', 'Let the affected wrist untwist slowly (eccentric).']),
     keys: [k('wrist', 'Le poignet atteint cède lentement', 'Affected wrist yields slowly', [0, -14])],
     dose: { type: 'reps', sets: 3, reps: 15 },
-    fig: { view: 'hand', frames: [{ wrist: -35, mcp: 60, pip: 80 }, { wrist: 25, mcp: 60, pip: 80 }], trace: 'mcp' },
+    fig: { view: 'hand', zoom: 1.3, anchor: { j: 'elbow', x: 8, y: 70 }, frames: [{ wrist: -40, mcp: 85, pip: 100, dip: 65, thumb: 60, thumbIp: 30 }, { wrist: 30, mcp: 85, pip: 100, dip: 65, thumb: 60, thumbIp: 30 }], held: [['vbar']], trace: 'mcp' },
     track: null,
   },
   pron_sup: {
@@ -297,7 +297,7 @@ export const EXERCISES = {
       ['Éloigne la main de la tête du marteau pour progresser.', 'Grip further from the head to progress.']),
     keys: [k('mcp', 'Rotation de l’avant-bras seulement', 'Forearm rotation only', [10, 10])],
     dose: { type: 'reps', sets: 3, reps: 12 },
-    fig: { view: 'hand', frames: [{ wrist: 0, mcp: 75, pip: 90, dip: 60, forearmRot: -70 }, { wrist: 0, mcp: 75, pip: 90, dip: 60, forearmRot: 70 }], props: ['table'], held: [['hammer']] },
+    fig: { view: 'end', frames: [{ forearmRot: -75 }, { forearmRot: 75 }], props: ['table'], held: [['hammer']], trace: null },
     track: null,
   },
 
@@ -312,7 +312,7 @@ export const EXERCISES = {
       ['Mouvement lent, sans douleur.', 'Slow, pain-free.']),
     keys: [k('pip', 'Chaque position isole un tendon', 'Each position isolates a tendon', [6, -14])],
     dose: { type: 'reps', sets: 1, reps: 10, holdTop: 3 },
-    fig: { view: 'hand', frames: [{}, { pip: 95, dip: 70 }, { mcp: 85, pip: 100, dip: 70 }, { mcp: 85 }, { mcp: 85, pip: 95 }], period: 7 },
+    fig: { view: 'hand', zoom: 1.9, anchor: { j: 'elbow', x: -150, y: 80 }, frames: [{ thumb: 25 }, { pip: 95, dip: 75, thumb: 25 }, { mcp: 85, pip: 100, dip: 70, thumb: 40 }, { mcp: 85, thumb: 25 }, { mcp: 85, pip: 95, thumb: 30 }], period: 8 },
     track: null,
   },
   median_glide: {
@@ -338,7 +338,7 @@ export const EXERCISES = {
       ['Tiens 2 s à chaque extrémité.', 'Hold 2 s at each end.']),
     keys: [k('wrist', 'Amplitude maximale confortable', 'Full comfortable range', [0, -16])],
     dose: { type: 'reps', sets: 2, reps: 10 },
-    fig: { view: 'hand', frames: [{ wrist: -55 }, { wrist: 55 }], props: ['table'], arc: ['wrist', 'elbow', 'mcp'], trace: 'tip' },
+    fig: { view: 'hand', zoom: 1.3, anchor: { j: 'elbow', x: 8, y: 80 }, frames: [{ wrist: -55, mcp: 15, pip: 20, dip: 10, thumb: 25 }, { wrist: 55, mcp: 15, pip: 20, dip: 10, thumb: 25 }], props: ['table'], arc: ['wrist', 'elbow', 'mcp'], trace: 'tip' },
     track: null,
   },
   radial_dev: {
@@ -351,7 +351,7 @@ export const EXERCISES = {
       ['Commence sans charge si irritable.', 'Start without load if irritable.']),
     keys: [k('wrist', 'Bouge au poignet, pas à l’avant-bras', 'Move at the wrist, not forearm', [0, -16])],
     dose: { type: 'reps', sets: 3, reps: 10, tempo: '2-0-3' },
-    fig: { view: 'hand', frames: [{ wrist: 20, mcp: 70, pip: 90, forearmRot: 20 }, { wrist: -20, mcp: 70, pip: 90, forearmRot: -20 }], props: ['table'], held: [['hammer']] },
+    fig: { view: 'hand', zoom: 1.3, anchor: { j: 'elbow', x: 8, y: 90 }, frames: [{ wrist: 15, mcp: 85, pip: 100, dip: 65, thumb: 60, thumbIp: 30, side: 'thumbUp', forearmRot: 15 }, { wrist: -20, mcp: 85, pip: 100, dip: 65, thumb: 60, thumbIp: 30, side: 'thumbUp', forearmRot: -20 }], props: ['table'], held: [['hammer']] },
     track: null,
   },
   thumb_opp: {
@@ -364,7 +364,7 @@ export const EXERCISES = {
       ['Reviens main ouverte entre chaque doigt.', 'Open the hand between each finger.']),
     keys: [k('thumbTip', 'Forme un O, pas un D', 'Make an O, not a D', [8, 8])],
     dose: { type: 'reps', sets: 2, reps: 10 },
-    fig: { view: 'hand', frames: [{ thumb: 20 }, { thumb: -45, mcp: 40, pip: 35, dip: 20 }] },
+    fig: { view: 'palm', frames: [{ thumb: 10 }, { opp: 1 }, { opp: 2 }, { opp: 3 }, { opp: 4 }], period: 8 },
     track: null,
   },
   thumb_cmc: {
@@ -377,7 +377,7 @@ export const EXERCISES = {
       ['Évite d’hyperétendre la base du pouce.', 'Avoid collapsing the thumb base.']),
     keys: [k('thumbBase', 'Base du pouce stable', 'Stable thumb base', [-6, -12])],
     dose: { type: 'reps', sets: 2, reps: 10, holdTop: 5 },
-    fig: { view: 'hand', frames: [{ thumb: 0, mcp: 20, pip: 20 }, { thumb: 45, mcp: 20, pip: 20 }] },
+    fig: { view: 'palm', frames: [{ thumb: 0, band: true }, { thumb: 38, band: true }] },
     track: null,
   },
   grip_putty: {
@@ -390,7 +390,7 @@ export const EXERCISES = {
       ['Augmente la dureté de la pâte au fil des semaines.', 'Use firmer putty over the weeks.']),
     keys: [k('pip', 'Fermeture complète des doigts', 'Full finger closure', [6, -14])],
     dose: { type: 'reps', sets: 3, reps: 12, holdTop: 3 },
-    fig: { view: 'hand', frames: [{ mcp: 20, pip: 20, dip: 10 }, { mcp: 85, pip: 100, dip: 70 }], held: [['ball', 'pip']] },
+    fig: { view: 'palm', frames: [{ mcp: 10, pip: 10, dip: 5, thumb: 20, ball: true }, { mcp: 80, pip: 100, dip: 60, opp: 2.2, ball: true }] },
     track: null,
   },
 
@@ -405,7 +405,7 @@ export const EXERCISES = {
       ['Tiens 2 s, redescends vertèbre par vertèbre.', 'Hold 2 s, roll down slowly.']),
     keys: [k('pelvis', 'Bassin monte, sans cambrer', 'Hips up, no arching', [0, -14]), k('knee', 'Genoux largeur de hanches', 'Knees hip-width', [8, -10])],
     dose: { type: 'reps', sets: 3, reps: 12, holdTop: 2 },
-    fig: { view: 'side', anchor: { j: 'ankle', x: 160, y: 178 }, frames: [{ ...SUPINE_HOOK }, { ...SUPINE_HOOK, trunk: 243, thigh: 74, thigh2: 74, uarm: 112, farm: 100 }], props: ['mat'], trace: 'pelvis', arc: ['pelvis', 'shoulder', 'knee'] },
+    fig: { view: 'side', anchor: { j: 'ankle', x: 160, y: 178 }, frames: [{ ...SUPINE_HOOK }, { ...SUPINE_HOOK, trunk: 243, thigh: 66, thigh2: 66, uarm: 92, farm: 90 }], props: ['mat'], trace: 'pelvis', arc: ['pelvis', 'shoulder', 'knee'] },
     track: { mode: 'reps', planes: {
       side: { metric: 'hip', from: 125, to: 168, holdTop: 1.5, checks: [] },
       front: { metric: 'hipY', rel: true, delta: 0.35, checks: [{ m: 'pelvisDrop', abs: true, max: 8, cue: 'pelvis' }] },
@@ -465,7 +465,7 @@ export const EXERCISES = {
       ['Redescends un pied à la fois.', 'Lower one foot at a time.']),
     keys: [k('pelvis', 'Le bas du dos s’arrondit doucement', 'Low back gently rounds', [0, 12])],
     dose: { type: 'reps', sets: 1, reps: 6, holdTop: 15 },
-    fig: { view: 'side', anchor: { j: 'pelvis', x: 120, y: 172 }, frames: [{ ...SUPINE_HOOK }, { ...SUPINE_HOOK, thigh: 330, shank: 70, thigh2: 330, shank2: 70, uarm: 20, farm: 55 }], props: ['mat'], trace: 'knee' },
+    fig: { view: 'side', anchor: { j: 'pelvis', x: 120, y: 172 }, frames: [{ ...SUPINE_HOOK }, { ...SUPINE_HOOK, thigh: -30, shank: 70, thigh2: -30, shank2: 70, uarm: 60, farm: 28 }], props: ['mat'], trace: 'knee' },
     track: { mode: 'reps', planes: {
       side: { metric: 'hip', from: 120, to: 65, holdTop: 5, checks: [] },
     } },
@@ -480,7 +480,7 @@ export const EXERCISES = {
       ['Reviens et alterne.', 'Return and alternate.']),
     keys: [k('pelvis', 'Bas du dos au sol', 'Low back down', [0, 14]), k('ankle', 'Jambe descend lentement', 'Leg lowers slowly', [8, -10])],
     dose: { type: 'reps', sets: 3, reps: 8 },
-    fig: { view: 'side', anchor: { j: 'pelvis', x: 110, y: 172 }, frames: [{ trunk: 270, head: 0, thigh: 0, shank: 90, foot: 0, thigh2: 0, shank2: 90, foot2: 0, uarm: 0, farm: 0, uarm2: 0, farm2: 0 }, { trunk: 270, head: 0, thigh: 72, shank: 80, foot: 0, thigh2: 0, shank2: 90, foot2: 0, uarm: 0, farm: 0, uarm2: 290, farm2: 290 }], props: ['mat'], trace: 'ankle' },
+    fig: { view: 'side', anchor: { j: 'pelvis', x: 110, y: 172 }, frames: [{ trunk: 270, head: 0, thigh: 0, shank: 90, foot: 0, thigh2: 0, shank2: 90, foot2: 0, uarm: 0, farm: 0, uarm2: 0, farm2: 0 }, { trunk: 270, head: 0, thigh: 72, shank: 80, foot: 0, thigh2: 0, shank2: 90, foot2: 0, uarm: 0, farm: 0, uarm2: -70, farm2: -70 }], props: ['mat'], trace: 'ankle' },
     track: { mode: 'reps', planes: {
       side: { metric: 'hipMax', from: 95, to: 155, checks: [] },
     } },
@@ -617,7 +617,7 @@ export const EXERCISES = {
       ['Plie davantage les genoux pour faciliter.', 'Bend the knees more to make it easier.']),
     keys: [k('pelvis', 'Corps aligné', 'Body aligned', [0, -14]), k('ankle', 'Pousse dans les talons', 'Push through heels', [6, -10])],
     dose: { type: 'hold', sets: 1, reps: 5, hold: 30 },
-    fig: { view: 'side', anchor: { j: 'ankle', x: 186, y: 160 }, frames: [{ trunk: 270, head: 0, thigh: 72, shank: 82, foot: 20, thigh2: 72, shank2: 82, foot2: 20, uarm: 90, farm: 90 }, { trunk: 250, head: 0, thigh: 96, shank: 100, foot: 20, thigh2: 96, shank2: 100, foot2: 20, uarm: 110, farm: 100 }], props: [['step', 172, 40], 'mat'], trace: 'pelvis' },
+    fig: { view: 'side', anchor: { j: 'ankle', x: 186, y: 160 }, frames: [{ trunk: 270, head: 0, thigh: 72, shank: 82, foot: 20, thigh2: 72, shank2: 82, foot2: 20, uarm: 90, farm: 90 }, { trunk: 254, head: 0, thigh: 88, shank: 100, foot: 20, thigh2: 88, shank2: 100, foot2: 20, uarm: 92, farm: 90 }], props: [['step', 172, 40], 'mat'], trace: 'pelvis' },
     track: { mode: 'hold', planes: {
       side: { metric: 'bodyLine', min: 160, max: 200, checks: [] },
     } },
@@ -788,7 +788,7 @@ export const EXERCISES = {
       ['Tendinopathie d’insertion : arrête au niveau de la marche.', 'Insertional tendinopathy: stop at step level.']),
     keys: [k('ankle', 'Descente lente', 'Slow lowering', [-12, -4]), k('knee', 'Genou tendu (puis fléchi pour le soléaire)', 'Knee straight (then bent for soleus)', [10, -6])],
     dose: { type: 'reps', sets: 3, reps: 15, tempo: '0-0-4' },
-    fig: { view: 'side', anchor: { j: 'toe', x: 128, y: 162 }, frames: [{ foot: 124, foot2: 124 }, { foot: 62, foot2: 62 }], props: [['step', 112, 56]], trace: 'ankle', arc: ['ankle', 'knee', 'toe'] },
+    fig: { view: 'side', zoom: 0.82, anchor: { j: 'toe', x: 128, y: 162 }, frames: [{ foot: 124, foot2: 124 }, { foot: 62, foot2: 62 }], props: [['step', 112, 56]], trace: 'ankle', arc: ['ankle', 'knee', 'toe'] },
     track: { mode: 'reps', planes: {
       side: { metric: 'ankle', from: 125, to: 85, minRepSec: 3, checks: [{ m: 'knee', min: 155, cue: 'kneeStraight' }] },
     } },
@@ -831,7 +831,7 @@ export const EXERCISES = {
       ['1 à 2 alphabets.', '1–2 alphabets.']),
     keys: [k('mtp', 'Le gros orteil trace les lettres', 'Big toe traces letters', [10, 10])],
     dose: { type: 'reps', sets: 1, reps: 2 },
-    fig: { view: 'foot', frames: [{ ankle: 0, toes: 0 }, { ankle: 18, toes: 0 }, { ankle: -18, toes: 0 }], period: 4 },
+    fig: { view: 'foot', ground: false, frames: [{ pf: -18 }, { pf: 28 }, { pf: 5, toes: 5 }], period: 4.5, trace: 'toe' },
     track: null,
   },
   eversion_band: {
@@ -844,7 +844,7 @@ export const EXERCISES = {
       ['Reviens en 3 s.', 'Return over 3 s.']),
     keys: [k('ankle', 'Mouvement à la cheville seulement', 'Ankle motion only', [-10, -8])],
     dose: { type: 'reps', sets: 3, reps: 12 },
-    fig: { view: 'foot', frames: [{ ankle: 0 }, { ankle: 12, toes: 10 }] },
+    fig: { view: 'footBack', frames: [{ inv: 0 }, { inv: -22 }], held: [['band', 'solL', [28, 152]]] },
     track: null,
   },
   inversion_band: {
@@ -857,7 +857,7 @@ export const EXERCISES = {
       ['Reviens en 3 s.', 'Return over 3 s.']),
     keys: [k('archTop', 'Arche soutenue', 'Arch supported', [0, -12])],
     dose: { type: 'reps', sets: 3, reps: 15 },
-    fig: { view: 'foot', frames: [{ arch: 5 }, { arch: 12, ankle: -10 }] },
+    fig: { view: 'footBack', frames: [{ inv: 0 }, { inv: 26 }], held: [['band', 'solR', [212, 152]]] },
     track: null,
   },
 
@@ -872,7 +872,7 @@ export const EXERCISES = {
       ['Progression : debout sur une jambe.', 'Progress: standing on one leg.']),
     keys: [k('archTop', 'L’arche monte', 'Arch rises', [0, -12]), k('toe', 'Orteils à plat', 'Toes flat', [8, -6])],
     dose: { type: 'reps', sets: 2, reps: 10, holdTop: 6 },
-    fig: { view: 'foot', frames: [{ arch: 3 }, { arch: 15 }] },
+    fig: { view: 'foot', frames: [{ arch: 3 }, { arch: 14 }] },
     track: null,
   },
   plantar_stretch: {
@@ -885,7 +885,7 @@ export const EXERCISES = {
       ['Tiens 10–30 s, surtout avant les premiers pas le matin.', 'Hold 10–30 s, especially before first steps in the morning.']),
     keys: [k('mtp', 'Orteils en extension', 'Toes extended', [8, 10])],
     dose: { type: 'hold', sets: 1, reps: 10, hold: 15 },
-    fig: { view: 'foot', frames: [{ toes: 0 }, { toes: 50, ankle: -8 }], trace: 'toe' },
+    fig: { view: 'foot', frames: [{ toes: 0 }, { toes: 55, pf: -6 }], trace: 'toe' },
     track: null,
   },
   towel_curl: {
@@ -898,7 +898,7 @@ export const EXERCISES = {
       ['Ajoute un poids sur la serviette pour progresser.', 'Put a weight on the towel to progress.']),
     keys: [k('toe', 'Flexion des orteils', 'Toe curling', [8, 8])],
     dose: { type: 'reps', sets: 3, reps: 10 },
-    fig: { view: 'foot', frames: [{ toes: 0 }, { toes: -35 }] },
+    fig: { view: 'foot', frames: [{ toes: 5 }, { toes: -16 }], props: ['towel'] },
     track: null,
   },
   hallux_mob: {
@@ -911,7 +911,7 @@ export const EXERCISES = {
       ['Mouvement dans une amplitude tolérable.', 'Move within a tolerable range.']),
     keys: [k('mtp', 'Articulation du gros orteil', 'Big-toe joint', [8, 10])],
     dose: { type: 'reps', sets: 2, reps: 15 },
-    fig: { view: 'foot', frames: [{ toes: -15 }, { toes: 45 }], trace: 'toe' },
+    fig: { view: 'foot', frames: [{ toes: -20 }, { toes: 45 }], trace: 'toe' },
     track: null,
   },
 };

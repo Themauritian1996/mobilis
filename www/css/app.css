@@ -436,3 +436,15 @@ html[dir="rtl"] .switch.on::after { transform: translateX(-20px); }
 .sess-miss.ok { background: var(--surface-2); border-color: var(--line); }
 .train .side-now { display: inline-flex; gap: 6px; align-items: center; font-weight: 700; font-size: 14px; padding: 6px 12px; border-radius: 99px; background: var(--surface-2); margin: 2px 0 8px; }
 .train .side-now svg { width: 16px; height: 16px; }
+/* Mains et pieds anatomiques */
+.fg-skin { fill: var(--fig-body); stroke: none; }
+.fg-finger { stroke: var(--fig-body); stroke-width: 7; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.fg-finger.fg-far { stroke: var(--fig-far); }
+.fg-finger-palm { stroke-width: 9; }
+.fg-thumb { stroke-width: 8; }
+.fg-crease { stroke: var(--fig-joint); stroke-width: 1; fill: none; opacity: .55; }
+.fg-ball { fill: var(--fig-accent); opacity: .85; }
+.fg-sole { stroke: var(--fig-joint); stroke-width: 1.4; opacity: .7; }
+.fg-towel { stroke: var(--fig-prop); stroke-width: 6; stroke-linecap: round; }
+.fg-band { fill: none; }
+.fg-thumb-side { stroke-width: 6; }

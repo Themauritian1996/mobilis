@@ -16,8 +16,8 @@ const FRONT_DEFAULT = {
   trunk: 0, head: 0, headRot: 0, shAbdR: 8, shAbdL: 8, elbowR: 0, elbowL: 0, farmScaleR: 1, farmScaleL: 1,
   hipAbdR: 4, hipAbdL: 4, thighScaleR: 1, thighScaleL: 1, shankR: 0, shankL: 0, liftR: 0, liftL: 0, pelvisTilt: 0,
 };
-const HAND_DEFAULT = { wrist: 0, mcp: 0, pip: 0, dip: 0, thumb: 20, forearmRot: 0 };
-const FOOT_DEFAULT = { arch: 6, toes: 0, ankle: 0 };
+const HAND_DEFAULT = { wrist: 0, mcp: 0, pip: 0, dip: 0, thumb: 20, thumbIp: 0, forearmRot: 0, opp: 0, spread: 0, tilt: 0 };
+const FOOT_DEFAULT = { arch: 6, toes: 0, ankle: 0, pf: 0, inv: 0 };
 
 // ---------- Cinématique ----------
 function sidePose(p, anchor) {
@@ -74,31 +74,120 @@ function frontPose(p, anchor) {
   return place(j, anchor);
 }
 
+// ---------- Main, vue de côté : avant-bras appuyé, paume vers le bas (ou le haut / pouce en haut) ----------
+// wrist, mcp, pip, dip : angles en degrés, + = vers la paume (flexion), − = extension.
 function handPose(p, anchor) {
   const q = { ...HAND_DEFAULT, ...p };
-  const j = {};
+  const s = q.side === 'palmUp' ? -1 : 1; // pouce en haut : comme paume en bas (+ = déviation cubitale, vers le bas) // sens de la flexion à l'écran (paume vers le bas : vers le bas)
+  const j = { side: q.side || 'palmDown', s, forearmRot: q.forearmRot };
   j.elbow = [0, 0];
-  j.wrist = [70, 0];
-  const pa = 90 + q.wrist; // paume prolonge l'avant-bras (90 = horizontal vers la droite)
-  j.mcp = add(j.wrist, dir(pa, 30));
-  j.pip = add(j.mcp, dir(pa + q.mcp, 18));
-  j.dip = add(j.pip, dir(pa + q.mcp + q.pip, 12));
-  j.tip = add(j.dip, dir(pa + q.mcp + q.pip + q.dip, 9));
-  j.thumbBase = add(j.wrist, dir(pa - 30, 10));
-  j.thumbTip = add(j.thumbBase, dir(pa - q.thumb, 24));
-  j.forearmRot = q.forearmRot;
+  j.wrist = [98, 0];
+  const pa = 90 + s * q.wrist;
+  j.palmDir = pa;
+  j.mcp = add(j.wrist, dir(pa, 38));
+  j.pip = add(j.mcp, dir(pa + s * q.mcp, 22));
+  j.dip = add(j.pip, dir(pa + s * (q.mcp + q.pip), 14));
+  j.tip = add(j.dip, dir(pa + s * (q.mcp + q.pip + q.dip), 11));
+  // pouce : naît du côté paume, près du poignet
+  j.thumbBase = add(add(j.wrist, dir(pa, 8)), dir(pa + 90 * s, 5));
+  j.thumbMcp = add(j.thumbBase, dir(pa + s * Math.min(q.thumb, 40), 16));
+  j.thumbTip = add(j.thumbMcp, dir(pa + s * (Math.min(q.thumb, 40) + q.thumbIp), 13));
+  j.curl = q.mcp + q.pip + q.dip;
   return place(j, anchor);
 }
 
+// ---------- Main, vue de face (paume vers soi, doigts vers le haut) : opposition du pouce, poing, prise ----------
+// mcp/pip/dip : flexion commune des 4 doigts ; opp : 0 = pouce au repos, 1–4 = pouce touche l'index…l'auriculaire ;
+// thumb : écartement du pouce (degrés) ; fingers : flexion propre à chaque doigt [index, majeur, annulaire, auriculaire] (0–1).
+const FINGERS = [{ x: 22, len: [25, 15, 11] }, { x: 7, len: [27, 17, 12] }, { x: -8, len: [25, 16, 11] }, { x: -22, len: [20, 12, 9] }];
+function palmPose(p, anchor) {
+  const q = { ...HAND_DEFAULT, ...p };
+  const j = { palm: true };
+  j.wrist = [0, 0];
+  const top = -52; // tête des métacarpiens
+  j.palmPts = [[-20, 0], [-27, -14], [-28, top + 4], [-20, top], [28, top], [32, top + 8], [30, -20], [20, 0]];
+  j.fingers = FINGERS.map((f, i) => {
+    const extra = (q.fingers && q.fingers[i]) || 0;
+    const opp = q.opp && Math.abs(q.opp - (i + 1)) < 0.5 ? 1 - Math.abs(q.opp - (i + 1)) * 2 : 0; // doigt visé par le pouce
+    const a = [q.mcp + extra * 80 + opp * 30, q.pip + extra * 95 + opp * 35, q.dip + extra * 60 + opp * 15];
+    const base = [f.x + (i - 1.5) * q.spread * 0.15, top - 2];
+    const pts = [base]; let cum = 0, cur = base;
+    for (let k = 0; k < 3; k++) {
+      cum += a[k];
+      const ly = -f.len[k] * Math.cos((cum * Math.PI) / 180); // projection : un doigt plié se raccourcit puis se replie vers la paume
+      const lx = (i - 1.5) * q.spread * 0.04 * f.len[k];
+      cur = [cur[0] + lx, cur[1] + ly]; pts.push(cur);
+    }
+    return pts;
+  });
+  [j.mcp, j.pip, j.dip, j.tip] = j.fingers[0];
+  j.thumbBase = [22, -8]; // articulation à la base du pouce (trapézo-métacarpienne)
+  if (q.opp) {
+    const k = Math.max(1, Math.min(4, q.opp)), i0 = Math.floor(k) - 1, i1 = Math.min(3, i0 + 1), t = k - 1 - i0;
+    const a = j.fingers[i0][3], b = j.fingers[i1][3];
+    const tip = [a[0] + (b[0] - a[0]) * t + 3, a[1] + (b[1] - a[1]) * t + 4];
+    // articulation du pouce bombée vers l'extérieur : le pouce et le doigt forment un « O »
+    const dx = tip[0] - j.thumbBase[0], dy = tip[1] - j.thumbBase[1], L = Math.hypot(dx, dy) || 1;
+    const m = [(j.thumbBase[0] + tip[0]) / 2, (j.thumbBase[1] + tip[1]) / 2];
+    j.thumbMcp = [m[0] - (dy / L) * 14, m[1] + (dx / L) * 14];
+    if (j.thumbMcp[0] < m[0]) j.thumbMcp = [m[0] + (dy / L) * 14, m[1] - (dx / L) * 14];
+    j.thumbTip = tip;
+  } else {
+    j.thumbMcp = add(j.thumbBase, dir(38 + q.thumb, 24));
+    j.thumbTip = add(j.thumbMcp, dir(22 + q.thumb * 0.8 + (q.thumbIp || 0), 22));
+  }
+  j.ball = q.ball ? [0, -30] : null; j.band = !!q.band;
+  return place(j, anchor);
+}
+
+// ---------- Pied, vue de côté (pied droit, orteils vers la droite) ----------
+// ankle : inclinaison de la jambe (+ vers l'avant) ; pf : flexion plantaire (+ pointe vers le bas) ; toes : extension des orteils (+ vers le haut) ;
+// arch : hauteur de l'arche (mm schématiques).
 function footPose(p, anchor) {
   const q = { ...FOOT_DEFAULT, ...p };
-  const j = {};
+  const j = { foot: true };
   j.ankle = [0, 0];
-  j.knee = add(j.ankle, dir(q.ankle, 70));
-  j.heel = [-14, 26];
-  j.mtp = [52, 26];
-  j.archTop = [20, 26 - q.arch - 8];
-  j.toe = add(j.mtp, dir(90 - q.toes, 16));
+  j.knee = add(j.ankle, dir(-q.ankle, 125)); // la jambe sort du cadre (pas de « tête »)
+  const r = (pt) => { const a = (q.pf * Math.PI) / 180, c = Math.cos(a), s2 = Math.sin(a); return [pt[0] * c - pt[1] * s2, pt[0] * s2 + pt[1] * c]; };
+  const P = (x, y) => add(j.ankle, r([x, y]));
+  j.heel = P(-16, 30);
+  j.heelBack = P(-22, 18);
+  j.mtp = P(58, 30);
+  j.archTop = P(22, 30 - q.arch - 4);
+  j.archLow = P(22, 30 - q.arch);
+  j.dorsum = P(36, 12);
+  j.front = P(8, 6);
+  const ta = 90 - q.toes - q.pf; // orteils : prolongent le pied, relevés si toes > 0
+  j.toe = add(j.mtp, dir(ta, 19));
+  j.toeTop = add(add(j.mtp, dir(ta, 17)), dir(ta - 90, 5));
+  j.mtpTop = P(54, 23);
+  return place(j, anchor);
+}
+
+// ---------- Avant-bras vu de bout (prono-supination) : le poing et le manche tournent autour de l'axe de l'avant-bras ----------
+function endPose(p, anchor) {
+  const q = { ...HAND_DEFAULT, ...p };
+  const j = { end: true, forearmRot: q.forearmRot };
+  j.wrist = [0, 0]; j.mcp = [0, 0]; j.pip = [0, 0];
+  return place(j, anchor);
+}
+
+// ---------- Pied, vue de derrière (jambe droite) : inversion / éversion ----------
+// inv : + inversion (la plante regarde vers l'intérieur), − éversion.
+function footBackPose(p, anchor) {
+  const q = { ...FOOT_DEFAULT, ...p };
+  const j = { footBack: true };
+  j.ankle = [0, 0];
+  j.knee = [0, -130];
+  const a = (-q.inv * Math.PI) / 180; // intérieur (médial) = gauche de l'image pour la jambe droite vue de derrière
+  const R = (x, y) => [x * Math.cos(a) - y * Math.sin(a), x * Math.sin(a) + y * Math.cos(a) + 0];
+  const c = [0, 14]; // axe sous-talien
+  const T = (x, y) => { const v = R(x, y - c[1]); return [v[0] + c[0], v[1] + c[1]]; };
+  j.heel = T(0, 30);
+  j.solL = T(-26, 30); j.solR = T(26, 30);
+  j.topL = T(-18, 8); j.topR = T(18, 8);
+  j.archTop = T(-14, 22);
+  j.mtp = j.solR; j.toe = j.solR;
   return place(j, anchor);
 }
 
@@ -107,15 +196,37 @@ function place(j, anchor) {
   const ref = j[a.j] || [0, 0];
   const dx = a.x - ref[0], dy = a.y - ref[1];
   const out = {};
-  for (const k in j) out[k] = Array.isArray(j[k]) ? [j[k][0] + dx, j[k][1] + dy] : j[k];
+  const mv = (v) => (Array.isArray(v) ? (typeof v[0] === 'number' ? [v[0] + dx, v[1] + dy] : v.map(mv)) : v);
+  for (const k in j) out[k] = mv(j[k]);
   return out;
 }
 
+// Mise au sol automatique (vues corps entier) : la partie la plus basse du corps repose sur le sol, rien ne passe dessous.
+// Désactivée si le patient est sur une marche (fig.ground === false ou accessoire « step »).
+const GROUND_Y = 178;
 export function pose(fig, params) {
+  const j = poseRaw(fig, params);
+  const v = fig.view || 'side';
+  if ((v !== 'side' && v !== 'front') || fig.ground === false || (fig.props || []).some((p) => (Array.isArray(p) ? p[0] : p) === 'step')) return j;
+  let maxY = -Infinity;
+  for (const [k, p] of Object.entries(j)) {
+    if (!Array.isArray(p) || typeof p[0] !== 'number') continue;
+    maxY = Math.max(maxY, p[1] + (k === 'head' ? 7 : 0));
+  }
+  const dy = GROUND_Y - maxY;
+  if (Math.abs(dy) < 0.01) return j;
+  const out = {};
+  for (const [k, p] of Object.entries(j)) out[k] = Array.isArray(p) && typeof p[0] === 'number' ? [p[0], p[1] + dy] : p;
+  return out;
+}
+function poseRaw(fig, params) {
   const v = fig.view || 'side';
   if (v === 'front') return frontPose(params, fig.anchor || { j: 'pelvis', x: 120, y: 98 });
-  if (v === 'hand') return handPose(params, fig.anchor || { j: 'elbow', x: 40, y: 100 });
-  if (v === 'foot') return footPose(params, fig.anchor || { j: 'ankle', x: 100, y: 120 });
+  if (v === 'hand') return handPose(params, fig.anchor || { j: 'elbow', x: 22, y: 92 });
+  if (v === 'palm') return palmPose(params, fig.anchor || { j: 'wrist', x: 112, y: 182 });
+  if (v === 'foot') return footPose(params, fig.anchor || { j: 'ankle', x: 96, y: 118 });
+  if (v === 'footBack') return footBackPose(params, fig.anchor || { j: 'ankle', x: 120, y: 120 });
+  if (v === 'end') return endPose(params, fig.anchor || { j: 'wrist', x: 120, y: 112 });
   return sidePose(params, fig.anchor || { j: 'ankle', x: 120, y: 178 });
 }
 
@@ -148,6 +259,7 @@ function drawProps(g, fig, j0) {
   const props = fig.props || [];
   const v = fig.view || 'side';
   if (v === 'side' || v === 'front') el('line', { x1: 8, y1: 182, x2: 232, y2: 182, class: 'fg-ground' }, g);
+  if ((v === 'foot' || v === 'footBack') && fig.ground !== false) el('line', { x1: 20, y1: j0.heel[1] + 2, x2: 220, y2: j0.heel[1] + 2, class: 'fg-ground' }, g);
   for (const p of props) {
     const [name, a = 0, b = 0] = Array.isArray(p) ? p : [p];
     if (name === 'wall') el('rect', { x: a || 196, y: 20, width: 10, height: 162, class: 'fg-prop' }, g);
@@ -159,7 +271,10 @@ function drawProps(g, fig, j0) {
       el('rect', { x: x + 37, y: y + 6, width: 5, height: 182 - y - 6, class: 'fg-prop' }, g);
     }
     if (name === 'mat') el('rect', { x: 14, y: 178, width: 212, height: 5, rx: 2, class: 'fg-mat' }, g);
-    if (name === 'table') el('rect', { x: a || 20, y: b || 108, width: 115, height: 10, rx: 3, class: 'fg-prop' }, g);
+    if (name === 'table' && v === 'end') el('rect', { x: 40, y: j0.wrist[1] + 26, width: 160, height: 10, rx: 3, class: 'fg-prop' }, g);
+    if (name === 'table' && v === 'hand') { el('rect', { x: 4, y: j0.elbow[1] + 9, width: (j0.wrist[0] - 4) - 2, height: 9, rx: 3, class: 'fg-prop' }, g); el('rect', { x: 14, y: j0.elbow[1] + 18, width: 6, height: 182 - j0.elbow[1] - 18, class: 'fg-prop' }, g); }
+    else if (name === 'table') el('rect', { x: a || 20, y: b || 108, width: 115, height: 10, rx: 3, class: 'fg-prop' }, g);
+    if (name === 'towel') el('path', { d: `M${j0.heel[0] - 10},${j0.heel[1] + 3} L${j0.mtp[0] + 34},${j0.heel[1] + 3}`, class: 'fg-towel' }, g);
   }
 }
 
@@ -193,19 +308,60 @@ function drawBody(g, fig, j, cls) {
     el('circle', { cx: j.head[0] + (j.headRot || 0) * 6, cy: j.head[1] + 1, r: 1.8, class: `fg-nose ${cls}` }, g);
     for (const k of ['kneeR', 'kneeL', 'elbowR', 'elbowL', 'shR', 'shL', 'hipR', 'hipL'])
       el('circle', { cx: j[k][0], cy: j[k][1], r: 2.4, class: `fg-joint ${cls}` }, g);
-  } else if (v === 'hand') {
-    line(g, j.elbow, j.wrist, `fg-trunk ${cls}`);
-    poly(g, [j.wrist, j.mcp, j.pip, j.dip, j.tip], `fg-limb ${cls}`);
-    poly(g, [j.wrist, j.thumbBase, j.thumbTip], `fg-limb fg-far ${cls}`);
-    for (const k of ['wrist', 'mcp', 'pip', 'dip'])
-      el('circle', { cx: j[k][0], cy: j[k][1], r: 2.6, class: `fg-joint ${cls}` }, g);
+  } else drawExtremity(g, v, j, cls);
+}
+
+// Contour plein d'un segment (avant-bras, jambe) : largeur w1 au départ, w2 à l'arrivée
+function limbShape(g, a, b, w1, w2, cls) {
+  const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1, n = [-dy / L, dx / L];
+  const pts = [[a[0] + n[0] * w1, a[1] + n[1] * w1], [b[0] + n[0] * w2, b[1] + n[1] * w2], [b[0] - n[0] * w2, b[1] - n[1] * w2], [a[0] - n[0] * w1, a[1] - n[1] * w1]];
+  el('polygon', { points: pts.map((p) => p.join(',')).join(' '), class: cls }, g);
+  el('circle', { cx: a[0], cy: a[1], r: w1, class: cls }, g);
+  el('circle', { cx: b[0], cy: b[1], r: w2, class: cls }, g);
+}
+function drawExtremity(g, v, j, cls) {
+  if (v === 'hand') {
+    limbShape(g, j.elbow, j.wrist, 9, 6.5, `fg-skin ${cls}`);
+    limbShape(g, j.wrist, j.mcp, 7, 6.5, `fg-skin ${cls}`);
+    poly(g, [j.thumbBase, j.thumbMcp, j.thumbTip], `fg-finger fg-far fg-thumb-side ${cls}`); // pouce derrière l'index (vue de côté)
+    // doigts : un doigt « arrière » plus pâle donne la profondeur des 4 doigts
+    const off = (p) => [p[0] + 2.5, p[1] - 2.5];
+    poly(g, [j.mcp, j.pip, j.dip, j.tip].map(off), `fg-finger fg-far ${cls}`);
+    if (j.curl > 150) el('polygon', { points: [j.mcp, j.pip, j.dip, j.tip].map((p) => p.join(',')).join(' '), class: `fg-skin ${cls}` }, g); // poing fermé : forme pleine
+    poly(g, [j.mcp, j.pip, j.dip, j.tip], `fg-finger ${cls}`);
+    for (const k of ['wrist', 'mcp', 'pip', 'dip']) el('circle', { cx: j[k][0], cy: j[k][1], r: 1.8, class: `fg-joint ${cls}` }, g);
+  } else if (v === 'palm') {
+    el('polygon', { points: [[j.wrist[0] - 17, j.wrist[1] + 2], [j.wrist[0] + 17, j.wrist[1] + 2], [j.wrist[0] + 15, j.wrist[1] + 30], [j.wrist[0] - 15, j.wrist[1] + 30]].map((p) => p.join(',')).join(' '), class: `fg-skin ${cls}` }, g);
+    el('polygon', { points: j.palmPts.map((p) => p.join(',')).join(' '), class: `fg-skin ${cls}` }, g);
+    // plis de la paume
+    el('path', { d: `M${j.palmPts[3][0] + 4},${j.palmPts[3][1] + 12} q 22,6 46,-2`, class: `fg-crease ${cls}` }, g);
+    el('path', { d: `M${j.thumbBase[0] - 4},${j.thumbBase[1] - 4} q -16,-8 -20,-34`, class: `fg-crease ${cls}` }, g);
+    if (j.ball) el('circle', { cx: j.ball[0], cy: j.ball[1], r: 13, class: `fg-ball ${cls}` }, g);
+    j.fingers.forEach((f, i) => {
+      poly(g, f, `fg-finger fg-finger-palm ${cls}`);
+      for (const pt of f.slice(1, 3)) el('circle', { cx: pt[0], cy: pt[1], r: 1.3, class: `fg-joint ${cls}` }, g);
+    });
+    poly(g, [j.thumbBase, j.thumbMcp, j.thumbTip], `fg-finger fg-finger-palm fg-thumb ${cls}`);
+    if (j.band) el('path', { d: `M${j.thumbTip[0]},${j.thumbTip[1]} C${j.thumbTip[0] + 14},${j.thumbTip[1] - 18} ${j.tip[0] + 10},${j.tip[1] - 22} ${j.tip[0]},${j.tip[1]}`, class: `fg-band ${cls}` }, g);
   } else if (v === 'foot') {
-    line(g, j.ankle, j.knee, `fg-trunk ${cls}`);
-    el('path', {
-      d: `M${j.heel} Q${j.archTop[0]},${j.archTop[1]} ${j.mtp} L${j.toe} M${j.heel} L${j.ankle} L${j.mtp}`,
-      class: `fg-limb ${cls}`, fill: 'none',
-    }, g);
-    for (const k of ['ankle', 'heel', 'mtp']) el('circle', { cx: j[k][0], cy: j[k][1], r: 2.6, class: `fg-joint ${cls}` }, g);
+    limbShape(g, j.knee, j.ankle, 9, 6.5, `fg-skin ${cls}`);
+    const d = `M${j.front} L${j.dorsum} L${j.mtpTop} L${j.toeTop} Q${j.toe[0] + 3},${j.toe[1] + 2} ${j.toe} L${j.mtp} Q${j.archTop} ${j.heel} Q${j.heel[0] - 8},${j.heel[1] - 2} ${j.heelBack} L${j.ankle} Z`;
+    el('path', { d, class: `fg-skin ${cls}` }, g);
+    for (const k of ['ankle', 'mtp']) el('circle', { cx: j[k][0], cy: j[k][1], r: 1.8, class: `fg-joint ${cls}` }, g);
+  } else if (v === 'end') {
+    // avant-bras appuyé sur la table, vu dans son axe : coupe ronde + poing qui tourne
+    el('circle', { cx: j.wrist[0], cy: j.wrist[1] + 4, r: 22, class: `fg-skin fg-far ${cls}` }, g);
+    const a = ((j.forearmRot || 0) * Math.PI) / 180, w = 15, h = 21;
+    const R = (x, y) => [j.wrist[0] + x * Math.cos(a) - y * Math.sin(a), j.wrist[1] + x * Math.sin(a) + y * Math.cos(a)];
+    el('polygon', { points: [R(-w, -h), R(w, -h), R(w, h), R(-w, h)].map((p) => p.join(',')).join(' '), class: `fg-skin ${cls}`, 'stroke-linejoin': 'round' }, g);
+    const th = R(w - 3, -h + 6), th2 = R(w + 8, -h + 2);
+    line(g, th, th2, `fg-finger fg-thumb-side ${cls}`);
+  } else if (v === 'footBack') {
+    limbShape(g, j.knee, j.ankle, 10, 7, `fg-skin ${cls}`);
+    el('polygon', { points: [j.topL, j.topR, j.solR, j.solL].map((p) => p.join(',')).join(' '), class: `fg-skin ${cls}` }, g);
+    el('circle', { cx: j.heel[0], cy: j.heel[1] - 4, r: 9, class: `fg-skin ${cls}` }, g);
+    line(g, j.solL, j.solR, `fg-sole ${cls}`);
+    el('circle', { cx: j.ankle[0], cy: j.ankle[1], r: 2, class: `fg-joint ${cls}` }, g);
   }
 }
 
@@ -213,18 +369,23 @@ function drawHeld(g, fig, j) {
   const held = fig.held || [];
   for (const h of held) {
     const [name, a, b] = Array.isArray(h) ? h : [h];
-    if (name === 'dumbbell' && j[a || 'wrist']) {
+    if (name === 'dumbbell' && j.palmDir != null) { // vue de côté de la main : l'haltère est vu de bout (disque)
+      const c = [(j.mcp[0] + j.pip[0]) / 2, (j.mcp[1] + j.pip[1]) / 2];
+      el('circle', { cx: c[0], cy: c[1], r: 11, class: 'fg-held' }, g); el('circle', { cx: c[0], cy: c[1], r: 4, class: 'fg-joint' }, g);
+    } else if (name === 'dumbbell' && j[a || 'wrist']) {
       const p = j[a || 'wrist'];
       el('rect', { x: p[0] - 7, y: p[1] - 3, width: 14, height: 6, rx: 2, class: 'fg-held' }, g);
     }
     if (name === 'stick' && j[a] && j[b]) line(g, j[a], j[b], 'fg-held-line');
     if (name === 'band' && j[a]) line(g, j[a], [b?.[0] ?? 200, b?.[1] ?? j[a][1]], 'fg-band');
     if (name === 'ball' && j[a]) el('circle', { cx: j[a][0], cy: j[a][1], r: 6, class: 'fg-held' }, g);
-    if (name === 'hammer' && j.mcp) {
-      const ang = j.forearmRot || 0;
-      const top = add(j.mcp, dir(ang, 34));
-      line(g, j.mcp, top, 'fg-held-line');
-      const hd = dir(ang + 90, 9);
+    if (name === 'vbar' && j.pip) { const d = j.palmDir ?? 90; line(g, add(j.pip, dir(d - 90, 34)), add(j.pip, dir(d + 90, 34)), 'fg-held-line fg-thick'); }
+    if (name === 'hammer' && j.pip) {
+      // manche tenu dans le poing (centre du poing ≈ entre MCP et IPP), tête en haut ; forearmRot = rotation du manche
+      const ang = j.forearmRot || 0, c = [(j.mcp[0] + j.pip[0]) / 2, (j.mcp[1] + j.pip[1]) / 2];
+      const bot = add(c, dir(ang + 180, 12)), top = add(c, dir(ang, 38));
+      line(g, bot, top, 'fg-held-line');
+      const hd = dir(ang + 90, 10);
       line(g, add(top, hd), add(top, [-hd[0], -hd[1]]), 'fg-held-line fg-thick');
     }
   }
@@ -290,14 +451,16 @@ export function renderFigure(svg, fig, opts = {}) {
   svg.innerHTML = '';
   svg.setAttribute('viewBox', '0 0 240 200');
   const frames = fig.frames && fig.frames.length ? fig.frames : [{}];
-  const gProps = el('g', {}, svg);
-  const gGhost = el('g', {}, svg);
-  const gTrace = el('g', {}, svg);
-  const gBody = el('g', {}, svg);
-  const gAnat = el('g', { class: 'fg-anat' }, svg);
-  const gArc = el('g', {}, svg);
+  // agrandissement (mains) : tout le dessin est mis à l'échelle autour du point d'ancrage, traits compris
+  const root = fig.zoom && fig.zoom !== 1 && fig.anchor ? el('g', { transform: `translate(${fig.anchor.x},${fig.anchor.y}) scale(${fig.zoom}) translate(${-fig.anchor.x},${-fig.anchor.y})` }, svg) : svg;
+  const gProps = el('g', {}, root);
+  const gGhost = el('g', {}, root);
+  const gTrace = el('g', {}, root);
+  const gBody = el('g', {}, root);
+  const gAnat = el('g', { class: 'fg-anat' }, root);
+  const gArc = el('g', {}, root);
   let showAnat = !!opts.showAnatomy;
-  const gKeys = el('g', {}, svg);
+  const gKeys = el('g', {}, root);
   drawProps(gProps, fig, pose(fig, frames[0]));
   // fantômes : position de départ et position cible
   if (frames.length > 1) {
@@ -366,7 +529,8 @@ export function renderFigure(svg, fig, opts = {}) {
     draw(lastMs);
     raf = requestAnimationFrame(loop);
   }
-  if (opts.static || reduce || frames.length < 2) { lastMs = period * (frames.length > 1 ? 0.3 : 0); draw(lastMs); }
+  if (opts.at != null) { lastMs = period * opts.at; draw(lastMs); }
+  else if (opts.static || reduce || frames.length < 2) { lastMs = period * (frames.length > 1 ? 0.3 : 0); draw(lastMs); }
   else { animated = true; raf = requestAnimationFrame(loop); }
   return {
     stop() { stopped = true; cancelAnimationFrame(raf); },

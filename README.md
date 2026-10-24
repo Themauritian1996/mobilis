@@ -13,6 +13,14 @@ Application web + APK Android qui filme le patient pendant ses exercices, analys
 | Comptes et données | Firebase `mobilis-6828b` : Google + courriel, Firestore à Montréal, règles « chaque patient voit seulement ses données » |
 | Coach Gemini | clé personnelle entrée dans **Profil → Coach IA** (GitHub Pages n'a pas de serveur). Pour une clé cachée côté serveur, voir l'option Cloudflare plus bas. |
 
+## Nouveautés 1.8
+
+- **Schémas de démonstration refaits** : main, poignet et pied dessinés avec des segments pleins et anatomiques (poing fermé, pouce derrière l'index, haltère tenu dans la main).
+- **Nouvelles vues** : paume de face (opposition du pouce, pâte, pouce à l'élastique), avant-bras de bout (pronation/supination au marteau), pied vu de dos (inversion/éversion à l'élastique).
+- **Glissements tendineux** : les 5 positions classiques (main droite, crochet, poing, table, poing droit).
+- **Corps entier** : figure posée au sol automatiquement, ponts fessiers, genou-poitrine, dead bug, pendule et talon excentrique corrigés (plus de membre sous le sol ni d'articulation pliée à l'envers).
+- **Test automatique** `tests/figures.test.mjs` : vérifie chaque schéma (sol, amplitudes du genou et du coude).
+
 ## Nouveautés 1.7
 
 - **Voix dans l'APK** : la WebView Android n'a pas de synthèse vocale ; l'app utilise maintenant la voix native d'Android (plugin `@capacitor-community/text-to-speech`) pour toutes les consignes, le comptage et le coach IA. « Coach IA activé » est annoncé au démarrage.
