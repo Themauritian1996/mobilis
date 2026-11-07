@@ -509,5 +509,20 @@
 "sub_flexbar": "uma toalha enrolada e torcida entre as mãos",
 "sub_hammer": "uma garrafa segurada pelo gargalo ou uma frigideira leve",
 "sub_putty": "uma bolinha antiestresse, uma bola de tênis ou uma esponja",
-"sub_weight": "uma mochila leve presa no tornozelo ou uma garrafa dentro de uma meia"
+"sub_weight": "uma mochila leve presa no tornozelo ou uma garrafa dentro de uma meia",
+"planeHand": "Mão",
+"planeHandD": "rastreamento dos dedos",
+"setupHandTip": "Boa luz, mão sobre um fundo liso, telemóvel estável (apoiado).",
+"calibratingHand": "Mantém a mão parada na posição inicial…",
+"pause": "Pausa",
+"resume": "Retomar",
+"pausedLbl": "Em pausa",
+"pausedD": "A contagem e a análise estão paradas. Retoma quando estiveres pronto.",
+"pausedSpoken": "Pausa.",
+"demoPause": "Pausar a demonstração",
+"demoPlay": "Retomar a demonstração",
+"demoSlow": "Câmara lenta",
+"demoListen": "Ouvir as instruções",
+"vibrateSetting": "Vibrar a cada repetição",
+"sessHandCam": "Exercícios da mão: telemóvel estável a 30–50 cm, a mão inteira na imagem, boa luz."
 }

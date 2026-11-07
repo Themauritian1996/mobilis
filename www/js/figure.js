@@ -30,15 +30,18 @@ function sidePose(p, anchor) {
   j.pelvis = [0, 0];
   j.shoulder = add(j.pelvis, dir(q.trunk, L.trunk));
   j.head = add(j.shoulder, dir(q.trunk + q.head, L.head));
+  // nez : sens du regard (suit le tronc ; nod > 0 = menton vers la poitrine) — rend lisibles le cou et l'orientation du corps
+  j.nose = add(j.head, dir(q.trunk + 90 + (q.nod || 0), 9));
   j.elbow = add(j.shoulder, dir(q.uarm, L.uarm));
   j.wrist = add(j.elbow, dir(q.farm, L.farm));
-  j.knee = add(j.pelvis, dir(q.thigh, L.thigh));
-  j.ankle = add(j.knee, dir(q.shank, L.shank));
+  // ts / ss (et ts2 / ss2) : longueur apparente de la cuisse / jambe (raccourci de perspective, ex. coquillage)
+  j.knee = add(j.pelvis, dir(q.thigh, L.thigh * (q.ts ?? 1)));
+  j.ankle = add(j.knee, dir(q.shank, L.shank * (q.ss ?? 1)));
   j.toe = add(j.ankle, dir(q.foot, L.foot));
   j.elbow2 = add(j.shoulder, dir(far.uarm, L.uarm));
   j.wrist2 = add(j.elbow2, dir(far.farm, L.farm));
-  j.knee2 = add(j.pelvis, dir(far.thigh, L.thigh));
-  j.ankle2 = add(j.knee2, dir(far.shank, L.shank));
+  j.knee2 = add(j.pelvis, dir(far.thigh, L.thigh * (q.ts2 ?? q.ts ?? 1)));
+  j.ankle2 = add(j.knee2, dir(far.shank, L.shank * (q.ss2 ?? q.ss ?? 1)));
   j.toe2 = add(j.ankle2, dir(far.foot, L.foot));
   j.hip = j.pelvis;
   j.bend = q.bend || 0;
@@ -89,9 +92,11 @@ function handPose(p, anchor) {
   j.dip = add(j.pip, dir(pa + s * (q.mcp + q.pip), 14));
   j.tip = add(j.dip, dir(pa + s * (q.mcp + q.pip + q.dip), 11));
   // pouce : naît du côté paume, près du poignet
-  j.thumbBase = add(add(j.wrist, dir(pa, 8)), dir(pa + 90 * s, 5));
-  j.thumbMcp = add(j.thumbBase, dir(pa + s * Math.min(q.thumb, 40), 16));
-  j.thumbTip = add(j.thumbMcp, dir(pa + s * (Math.min(q.thumb, 40) + q.thumbIp), 13));
+  // pouce (vue latérale) : part de la base de la paume, reste le long de l'index ; « thumb » = flexion/opposition vers la paume
+  const th = Math.min(q.thumb, 60) * 0.55;
+  j.thumbBase = add(add(j.wrist, dir(pa, 10)), dir(pa + 90 * s, 3));
+  j.thumbMcp = add(j.thumbBase, dir(pa + s * th, 14));
+  j.thumbTip = add(j.thumbMcp, dir(pa + s * (th + q.thumbIp * 0.8), 11));
   j.curl = q.mcp + q.pip + q.dip;
   return place(j, anchor);
 }
@@ -108,7 +113,8 @@ function palmPose(p, anchor) {
   j.palmPts = [[-20, 0], [-27, -14], [-28, top + 4], [-20, top], [28, top], [32, top + 8], [30, -20], [20, 0]];
   j.fingers = FINGERS.map((f, i) => {
     const extra = (q.fingers && q.fingers[i]) || 0;
-    const opp = q.opp && Math.abs(q.opp - (i + 1)) < 0.5 ? 1 - Math.abs(q.opp - (i + 1)) * 2 : 0; // doigt visé par le pouce
+    // doigt visé par le pouce (opp entre 0 et 1 : l'index se prépare progressivement)
+    const opp = !q.opp ? 0 : q.opp < 1 ? (i === 0 ? q.opp * 0.6 : 0) : Math.abs(q.opp - (i + 1)) < 0.5 ? 1 - Math.abs(q.opp - (i + 1)) * 2 : 0;
     const a = [q.mcp + extra * 80 + opp * 30, q.pip + extra * 95 + opp * 35, q.dip + extra * 60 + opp * 15];
     const base = [f.x + (i - 1.5) * q.spread * 0.15, top - 2];
     const pts = [base]; let cum = 0, cur = base;
@@ -122,6 +128,9 @@ function palmPose(p, anchor) {
   });
   [j.mcp, j.pip, j.dip, j.tip] = j.fingers[0];
   j.thumbBase = [22, -8]; // articulation à la base du pouce (trapézo-métacarpienne)
+  // pouce au repos (écarté selon « thumb »)
+  const restMcp = add(j.thumbBase, dir(38 + q.thumb, 24));
+  const restTip = add(restMcp, dir(22 + q.thumb * 0.8 + (q.thumbIp || 0), 22));
   if (q.opp) {
     const k = Math.max(1, Math.min(4, q.opp)), i0 = Math.floor(k) - 1, i1 = Math.min(3, i0 + 1), t = k - 1 - i0;
     const a = j.fingers[i0][3], b = j.fingers[i1][3];
@@ -132,9 +141,14 @@ function palmPose(p, anchor) {
     j.thumbMcp = [m[0] - (dy / L) * 14, m[1] + (dx / L) * 14];
     if (j.thumbMcp[0] < m[0]) j.thumbMcp = [m[0] + (dy / L) * 14, m[1] - (dx / L) * 14];
     j.thumbTip = tip;
+    // entre le repos et le premier contact : le pouce se déplace progressivement (pas de saut)
+    if (q.opp < 1) {
+      const w = q.opp, mix = (a, b) => [a[0] + (b[0] - a[0]) * w, a[1] + (b[1] - a[1]) * w];
+      j.thumbMcp = mix(restMcp, j.thumbMcp); j.thumbTip = mix(restTip, j.thumbTip);
+    }
   } else {
-    j.thumbMcp = add(j.thumbBase, dir(38 + q.thumb, 24));
-    j.thumbTip = add(j.thumbMcp, dir(22 + q.thumb * 0.8 + (q.thumbIp || 0), 22));
+    j.thumbMcp = restMcp;
+    j.thumbTip = restTip;
   }
   j.ball = q.ball ? [0, -30] : null; j.band = !!q.band;
   return place(j, anchor);
@@ -274,6 +288,7 @@ function drawProps(g, fig, j0) {
     if (name === 'table' && v === 'end') el('rect', { x: 40, y: j0.wrist[1] + 26, width: 160, height: 10, rx: 3, class: 'fg-prop' }, g);
     if (name === 'table' && v === 'hand') { el('rect', { x: 4, y: j0.elbow[1] + 9, width: (j0.wrist[0] - 4) - 2, height: 9, rx: 3, class: 'fg-prop' }, g); el('rect', { x: 14, y: j0.elbow[1] + 18, width: 6, height: 182 - j0.elbow[1] - 18, class: 'fg-prop' }, g); }
     else if (name === 'table') el('rect', { x: a || 20, y: b || 108, width: 115, height: 10, rx: 3, class: 'fg-prop' }, g);
+    if (name === 'roll' && j0.toe) el('circle', { cx: j0.toe[0] - 4, cy: 177.5, r: 4.5, class: 'fg-prop' }, g);
     if (name === 'towel') el('path', { d: `M${j0.heel[0] - 10},${j0.heel[1] + 3} L${j0.mtp[0] + 34},${j0.heel[1] + 3}`, class: 'fg-towel' }, g);
   }
 }
@@ -294,6 +309,7 @@ function drawBody(g, fig, j, cls) {
     poly(g, [j.pelvis, j.knee, j.ankle, j.toe], `fg-limb ${cls}`);
     poly(g, [j.shoulder, j.elbow, j.wrist], `fg-limb ${cls}`);
     el('circle', { cx: j.head[0], cy: j.head[1], r: 9, class: `fg-head ${cls}` }, g);
+    if (j.nose) el('circle', { cx: j.nose[0], cy: j.nose[1], r: 2.8, class: `fg-head ${cls}` }, g);
     for (const k of ['knee', 'elbow', 'pelvis', 'shoulder', 'ankle', 'wrist'])
       el('circle', { cx: j[k][0], cy: j[k][1], r: 2.6, class: `fg-joint ${cls}` }, g);
   } else if (v === 'front') {
@@ -323,7 +339,7 @@ function drawExtremity(g, v, j, cls) {
   if (v === 'hand') {
     limbShape(g, j.elbow, j.wrist, 9, 6.5, `fg-skin ${cls}`);
     limbShape(g, j.wrist, j.mcp, 7, 6.5, `fg-skin ${cls}`);
-    poly(g, [j.thumbBase, j.thumbMcp, j.thumbTip], `fg-finger fg-far fg-thumb-side ${cls}`); // pouce derrière l'index (vue de côté)
+    poly(g, [j.thumbBase, j.thumbMcp, j.thumbTip], `fg-finger fg-far fg-thumb-side ${cls}`); // pouce le long de l'index, côté caché (vue de côté)
     // doigts : un doigt « arrière » plus pâle donne la profondeur des 4 doigts
     const off = (p) => [p[0] + 2.5, p[1] - 2.5];
     poly(g, [j.mcp, j.pip, j.dip, j.tip].map(off), `fg-finger fg-far ${cls}`);
@@ -350,12 +366,17 @@ function drawExtremity(g, v, j, cls) {
     for (const k of ['ankle', 'mtp']) el('circle', { cx: j[k][0], cy: j[k][1], r: 1.8, class: `fg-joint ${cls}` }, g);
   } else if (v === 'end') {
     // avant-bras appuyé sur la table, vu dans son axe : coupe ronde + poing qui tourne
-    el('circle', { cx: j.wrist[0], cy: j.wrist[1] + 4, r: 22, class: `fg-skin fg-far ${cls}` }, g);
-    const a = ((j.forearmRot || 0) * Math.PI) / 180, w = 15, h = 21;
+    // coude et bras (au loin, en perspective) : donnent le sens de l'avant-bras posé sur la table
+    el('ellipse', { cx: j.wrist[0], cy: j.wrist[1] + 10, rx: 24, ry: 20, class: `fg-skin fg-far ${cls}` }, g);
+    const a = ((j.forearmRot || 0) * Math.PI) / 180, w = 14, h = 20;
     const R = (x, y) => [j.wrist[0] + x * Math.cos(a) - y * Math.sin(a), j.wrist[1] + x * Math.sin(a) + y * Math.cos(a)];
-    el('polygon', { points: [R(-w, -h), R(w, -h), R(w, h), R(-w, h)].map((p) => p.join(',')).join(' '), class: `fg-skin ${cls}`, 'stroke-linejoin': 'round' }, g);
-    const th = R(w - 3, -h + 6), th2 = R(w + 8, -h + 2);
-    line(g, th, th2, `fg-finger fg-thumb-side ${cls}`);
+    const pts = [R(-w, -h + 6), R(-w + 6, -h), R(w - 6, -h), R(w, -h + 6), R(w, h - 6), R(w - 6, h), R(-w + 6, h), R(-w, h - 6)];
+    el('polygon', { points: pts.map((p) => p.join(',')).join(' '), class: `fg-skin ${cls}`, 'stroke-linejoin': 'round' }, g);
+    // jointures des doigts (côté dos de la main) et pouce sur le dessus du poing
+    for (let k = 0; k < 4; k++) el('circle', { cx: R(-w + 1, -h + 8 + k * 9.5)[0], cy: R(-w + 1, -h + 8 + k * 9.5)[1], r: 2.4, class: `fg-joint ${cls}` }, g);
+    const th = R(-2, -h - 1), th2 = R(9, -h - 3);
+    line(g, th, th2, `fg-finger fg-thumb ${cls}`);
+    j.fistTop = R(0, -h);
   } else if (v === 'footBack') {
     limbShape(g, j.knee, j.ankle, 10, 7, `fg-skin ${cls}`);
     el('polygon', { points: [j.topL, j.topR, j.solR, j.solL].map((p) => p.join(',')).join(' '), class: `fg-skin ${cls}` }, g);
@@ -377,6 +398,14 @@ function drawHeld(g, fig, j) {
       el('rect', { x: p[0] - 7, y: p[1] - 3, width: 14, height: 6, rx: 2, class: 'fg-held' }, g);
     }
     if (name === 'stick' && j[a] && j[b]) line(g, j[a], j[b], 'fg-held-line');
+    // bâton tenu à deux mains, vu de bout (vue de côté) : rond dans les mains
+    if (name === 'dowel' && j[a || 'wrist']) { const p = j[a || 'wrist']; el('circle', { cx: p[0] + 1, cy: p[1], r: 4.5, class: 'fg-held' }, g); el('circle', { cx: p[0] + 1, cy: p[1], r: 1.6, class: 'fg-joint' }, g); }
+    // bâton le long du dos (charnière de hanche) : tête, haut du dos et sacrum en contact
+    if (name === 'dowelBack' && j.pelvis && j.shoulder) {
+      const u = [j.shoulder[0] - j.pelvis[0], j.shoulder[1] - j.pelvis[1]], l = Math.hypot(u[0], u[1]) || 1, e = [u[0] / l, u[1] / l], n = [e[1], -e[0]];
+      const back = (p, k) => [p[0] - n[0] * 6 + e[0] * k, p[1] - n[1] * 6 + e[1] * k];
+      line(g, back(j.pelvis, -12), back(j.shoulder, 30), 'fg-held-line');
+    }
     if (name === 'band' && j[a]) line(g, j[a], [b?.[0] ?? 200, b?.[1] ?? j[a][1]], 'fg-band');
     if (name === 'ball' && j[a]) el('circle', { cx: j[a][0], cy: j[a][1], r: 6, class: 'fg-held' }, g);
     if (name === 'vbar' && j.pip) { const d = j.palmDir ?? 90; line(g, add(j.pip, dir(d - 90, 34)), add(j.pip, dir(d + 90, 34)), 'fg-held-line fg-thick'); }
@@ -446,13 +475,35 @@ function drawAnat(g, j, keys) {
   }
 }
 
+// Échelle qui garde tout le mouvement dans le cadre (vues corps entier posées au sol, sans zoom manuel)
+export function figFit(fig) {
+  const v = fig.view || 'side';
+  if (fig.zoom && fig.anchor) return { z: fig.zoom, cx: fig.anchor.x, cy: fig.anchor.y };
+  if (v !== 'side' && v !== 'front') return { z: 1, cx: 0, cy: 0 };
+  const fr = fig.frames && fig.frames.length ? fig.frames : [{}];
+  const pairs = fr.length > 1 ? fr.slice(0, -1).map((a, i) => [a, fr[i + 1]]) : [[fr[0], fr[0]]];
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity;
+  for (const [A, B] of pairs) for (let k = 0; k <= 8; k++) {
+    const j = pose(fig, interpParams(A, B, k / 8));
+    for (const [n, p] of Object.entries(j)) {
+      if (!Array.isArray(p) || typeof p[0] !== 'number') continue;
+      const m = n === 'head' ? 7 : 3;
+      x0 = Math.min(x0, p[0] - m); x1 = Math.max(x1, p[0] + m); y0 = Math.min(y0, p[1] - m);
+    }
+  }
+  const cx = 120, cy = 182;
+  const z = Math.min(1, y0 < 2 ? (cy - 2) / (cy - y0) : 1, x0 < 2 ? (cx - 2) / (cx - x0) : 1, x1 > 238 ? (238 - cx) / (x1 - cx) : 1);
+  return { z: Math.round(z * 1000) / 1000, cx, cy };
+}
+
 export function renderFigure(svg, fig, opts = {}) {
   const keys = opts.keys || [];
   svg.innerHTML = '';
   svg.setAttribute('viewBox', '0 0 240 200');
   const frames = fig.frames && fig.frames.length ? fig.frames : [{}];
   // agrandissement (mains) : tout le dessin est mis à l'échelle autour du point d'ancrage, traits compris
-  const root = fig.zoom && fig.zoom !== 1 && fig.anchor ? el('g', { transform: `translate(${fig.anchor.x},${fig.anchor.y}) scale(${fig.zoom}) translate(${-fig.anchor.x},${-fig.anchor.y})` }, svg) : svg;
+  const fit = figFit(fig);
+  const root = fit.z !== 1 ? el('g', { transform: `translate(${fit.cx},${fit.cy}) scale(${fit.z}) translate(${-fit.cx},${-fit.cy})` }, svg) : svg;
   const gProps = el('g', {}, root);
   const gGhost = el('g', {}, root);
   const gTrace = el('g', {}, root);
@@ -480,7 +531,7 @@ export function renderFigure(svg, fig, opts = {}) {
       poly(gTrace, [h(0.5), b, h(-0.5)], 'fg-trace fg-arrow');
     }
   }
-  let raf = 0, start = 0, stopped = false, lastMs = 0, animated = false;
+  let raf = 0, prevTs = 0, stopped = false, lastMs = 0, animated = false, speed = 1, paused = false;
   const period = (fig.period || 3.2) * 1000;
   const seq = frames.length > 2 ? frames.concat([frames[0]]) : frames.length === 2 ? [frames[0], frames[1], frames[0]] : [frames[0], frames[0]];
 
@@ -524,9 +575,9 @@ export function renderFigure(svg, fig, opts = {}) {
   const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   function loop(ts) {
     if (stopped) return;
-    if (!start) start = ts;
-    lastMs = ts - start;
-    draw(lastMs);
+    if (!prevTs) prevTs = ts;
+    if (!paused) { lastMs += Math.min(100, ts - prevTs) * speed; draw(lastMs); }
+    prevTs = ts;
     raf = requestAnimationFrame(loop);
   }
   if (opts.at != null) { lastMs = period * opts.at; draw(lastMs); }
@@ -534,6 +585,10 @@ export function renderFigure(svg, fig, opts = {}) {
   else { animated = true; raf = requestAnimationFrame(loop); }
   return {
     stop() { stopped = true; cancelAnimationFrame(raf); },
-    setAnatomy(on) { showAnat = !!on; if (!animated) draw(lastMs); },
+    setAnatomy(on) { showAnat = !!on; if (!animated || paused) draw(lastMs); },
+    // lecture de la démonstration : pause / ralenti (0,5×)
+    setSpeed(f) { speed = f; },
+    setPaused(on) { paused = !!on; },
+    get animated() { return animated; },
   };
 }

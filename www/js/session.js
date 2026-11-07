@@ -80,7 +80,7 @@ export function viewSession() {
         <p class="small muted" style="margin:6px 0 8px">${t('myEquipD')}</p>
         <div class="row wrap" style="gap:6px">${EQUIP_IDS.map((e) => `<button class="pill ${!have || have.includes(e) ? 'on' : ''}" data-eq="${e}">${esc(tr(EQUIP[e]))}</button>`).join('')}</div></details>
       <ul class="list-plain small" style="margin-top:10px">
-        ${cam.length ? `<li>${t('sessCamSpace')}</li>${planes.length > 1 ? `<li>${t('sessBothPlanes')}</li>` : ''}` : ''}
+        ${cam.some((x) => EXERCISES[x.id].track.kind !== 'hand') ? `<li>${t('sessCamSpace')}</li>${planes.filter((k) => k !== 'hand').length > 1 ? `<li>${t('sessBothPlanes')}</li>` : ''}` : ''}${planes.includes('hand') ? `<li>${t('sessHandCam')}</li>` : ''}
         ${floor ? `<li>${t('sessFloor')}</li>` : ''}
         <li>${t('sessClothes')}</li>
       </ul></div>

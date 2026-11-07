@@ -8,7 +8,7 @@ const LS = {
 };
 
 // ---------- Réglages (locaux à l'appareil) ----------
-const DEFAULT_SETTINGS = { voice: 'local', countAloud: true, geminiKey: '', sendFrame: false, camera: 'user', theme: 'auto', anatomy: false, selfView: true };
+const DEFAULT_SETTINGS = { voice: 'local', countAloud: true, geminiKey: '', sendFrame: false, camera: 'user', theme: 'auto', anatomy: false, selfView: true, guides: true, vibrate: true, liveAI: false };
 export const settings = () => ({ ...DEFAULT_SETTINGS, ...LS.get('mobilis.settings', {}) });
 export const saveSettings = (patch) => LS.set('mobilis.settings', { ...settings(), ...patch });
 

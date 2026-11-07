@@ -4,7 +4,7 @@
 //  - la liste FERMÉE des corrections valides pour cet exercice et ce plan (rédigées par le clinicien).
 // Il répond en JSON (correction choisie + confiance). L'app valide la réponse contre les mesures avant de la dire,
 // et prononce la consigne validée (pas un texte libre), ce qui garantit une correction anatomiquement juste.
-import { gemini } from './coach.js';
+import { gemini, parseJSON } from './coach.js';
 import { settings } from './store.js';
 import { CUES, tr, langInfo } from './i18n.js';
 import { METRIC_INFO } from './pose.js';
@@ -14,13 +14,22 @@ const VISUAL = {
   side: ['trunk', 'trunkSway', 'arch', 'heelDown', 'bodyLine', 'kneeStraight', 'hinge', 'elbowPin', 'shrug'],
   front: ['valgus', 'sideLean', 'pelvis', 'shrug', 'symmetry', 'headTilt', 'elbowSide', 'trunkSway'],
   guided: ['trunkSway', 'shrug', 'sideLean', 'arch'],
+  // mouvements fins : seules des corrections de la main / du pied ont un sens (jamais « redresse le tronc » pour un poignet)
+  hand: ['forearmStill', 'handInView'],
+  foot: ['legStill', 'footInView'],
+};
+// Exercices fins (main, poignet, pouce, pied, cheville) : filmés de près, analysés sur la main ou le pied
+export const fineKind = (ex) => {
+  const v = ex.fig?.view || 'side';
+  return v === 'hand' || v === 'palm' || v === 'end' ? 'hand' : v === 'foot' || v === 'footBack' ? 'foot' : null;
 };
 
 export function allowedFor(ex, plane, mode) {
   const spec = ex.track?.planes?.[plane];
   const measured = (spec?.checks || []).map((c) => c.cue);
   const anyPlane = new Set(Object.values(ex.track?.planes || {}).flatMap((p) => (p.checks || []).map((c) => c.cue)));
-  const visual = (VISUAL[plane] || VISUAL.guided).filter((c) => anyPlane.has(c) || plane === 'guided');
+  const fine = fineKind(ex);
+  const visual = fine ? VISUAL[fine] : (VISUAL[plane] || VISUAL.guided).filter((c) => anyPlane.has(c) || plane === 'guided');
   const ids = new Set([...measured, ...visual]);
   if (mode === 'reps') { ids.add('depth'); ids.add('slow'); }
   if (mode === 'hold') ids.add('holdIt');
@@ -28,11 +37,20 @@ export function allowedFor(ex, plane, mode) {
   return { measured: new Set(measured), cues: [...ids].filter((k) => CUES[k]), keys };
 }
 
+export function planeText(c) {
+  const fine = c.ex ? fineKind(c.ex) : null;
+  if (fine === 'hand') return 'CLOSE-UP of the hand and wrist (fine movement): judge only the hand, wrist, fingers and thumb against the technique; the forearm should stay still on its support. Never comment on the trunk, legs or general posture.';
+  if (fine === 'foot') return 'CLOSE-UP of the foot and ankle (fine movement): judge only the foot, toes and ankle against the technique; the leg should stay still. Never comment on the trunk or arms.';
+  return c.plane === 'side' ? 'SIDE view (sagittal plane): you can judge flexion/extension, trunk lean, depth, heel lift; you CANNOT judge knee valgus or left/right symmetry'
+    : c.plane === 'front' ? 'FRONT view (frontal plane): you can judge knee valgus, side lean, pelvic level, symmetry, shrugging; you CANNOT judge forward trunk lean, depth or lumbar arch'
+    : 'mirror view: only judge gross posture that is clearly visible';
+}
 function sysPrompt(c) {
   return `You are an expert musculoskeletal physiotherapy assistant, supervised by a physiatrist, checking a patient's exercise form from a 2D phone camera.
-Exercise: ${c.exercise}. Patient condition: ${c.condition}. Camera plane: ${c.plane === 'side' ? 'SIDE view (sagittal plane): you can judge flexion/extension, trunk lean, depth, heel lift; you CANNOT judge knee valgus or left/right symmetry' : c.plane === 'front' ? 'FRONT view (frontal plane): you can judge knee valgus, side lean, pelvic level, symmetry, shrugging; you CANNOT judge forward trunk lean, depth or lumbar arch' : 'mirror view, fine movement: only judge gross posture'}.
+Exercise: ${c.exercise}. Patient condition: ${c.condition}. Camera: ${planeText(c)}.
 Correct technique (authored by the clinician): ${c.steps.join(' ')}
-The image is the key frame of the movement with the app's skeleton overlay (red joints = a measured fault). The image may be mirrored.
+The image is the key frame of the movement with the app's skeleton overlay (red joints = a measured fault; for hand exercises, the 21-point hand skeleton). The image may be mirrored.
+${c.ex && fineKind(c.ex) ? `If the ${fineKind(c.ex)} is not clearly visible in the image, answer cue "${fineKind(c.ex)}InView" with confidence 1.` : ''}
 Measurements come from validated pose tracking; TRUST THEM over your visual impression for anything they measure. Use the image only for what the measurements cannot capture, and only if it is clearly visible.
 Choose AT MOST ONE correction from the allowed list (ids). If the measurements show no fault and nothing is clearly wrong, answer cue "none" with a short encouragement.
 Never invent a correction outside the list. Never diagnose. Never contradict the correct technique.
@@ -46,8 +64,8 @@ const SCHEMA = (ids) => ({
 });
 
 async function askJSON(key, sys, parts, ids) {
-  const txt = await gemini({ key, sys, parts, maxTokens: 160, temperature: 0.2, schema: SCHEMA(ids), timeout: 6000 });
-  return JSON.parse(txt);
+  const txt = await gemini({ key, sys, parts, maxTokens: 200, temperature: 0.2, schema: SCHEMA(ids), timeout: 7000 });
+  return parseJSON(txt);
 }
 
 // Une mesure « clairement normale » contredit la correction proposée

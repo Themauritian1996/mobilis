@@ -78,15 +78,32 @@ const SYS = {
 const langLine = () => `Always answer in ${langInfo().label}.`;
 export const aiAvailable = () => !!(settings().geminiKey || CONFIG.coachEndpoint);
 
-// Appel Gemini direct (clé personnelle). Rapide par défaut : modèle « lite », sans réflexion, limite de temps stricte.
-// Si le modèle rapide ou l'option de réflexion est refusé, on réessaie avec le modèle standard / sans l'option (mémorisé).
-const flags = { noThinkCfg: false, fastBroken: false };
+// Appel Gemini direct (clé personnelle). Rapide par défaut : modèle « lite », réflexion minimale, limite de temps stricte.
+// Les modèles récents (3.x) n'acceptent plus « thinkingBudget: 0 » mais « thinkingLevel: minimal » ; les plus anciens l'inverse.
+// La réflexion compte dans la limite de jetons : on garde une marge pour que la réponse (JSON) ne soit jamais tronquée.
+// Si un modèle ou une option est refusé, on passe au suivant (mémorisé pour la session).
+const flags = { think: 'level', dead: new Set() };
+const THINK = { level: { thinkingLevel: 'minimal' }, budget: { thinkingBudget: 0 }, none: null };
+const NEXT_THINK = { level: 'budget', budget: 'none', none: null };
+export function modelChain(fast = true) {
+  const list = fast ? [...(CONFIG.geminiFastModels || []), CONFIG.geminiModel] : [CONFIG.geminiModel];
+  return [...new Set(list)].filter((m) => m && !flags.dead.has(m));
+}
+// Texte d'une réponse JSON, même entourée de texte ou de balises ```json
+export function parseJSON(txt) {
+  try { return JSON.parse(txt); } catch (_) {}
+  const a = txt.indexOf('{'), b = txt.lastIndexOf('}');
+  if (a >= 0 && b > a) return JSON.parse(txt.slice(a, b + 1));
+  throw new Error('json');
+}
 export async function gemini({ key = settings().geminiKey, sys, parts, maxTokens = 180, temperature = 0.5, schema = null, timeout = 8000, fast = true }) {
-  const model = fast && !flags.fastBroken ? CONFIG.geminiFastModel || CONFIG.geminiModel : CONFIG.geminiModel;
-  const gen = { temperature, maxOutputTokens: maxTokens };
+  const chain = modelChain(fast);
+  const model = chain[0] || CONFIG.geminiModel;
+  const gen = { temperature, maxOutputTokens: maxTokens + 400 };
   if (schema) { gen.responseMimeType = 'application/json'; gen.responseSchema = schema; }
-  if (!flags.noThinkCfg) gen.thinkingConfig = { thinkingBudget: 0 };
+  if (THINK[flags.think]) gen.thinkingConfig = THINK[flags.think];
   const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), timeout);
+  const again = () => gemini({ key, sys, parts, maxTokens, temperature, schema, timeout, fast });
   try {
     const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, signal: ctl.signal,
@@ -94,12 +111,15 @@ export async function gemini({ key = settings().geminiKey, sys, parts, maxTokens
     });
     if (!r.ok) {
       const body = await r.text().catch(() => '');
-      if (r.status === 400 && !flags.noThinkCfg && /thinking/i.test(body)) { flags.noThinkCfg = true; return gemini({ key, sys, parts, maxTokens, temperature, schema, timeout, fast }); }
-      if ((r.status === 404 || r.status === 400) && model !== CONFIG.geminiModel) { flags.fastBroken = true; return gemini({ key, sys, parts, maxTokens, temperature, schema, timeout, fast: false }); }
-      throw new Error('gemini ' + r.status);
+      if (r.status === 400 && /think/i.test(body) && NEXT_THINK[flags.think] !== undefined && flags.think !== 'none') { flags.think = NEXT_THINK[flags.think] || 'none'; return again(); }
+      if ((r.status === 404 || (r.status === 400 && /model|not (found|supported)/i.test(body)) || r.status === 403 && /model/i.test(body)) && chain.length > 1) { flags.dead.add(model); return again(); }
+      const err = new Error('gemini ' + r.status); err.status = r.status; err.body = body.slice(0, 300);
+      throw err;
     }
     const j = await r.json();
-    return (j.candidates?.[0]?.content?.parts || []).filter((p) => !p.thought).map((p) => p.text || '').join('').trim();
+    const out = (j.candidates?.[0]?.content?.parts || []).filter((p) => !p.thought).map((p) => p.text || '').join('').trim();
+    if (!out && j.candidates?.[0]?.finishReason === 'MAX_TOKENS') throw new Error('gemini max tokens');
+    return out;
   } finally { clearTimeout(tm); }
 }
 export const geminiDirect = (key, sys, parts, maxTokens = 180) => gemini({ key, sys, parts, maxTokens });
@@ -261,9 +281,14 @@ export async function speakRich(text) {
     const body = { contents: [{ parts: [{ text }] }], generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } } } };
     let r;
     if (s.geminiKey) {
-      r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${CONFIG.geminiTtsModel}:generateContent`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': s.geminiKey }, body: JSON.stringify(body),
-      });
+      for (const m of (CONFIG.geminiTtsModels || []).filter((x) => !flags.dead.has(x))) {
+        r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': s.geminiKey }, body: JSON.stringify(body),
+        });
+        if (r.ok || ![400, 403, 404].includes(r.status)) break;
+        flags.dead.add(m);
+      }
+      if (!r) throw new Error('no tts');
     } else {
       if (!CONFIG.coachEndpoint) throw new Error('no endpoint');
       r = await fetch(coachUrl(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'tts', text, lang: getLang(), langLabel: langInfo().label }) });

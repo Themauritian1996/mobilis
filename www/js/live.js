@@ -6,6 +6,7 @@ import { CONFIG } from './config.js';
 import { settings } from './store.js';
 import { langInfo } from './i18n.js';
 import { speak, geminiDirect, setLiveTalking } from './coach.js';
+import { planeText, fineKind } from './ai-coach.js';
 
 const WS = 'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent';
 export const liveAvailable = () => !!settings().geminiKey && typeof WebSocket !== 'undefined';
@@ -24,8 +25,9 @@ function systemPrompt(c) {
 Exercise: ${c.exercise}. Condition: ${c.condition}. Target: ${c.target}. Pain limit during exercise: ${c.painLimit}/10.
 Correct technique: ${c.steps.join(' ')} Key points: ${c.keys.join('; ')}.
 When you get a "CHECK" message, look at the latest video frames and reply with ONE very short spoken sentence (max 12 words): the single most important correction you can actually see, or brief encouragement if the form looks right. If the patient is not visible, ask them to step back so their whole body is in view.
-The app also measures the movement with validated pose tracking and tells you its measurements in each CHECK: TRUST THEM over your visual impression. ${c.plane === 'side' ? 'Side view: do not comment on knee valgus or left/right symmetry (not visible).' : c.plane === 'front' ? 'Front view: do not comment on forward trunk lean, squat depth or low-back arch (not visible).' : 'Fine movement: only comment on gross posture.'}
-Only give corrections that are part of the correct technique above; if you are not sure, encourage instead. The skeleton overlay (red joints = measured fault) is drawn on the frames.
+Camera: ${planeText(c)}.
+The app also measures the movement with validated tracking and tells you its measurements in each CHECK: TRUST THEM over your visual impression.
+Only give corrections that are part of the correct technique above; if you are not sure, encourage instead. The skeleton overlay (red joints = measured fault${c.ex && fineKind(c.ex) === 'hand' ? '; 21-point hand skeleton' : ''}) is drawn on the frames.${c.ex && fineKind(c.ex) ? ` If the ${fineKind(c.ex)} is not fully visible, ask the patient to show it to the camera.` : ''}
 Never count repetitions (the app counts). Never diagnose, never change the program. If they look in pain, tell them to ease off.
 Always speak ${langInfo().label}, warm and simple, no jargon.`;
 }
@@ -40,7 +42,7 @@ Always speak ${langInfo().label}, warm and simple, no jargon.`;
 export function startLiveCoach(o) {
   const key = settings().geminiKey;
   let stopped = false, ws = null, frameTimer = 0, checkTimer = 0, modelIdx = 0, ready = false, busy = false, text = '';
-  let nextAt = 0, endTimer = 0, lastCheck = 0, snapTimer = 0, reconnects = 0;
+  let nextAt = 0, endTimer = 0, lastCheck = 0, snapTimer = 0, reconnects = 0, resumeHandle = null, setupFails = 0, noExtras = false;
   const cv = document.createElement('canvas');
   primeAudio();
 
@@ -85,12 +87,14 @@ export function startLiveCoach(o) {
         generationConfig: { responseModalities: ['AUDIO'] },
         systemInstruction: { parts: [{ text: systemPrompt(o.context) }] },
         outputAudioTranscription: {},
+        // vidéo + audio : sans compression, une session est coupée après ~2 min ; fenêtre glissante + reprise de session
+        ...(noExtras ? {} : { contextWindowCompression: { slidingWindow: {} }, sessionResumption: resumeHandle ? { handle: resumeHandle } : {} }),
       },
     }));
     sock.onmessage = async (e) => {
       let m; try { m = JSON.parse(typeof e.data === 'string' ? e.data : await e.data.text()); } catch (_) { return; }
       if (m.setupComplete) {
-        ready = true; reconnects = 0; o.onState('live');
+        ready = true; setupFails = 0; o.onState('live');
         frameTimer = setInterval(() => { const d = frame(); if (d && sock.readyState === 1) sock.send(JSON.stringify({ realtimeInput: { video: { data: d, mimeType: 'image/jpeg' } } })); }, 1000);
         checkTimer = setInterval(() => {
           if (busy || sock.readyState !== 1 || Date.now() - lastCheck < 6500) return;
@@ -107,17 +111,23 @@ export function startLiveCoach(o) {
           else if (p.text && !sc.outputTranscription) { text += p.text; o.onText(text.trim(), false); }
         }
         if (sc.outputTranscription?.text) { text += sc.outputTranscription.text; o.onText(text.trim(), false); }
-        if (sc.turnComplete || sc.generationComplete) { busy = false; if (text.trim()) o.onText(text.trim(), true); }
+        if (sc.turnComplete) { busy = false; if (text.trim()) o.onText(text.trim(), true); text = ''; }
         if (sc.interrupted) busy = false;
       }
-      if (m.goAway) { try { sock.close(); } catch (_) {} }
+      if (m.sessionResumptionUpdate?.resumable && m.sessionResumptionUpdate.newHandle) resumeHandle = m.sessionResumptionUpdate.newHandle;
+      if (m.goAway) { try { sock.close(); } catch (_) {} } // la session va se fermer : on rouvre tout de suite (reprise avec la poignée)
     };
     sock.onerror = () => {};
     sock.onclose = () => {
       clearTimers();
       if (stopped || sock !== ws) return;
-      if (!ready) { modelIdx++; return connect(); } // modèle refusé → modèle suivant
-      if (++reconnects <= 5) setTimeout(connect, 300); // limite de 2 min par session vidéo → nouvelle session
+      if (!ready) {
+        // refus de la configuration : on réessaie une fois sans les options de session (anciens modèles), puis modèle suivant
+        if (resumeHandle) { resumeHandle = null; return connect(); }
+        if (!setupFails++ && !noExtras) { noExtras = true; return connect(); }
+        setupFails = 0; noExtras = false; modelIdx++; return connect();
+      }
+      if (++reconnects <= 8) setTimeout(connect, 300); // fin de session (durée maximale) → nouvelle session, avec reprise si possible
       else snapshotMode();
     };
   }

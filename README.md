@@ -13,6 +13,16 @@ Application web + APK Android qui filme le patient pendant ses exercices, analys
 | Comptes et données | Firebase `mobilis-6828b` : Google + courriel, Firestore à Montréal, règles « chaque patient voit seulement ses données » |
 | Coach Gemini | clé personnelle entrée dans **Profil → Coach IA** (GitHub Pages n'a pas de serveur). Pour une clé cachée côté serveur, voir l'option Cloudflare plus bas. |
 
+## Nouveautés 1.9
+
+- **Suivi de la main par la caméra** (MediaPipe Hands, 21 points, sur le téléphone) : 9 exercices du poignet, de la main et du pouce sont maintenant comptés et analysés — excentriques des extenseurs/fléchisseurs, flexion-extension, déviation radiale, pronation-supination, opposition du pouce, ouverture du pouce, préhension à la pâte, isométrique du poignet (maintien immobile chronométré). Consigne de cadrage propre à chaque exercice, squelette de la main affiché et envoyé au coach IA.
+- **Coach IA Gemini corrigé** : modèles à jour (Live `gemini-3.8-live`, voix `gemini-3.8-flash-lite-tts`, repli automatique si un modèle est retiré) ; réflexion réglée en « minimal » pour les modèles 3.x (l'ancien réglage était refusé et la réponse JSON pouvait être tronquée → coach muet) ; lecture du JSON tolérante ; session Live prolongée (compression du contexte + reprise de session au lieu d'une coupure après ~2 min).
+- **Corrections adaptées à l'exercice** : pour la main et le pied, l'IA ne peut plus proposer de correction du tronc ou des épaules ; elle juge seulement la main / le pied et demande de les montrer s'ils sortent de l'image. Contrôle « bon mouvement » désactivé pour les schémas en vue oblique (coquillage, livre ouvert) qui donnaient de faux « mauvais mouvement ».
+- **Calibration fiable** : la position de départ n'est enregistrée que lorsque le patient est immobile (sinon le compteur pouvait ne rien compter).
+- **Séance** : bouton Pause / Reprendre, écran gardé allumé, pause automatique si l'app passe en arrière-plan, vibration à chaque répétition (réglable).
+- **Démonstrations** : pause, ralenti (0,5×) et consignes lues à voix haute ; bâton, élastique et serviette dessinés ; cadrage automatique (bras au-dessus de la tête plus jamais coupés) ; pouce plus anatomique et sans saut ; coquillage, planche latérale, pronation-supination et menton rentré redessinés ; nez qui indique l'orientation de la tête.
+- **Tests** : `tests/hand.test.mjs` (main : 9 exercices), `tests/figures.test.mjs` (cadre, NaN, toutes les images clés).
+
 ## Nouveautés 1.8
 
 - **Schémas de démonstration refaits** : main, poignet et pied dessinés avec des segments pleins et anatomiques (poing fermé, pouce derrière l'index, haltère tenu dans la main).
@@ -150,7 +160,7 @@ Il faut une signature stable et le fichier Firebase Android :
 ```
 npm install
 npm test            # le compteur doit compter 5/5 sur tous les exercices suivis
-npm run fetch-model # modèle de pose hors ligne
+npm run fetch-model # modèles de pose et de main hors ligne
 npm run serve       # http://localhost:3000 (la caméra exige https ou localhost)
 ```
 

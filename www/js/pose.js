@@ -121,7 +121,19 @@ const M = {
   kneeGap: (p, s, c) => angle(p.knL, c.hip, p.knR),
   footLift: (p, s, c) => Math.abs(p.anL.y - p.anR.y) / c.legLen,
   hipLow: (p, s, c) => c.hip.y / c.shW,
+  // ---- Main (21 points MediaPipe Hands, en pixels : p.hand) ----
+  // direction de la main (poignet → tête du 3e métacarpien) dans l'image ; avant-bras immobile → variation = mouvement du poignet
+  hAxis: (p) => { const h = p.hand; return deg(Math.atan2(h[9].x - h[0].x, -(h[9].y - h[0].y))); },
+  // rotation de l'avant-bras vu dans son axe : orientation de la ligne des jointures (index → auriculaire)
+  hRoll: (p) => { const h = p.hand; return deg(Math.atan2(h[17].x - h[5].x, -(h[17].y - h[5].y))); },
+  // pouce → pulpe du doigt le plus proche (fraction de la longueur de la paume, négatif : plus proche de 0 = contact)
+  hPinch: (p) => { const h = p.hand, palm = dist(h[0], h[9]) || 1; return -Math.min(...[8, 12, 16, 20].map((k) => dist(h[4], h[k]))) / palm; },
+  // fermeture de la main : distance moyenne bout des doigts → poignet (fraction de la paume ; ≈ 1,9 main ouverte, ≈ 1 poing)
+  hClose: (p) => { const h = p.hand, palm = dist(h[0], h[9]) || 1; return [8, 12, 16, 20].reduce((a, k) => a + dist(h[k], h[0]), 0) / 4 / palm; },
+  // ouverture du pouce (abduction / « C ») : angle entre le pouce et le 2e métacarpien
+  hThumbAbd: (p) => { const h = p.hand; return angle({ x: h[4].x - h[2].x + h[0].x, y: h[4].y - h[2].y + h[0].y }, h[0], h[5]); },
 };
+export const HAND_METRICS = new Set(['hAxis', 'hRoll', 'hPinch', 'hClose', 'hThumbAbd']);
 // Sens anatomique de chaque mesure (envoyé à l'IA pour qu'elle interprète des chiffres valides)
 export const METRIC_INFO = {
   knee: 'knee joint angle in degrees (180 = fully straight, smaller = more bent)',
@@ -153,6 +165,11 @@ export const METRIC_INFO = {
   kneeGap: 'angle between the knees from the pelvis (clamshell opening)',
   footLift: 'foot lifted off the floor (fraction of leg length)',
   hipLow: 'hip height drop relative to shoulder width (squat depth in front view)',
+  hAxis: 'wrist movement: change of the hand direction from the start position in degrees (forearm resting still)',
+  hRoll: 'forearm rotation (pronation/supination) from the start position, in degrees',
+  hPinch: 'thumb tip to nearest fingertip distance (negative fraction of palm length; close to 0 = tips touching)',
+  hClose: 'mean fingertip-to-wrist distance (fraction of palm length; about 1.9 open hand, about 1.0 closed fist)',
+  hThumbAbd: 'thumb opening angle from the index metacarpal, in degrees',
 };
 const SIDED = new Set(['knee', 'hip', 'elbow', 'ankle', 'bodyLine', 'armElev', 'shFlex', 'shinLean', 'neckFwd', 'wristUp', 'heelRise', 'erFront', 'elbowAway', 'hipAbd', 'kneeValgus']);
 
@@ -162,6 +179,7 @@ function visibleSide(p) {
 }
 
 export function metric(name, p, side, opts = {}) {
+  if (HAND_METRICS.has(name)) return p.hand ? M[name](p) : NaN;
   const c = ctx(p);
   if (opts.both && SIDED.has(name)) return (M[name](p, 'L', c) + M[name](p, 'R', c)) / 2;
   return M[name](p, SIDED.has(name) ? side : null, c);
@@ -210,16 +228,25 @@ export class Tracker {
     const dt = this.lastT ? Math.min(0.2, (t - this.lastT) / 1000) : 0;
     this.lastT = t;
     const s = this.spec;
-    if (!this.side) this.side = this.forceSide || visibleSide(p);
+    if (!this.side) this.side = this.forceSide || (p.hand ? 'R' : visibleSide(p));
 
     // Calibration : ~0,6 s immobile en position de départ
     if (!this.base) {
       const snap = { L: this.valueFor(p, 'L'), R: this.valueFor(p, 'R'), checks: {} };
       for (const ck of s.checks || []) if (ck.rel) snap.checks[ck.m] = metric(ck.m, p, this.side);
       this.calib.push(snap);
-      if (this.calib.length >= 18) {
+      // départ immobile : les 18 dernières images doivent être stables (sinon le « zéro » serait pris en plein mouvement) ;
+      // après ~4 s sans stabilité, on calibre quand même sur les dernières images
+      if (this.calib.length > 18) this.calibAll = (this.calibAll || 0) + 1, this.calib.shift();
+      const tol = s.calibTol ?? (this.mode === 'hold' ? Math.abs((s.max ?? 0) - (s.min ?? 0)) * 0.5 || 10 : s.rel ? Math.abs(s.delta) * 0.22 : Math.abs((s.to ?? 0) - (s.from ?? 0)) * 0.15 || 10);
+      const spread = (k) => { const v = this.calib.map((x) => x[k]); if (s.angular) { const r = v[0]; const d = v.map((x) => ((x - r + 540) % 360) - 180); return Math.max(...d) - Math.min(...d); } return Math.max(...v) - Math.min(...v); };
+      const stable = this.calib.length >= 18 && (spread('L') <= tol || !Number.isFinite(spread('L')));
+      if (this.calib.length >= 18 && (stable || (this.calibAll || 0) > 110)) {
         const avg = (f) => this.calib.reduce((a, x) => a + f(x), 0) / this.calib.length;
-        this.base = { L: avg((x) => x.L), R: avg((x) => x.R), checks: {} };
+        // angles : moyenne circulaire (179° et −179° → 180°, pas 0°)
+        const cavg = (f) => deg(Math.atan2(avg((x) => Math.sin(f(x) / 57.29578)), avg((x) => Math.cos(f(x) / 57.29578))));
+        const A = s.angular ? cavg : avg;
+        this.base = { L: A((x) => x.L), R: A((x) => x.R), checks: {} };
         for (const ck of s.checks || []) if (ck.rel) this.base.checks[ck.m] = avg((x) => x.checks[ck.m]);
       }
       return { phase: 'calibrating', progress: 0, reps: 0, holdSec: 0 };
@@ -228,6 +255,12 @@ export class Tracker {
     // Choix du côté : 'auto' = côté qui bouge le plus, sinon côté le plus visible
     let side = this.side, v;
     const prog = (val, sd) => {
+      if (s.rel && (s.angular || s.absRel)) {
+        // écart à la position de départ ; angulaire : ramené entre −180 et 180 ; absRel : dans un sens ou dans l'autre
+        let d = val - this.base[sd]; if (s.angular) d = ((d + 540) % 360) - 180; if (s.absRel) d = Math.abs(d);
+        const span = (s.absRel ? Math.abs(s.delta) : s.delta) * this.rom;
+        return { pr: d / (span || 1), from: 0, to: span, d };
+      }
       const from = s.rel ? this.base[sd] : s.from;
       const to = s.rel ? this.base[sd] + s.delta * this.rom : s.from + (s.to - s.from) * this.rom;
       return { pr: (val - from) / ((to - from) || 1), from, to };
@@ -259,6 +292,7 @@ export class Tracker {
     this.lastChecks = checksNow;
 
     if (this.mode === 'hold') {
+      if (s.rel) v = prog(v, side).d ?? (v - this.base[side]); // maintien relatif : écart à la position de départ
       const ok = v >= s.min && v <= s.max && faults.length === 0;
       if (ok) this.holdSec += dt;
       else if (this.holdSec > 0.5 && !faults.length) this.onCue('holdIt');
@@ -267,7 +301,8 @@ export class Tracker {
     }
 
     // Mode répétitions
-    const { pr, to } = prog(v, side);
+    const { pr, to, d: dv } = prog(v, side);
+    if (dv != null) v = dv; // écart à la position de départ (degrés ou fraction) : c'est ce que voient le patient et l'IA
     this.p = this.p * 0.55 + Math.max(-0.5, Math.min(1.5, pr)) * 0.45;
     const P = this.p, holdTop = s.holdTop || 0;
     if (this.p0 == null) {

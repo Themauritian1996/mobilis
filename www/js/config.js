@@ -21,16 +21,20 @@ export const CONFIG = {
   // Avec Cloudflare Pages, mettre '/api/coach' (la fonction functions/api/coach.js garde la clé secrète).
   coachEndpoint: '',
   geminiModel: 'gemini-flash-latest',
-  // Modèle rapide pour tout ce qui se passe pendant la séance (analyse par répétition, résumé de série) : réponse en 1–3 s
-  geminiFastModel: 'gemini-flash-lite-latest',
-  geminiTtsModel: 'gemini-2.5-flash-preview-tts',
+  // Modèles rapides pour tout ce qui se passe pendant la séance (analyse par répétition, résumé de série) : réponse en 1–3 s.
+  // Essayés dans l'ordre ; si un modèle est refusé (retiré, non disponible pour la clé), on passe au suivant puis au modèle standard.
+  geminiFastModels: ['gemini-flash-lite-latest', 'gemini-3.5-flash-lite', 'gemini-2.5-flash-lite'],
+  geminiTtsModels: ['gemini-3.8-flash-lite-tts', 'gemini-3.8-flash-tts', 'gemini-2.5-flash-preview-tts'],
   // Coach IA en direct (API Live, vidéo 1 image/s → voix). Essayés dans l'ordre ; si aucun ne répond : analyse d'images toutes les 8 s.
-  geminiLiveModels: ['gemini-3.8-live', 'gemini-3.1-flash-live-preview', 'gemini-live-2.5-flash-preview'],
+  geminiLiveModels: ['gemini-3.8-live', 'gemini-3.1-flash-live-preview', 'gemini-2.5-flash-native-audio-preview-12-2025'],
 
   // 3) Vision (MediaPipe, Google) — exécutée sur l'appareil, la vidéo ne quitte jamais le téléphone
   mediapipeBase: new URL('../vendor/mediapipe', import.meta.url).href, // inclus dans l'app (fonctionne hors ligne)
   poseModelLocal: new URL('../models/pose_landmarker_lite.task', import.meta.url).href, // téléchargé à la compilation
   poseModelRemote: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task',
+  // Main (21 points par main) : exercices du poignet, de la main et du pouce
+  handModelLocal: new URL('../models/hand_landmarker.task', import.meta.url).href,
+  handModelRemote: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task',
 };
 
 export const firebaseEnabled = () => !!(CONFIG.firebase.apiKey && CONFIG.firebase.projectId);

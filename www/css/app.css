@@ -197,7 +197,10 @@ html.wide .sticky-cta { padding-left: 280px; }
 .fig-wrap { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 4px; position: relative; }
 .fig-wrap svg { width: 100%; height: auto; display: block; aspect-ratio: 240 / 200; }
 .fig-tools { position: absolute; inset-inline-end: 10px; top: 10px; display: flex; gap: 6px; }
-.fig-tools .chip { cursor: pointer; }
+.fig-tools .chip { cursor: pointer; padding: 4px 9px; min-height: 28px; font-size: 12px; background: color-mix(in srgb, var(--surface) 88%, transparent); }
+.fig-tools { flex-wrap: wrap; justify-content: flex-end; max-width: 75%; z-index: 1; }
+.fig-tools .chip svg { display: block; }
+.fig-tools .chip.ink { background: var(--ink); color: var(--on-ink); }
 .fig-cap { position: absolute; inset-inline-start: 12px; top: 12px; }
 .fg-ground { stroke: var(--line); stroke-width: 1.5; }
 .fg-prop { fill: var(--fig-prop); }

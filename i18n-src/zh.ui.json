@@ -509,5 +509,20 @@
 "sub_flexbar": "在两手之间拧卷的毛巾",
 "sub_hammer": "握住瓶颈的瓶子或轻的平底锅",
 "sub_putty": "减压球、网球或海绵",
-"sub_weight": "挂在脚踝上的轻背包或装进袜子的瓶子"
+"sub_weight": "挂在脚踝上的轻背包或装进袜子的瓶子",
+"planeHand": "手部",
+"planeHandD": "手指追踪",
+"setupHandTip": "光线充足，手在纯色背景前，手机放稳（支撑好）。",
+"calibratingHand": "请保持手在起始位置不动…",
+"pause": "暂停",
+"resume": "继续",
+"pausedLbl": "已暂停",
+"pausedD": "计数和分析已停止。准备好后继续。",
+"pausedSpoken": "已暂停。",
+"demoPause": "暂停演示",
+"demoPlay": "播放演示",
+"demoSlow": "慢动作",
+"demoListen": "收听说明",
+"vibrateSetting": "每次重复时振动",
+"sessHandCam": "手部练习：手机放稳，距离 30–50 厘米，整只手在画面中，光线充足。"
 }

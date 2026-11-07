@@ -29,7 +29,7 @@ export async function onRequestPost({ request, env }) {
 
   if (body.kind === 'tts') {
     const text = String(body.text || '').slice(0, 400);
-    const model = env.GEMINI_TTS_MODEL || 'gemini-2.5-flash-preview-tts';
+    const model = env.GEMINI_TTS_MODEL || 'gemini-3.8-flash-lite-tts';
     const r = await fetch(`${base}/${model}:generateContent`, {
       method: 'POST', headers,
       body: JSON.stringify({ contents: [{ parts: [{ text }] }], generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: body.lang === 'fr' ? 'Aoede' : 'Kore' } } } } }),

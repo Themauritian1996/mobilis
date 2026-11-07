@@ -59,6 +59,7 @@ function lerpParams(a, b, t) {
 export function reference(ex) {
   const fig = ex.fig, view = fig.view || 'side';
   if (view !== 'side' && view !== 'front') return null; // main / pied : mouvements trop fins pour ce contrôle
+  if (fig.mm === false) return null; // schéma en vue oblique / du dessus (couché sur le côté) : angles 2D non comparables à la caméra
   const feats = view === 'front' ? FRONT_FEATS : SIDE_FEATS;
   const sets = view === 'front' ? ['R', 'L'] : ['near', 'far'];
   const frames = fig.frames.length > 1 ? [0, 0.5, 1].map((t) => interpParams(fig.frames[0], fig.frames[1], t)) : fig.frames;

@@ -256,7 +256,7 @@ function viewExercise(id) {
       ${ex.equip.map((e) => `<span class="chip">${esc(tr(EQUIP[e]))}</span>`).join('')}</div>
     <h2>${t('keyPoints')}</h2><div class="list"><ul class="keylist">${ex.keys.map((k, i) => `<li><span class="n">${i + 1}</span><span>${esc(tr(k))}</span></li>`).join('')}</ul></div>
     <h2>${t('howTo')}</h2><div class="list"><ol class="steplist">${tr(ex.steps).map((s) => `<li><span>${esc(s)}</span></li>`).join('')}</ol></div>
-    <h2>${t('planes')}</h2>${ex.track ? `<div class="planes">${plane('side')}${plane('front')}</div>` : `<div class="card small row">${icon('timer', 22)}<div><b>${t('guided')}</b><br><span class="muted">${t('guidedD')}</span></div></div>`}
+    <h2>${t('planes')}</h2>${ex.track?.kind === 'hand' ? `<div class="card small row">${icon('hand', 26)}<div><b>${t('planeHand')} · ${t('planeHandD')}</b><br><span class="muted">${esc(tr(ex.track.cam))}</span></div></div>` : ex.track ? `<div class="planes">${plane('side')}${plane('front')}</div>` : `<div class="card small row">${icon('timer', 22)}<div><b>${t('guided')}</b><br><span class="muted">${t('guidedD')}</span></div></div>`}
     <div style="height:96px"></div>
     ${canTrain ? `<div class="sticky-cta"><div><button class="btn" data-go="#/train/${id}">${ex.track ? icon('cam', 20) + ' ' + t('try') : IC.play.replace('<svg', '<svg width="16" height="16"') + ' ' + t('start')}</button></div></div>` : ''}
   </section>`;
@@ -388,6 +388,7 @@ function viewProfile() {
       <div class="toggle"><span>${t('theme')}</span><div class="seg" style="width:210px">${['auto', 'light', 'dark'].map((v) => `<button data-theme-set="${v}" class="${st.theme === v ? 'on' : ''}">${t('theme_' + v)}</button>`).join('')}</div></div>
       <div class="toggle" style="display:block"><span>${t('voice')}</span><div class="seg" style="margin-top:8px">${['local', 'gemini', 'off'].map((v) => `<button data-voice="${v}" class="${st.voice === v ? 'on' : ''}">${t(v === 'local' ? 'voiceLocal' : v === 'gemini' ? 'voiceGemini' : 'voiceOff')}</button>`).join('')}</div></div>
       <div class="toggle"><span>${t('countAloud')}</span>${sw('countAloud', st.countAloud)}</div>
+      ${'vibrate' in navigator ? `<div class="toggle"><span>${t('vibrateSetting')}</span>${sw('vibrate', st.vibrate !== false)}</div>` : ''}
       <div class="toggle"><span>${t('selfViewSetting')}<br><small class="muted">${t('selfViewSettingD')}</small></span>${sw('selfView', st.selfView !== false)}</div>
       <div class="toggle"><span>${t('guidesSetting')}<br><small class="muted">${t('guidesSettingD')}</small></span>${sw('guides', st.guides !== false)}</div>
       <div class="toggle"><span>${t('anatomyDefault')}</span>${sw('anatomy', st.anatomy)}</div>

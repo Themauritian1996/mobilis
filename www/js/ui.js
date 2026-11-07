@@ -37,6 +37,9 @@ export const IC = {
   eyeOff: I('<path d="M3 3l18 18M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.1 3.9M6.6 6.6C3.9 8.3 2 12 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6M9.9 9.9a3 3 0 0 0 4.2 4.2"/>'),
   demo: I('<circle cx="12" cy="4.5" r="2"/><path d="M12 7v6l-3 7M12 13l3 7M7 10l5-1 5 1"/>'),
   mic: I('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>'),
+  pause: I('<path d="M8 5v14M16 5v14"/>'),
+  hand: I('<path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V11M11 10.5V4a1.5 1.5 0 0 1 3 0v6.5M14 10.5V5.5a1.5 1.5 0 0 1 3 0V13c0 4.4-2.6 8-7 8-2.5 0-4.2-1.3-5.4-3.3L2.8 14.6a1.5 1.5 0 0 1 2.5-1.6L8 16"/>'),
+  volume: I('<path d="M4 9v6h4l5 4V5L8 9zM16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/>'),
   layers: I('<path d="M12 3 2 8l10 5 10-5-10-5zM2 13l10 5 10-5M2 18l10 5 10-5"/>'),
   logo: '<svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="currentColor"/><circle cx="17.5" cy="8.5" r="2.8" fill="var(--on-ink)"/><path d="M17.5 12.5l-3 7 4.8 2-1.8 5.5M14.5 19.5l-4.8 2M17.5 13.5l4.8 3" stroke="var(--on-ink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>',
 };
@@ -71,10 +74,29 @@ export function figureBlock(id, { keys = true } = {}) {
   const kinds = [...new Set((EX_ANATOMY[id] || []).map((k) => STRUCTURES[k]?.kind))];
   const legend = { muscle: ['--an-muscle', t('anMuscle')], tendon: ['--an-tendon', t('anTendon')], fascia: ['--an-tendon', t('anFascia')], nerve: ['--an-nerve', t('anNerve')], joint: ['--an-joint', t('anJoint')] };
   return `<div class="fig-wrap" data-figblock="${id}">${ex.caption ? `<span class="chip fig-cap">${esc(tr(ex.caption))}</span>` : ''}
-    ${has ? `<div class="fig-tools"><button class="chip ${on ? 'ink' : ''}" data-anat-toggle aria-pressed="${on}">${icon('layers', 14)} ${t('anatomy')}</button></div>` : ''}
+    <div class="fig-tools">${ex.fig.frames.length > 1 ? `<button class="chip" data-fig-play aria-pressed="false" aria-label="${t('demoPause')}" title="${t('demoPause')}">${icon('pause', 14)}</button><button class="chip" data-fig-slow aria-pressed="false" title="${t('demoSlow')}">0,5×</button>` : ''}<button class="chip" data-fig-say title="${t('demoListen')}" aria-label="${t('demoListen')}">${icon('volume', 14)}</button>${has ? `<button class="chip ${on ? 'ink' : ''}" data-anat-toggle aria-pressed="${on}">${icon('layers', 14)} ${t('anatomy')}</button>` : ''}</div>
     ${figSvg(id, { keys, anat: on })}</div>
     ${has ? `<div class="legend" data-anat-legend ${on ? '' : 'hidden'}>${kinds.map((k) => `<span><i style="background:var(${legend[k][0]})"></i>${legend[k][1]}</span>`).join('')}</div>` : ''}`;
 }
+// Lecture de la démonstration : pause, ralenti, consignes lues à voix haute
+document.addEventListener('click', (e) => {
+  const c = e.target.closest('[data-fig-play],[data-fig-slow],[data-fig-say]');
+  if (!c) return;
+  const wrap = c.closest('[data-figblock]'); const ctl = wrap?.querySelector('svg[data-fig]')?._fig; const id = wrap?.dataset.figblock;
+  if (c.hasAttribute('data-fig-play') && ctl) {
+    const on = c.getAttribute('aria-pressed') !== 'true'; ctl.setPaused(on);
+    c.setAttribute('aria-pressed', String(on)); c.classList.toggle('ink', on); c.innerHTML = icon(on ? 'play' : 'pause', 14);
+    c.setAttribute('aria-label', t(on ? 'demoPlay' : 'demoPause')); c.title = c.getAttribute('aria-label');
+  }
+  if (c.hasAttribute('data-fig-slow') && ctl) {
+    const on = c.getAttribute('aria-pressed') !== 'true'; ctl.setSpeed(on ? 0.5 : 1);
+    c.setAttribute('aria-pressed', String(on)); c.classList.toggle('ink', on);
+  }
+  if (c.hasAttribute('data-fig-say') && id && EXERCISES[id]) {
+    const ex = EXERCISES[id];
+    import('./coach.js').then(({ speak }) => speak(`${tr(ex.name)}. ${tr(ex.steps).join(' ')} ${(ex.keys || []).map((k) => tr(k)).join('. ')}.`, { interrupt: true }));
+  }
+});
 document.addEventListener('click', (e) => {
   const b = e.target.closest('[data-anat-toggle]');
   if (!b) return;

@@ -30,7 +30,7 @@ export const EXERCISES = {
       ['Reviens doucement.', 'Return slowly.']),
     keys: [k('head', 'Mouvement horizontal, pas de flexion', 'Horizontal glide, no nodding', [14, -8]), k('shoulder', 'Épaules relâchées', 'Shoulders relaxed', [-12, 4])],
     dose: { type: 'reps', sets: 2, reps: 10, holdTop: 4 },
-    fig: { view: 'side', frames: [{ head: 24 }, { head: -6 }], trace: 'head', period: 3.4 },
+    fig: { view: 'side', ground: false, zoom: 1.7, crop: ['head', 'shoulder', 'nose', 'elbow'], anchor: { j: 'shoulder', x: 112, y: 100 }, frames: [{ head: 26, uarm: 182, farm: 178 }, { head: -8, uarm: 182, farm: 178 }], trace: 'head', period: 3.4 },
     track: { mode: 'reps', planes: {
       side: { metric: 'neckFwd', rel: true, delta: -0.06, holdTop: 3, checks: [{ m: 'trunkLean', abs: true, max: 12, cue: 'trunkSway' }] },
     } },
@@ -45,7 +45,7 @@ export const EXERCISES = {
       ['Les muscles superficiels de l’avant du cou restent relâchés.', 'Keep the superficial front neck muscles relaxed.']),
     keys: [k('head', 'Petit hochement, tête au sol', 'Small nod, head stays down', [0, -16])],
     dose: { type: 'hold', sets: 1, reps: 10, hold: 10 },
-    fig: { view: 'side', anchor: { j: 'pelvis', x: 132, y: 170 }, frames: [{ ...SUPINE_HOOK }, { ...SUPINE_HOOK, head: -14 }], props: ['mat'], period: 3 },
+    fig: { view: 'side', ground: false, zoom: 1.8, crop: ['head', 'shoulder', 'nose', 'pelvis'], anchor: { j: 'shoulder', x: 88, y: 120 }, frames: [{ ...SUPINE_HOOK }, { ...SUPINE_HOOK, head: -4, nod: 22 }], trace: 'nose', period: 3 },
     track: null,
   },
   cerv_rot: {
@@ -122,7 +122,7 @@ export const EXERCISES = {
       ['Expire en ouvrant, reviens lentement.', 'Breathe out as you open, return slowly.']),
     keys: [k('knee', 'Genoux immobiles', 'Knees stay put', [10, 8]), k('wrist', 'La main suit un arc', 'Hand traces an arc', [8, -10])],
     dose: { type: 'reps', sets: 2, reps: 8, holdTop: 3 },
-    fig: { view: 'side', ground: false, anchor: { j: 'pelvis', x: 150, y: 110 }, frames: [{ trunk: 270, head: 0, thigh: 0, shank: 90, foot: 0, thigh2: 0, shank2: 90, foot2: 0, uarm: 0, farm: 0, uarm2: 0, farm2: 0 }, { trunk: 270, head: 25, thigh: 0, shank: 90, foot: 0, thigh2: 0, shank2: 90, foot2: 0, uarm: 175, farm: 175, uarm2: 0, farm2: 0 }], trace: 'wrist', period: 4 },
+    fig: { view: 'side', mm: false, ground: false, anchor: { j: 'pelvis', x: 150, y: 110 }, frames: [{ trunk: 270, head: 0, thigh: 0, shank: 90, foot: 0, thigh2: 0, shank2: 90, foot2: 0, uarm: 0, farm: 0, uarm2: 0, farm2: 0 }, { trunk: 270, head: 25, thigh: 0, shank: 90, foot: 0, thigh2: 0, shank2: 90, foot2: 0, uarm: 175, farm: 175, uarm2: 0, farm2: 0 }], trace: 'wrist', period: 4 },
     track: null,
   },
 
@@ -150,7 +150,7 @@ export const EXERCISES = {
       ['Redescends lentement.', 'Lower slowly.']),
     keys: [k('wrist', 'Bras tendus, mouvement fluide', 'Arms straight, smooth motion', [10, -6]), k('pelvis', 'Pas de cambrure', 'No arching', [-14, 0])],
     dose: { type: 'reps', sets: 2, reps: 10, holdTop: 3 },
-    fig: { view: 'side', frames: [{ uarm: 160, farm: 130, uarm2: 160, farm2: 130 }, { uarm: 18, farm: 14, uarm2: 18, farm2: 14 }], trace: 'wrist', arc: ['shoulder', 'pelvis', 'elbow'] },
+    fig: { view: 'side', frames: [{ uarm: 160, farm: 130, uarm2: 160, farm2: 130 }, { uarm: 18, farm: 14, uarm2: 18, farm2: 14 }], held: [['dowel', 'wrist']], trace: 'wrist', arc: ['shoulder', 'pelvis', 'elbow'] },
     track: { mode: 'reps', planes: {
       side: { metric: 'shFlex', from: 25, to: 145, holdTop: 2, checks: [{ m: 'trunkLean', min: -8, cue: 'arch' }] },
       front: { metric: 'wristUp', from: -0.2, to: 0.9, checks: [{ m: 'armSym', max: 20, cue: 'symmetry' }, { m: 'shrug', rel: true, max: 0.14, cue: 'shrug' }] },
@@ -182,7 +182,7 @@ export const EXERCISES = {
       ['Reviens lentement en 3 s.', 'Return slowly over 3 s.']),
     keys: [k('elbowR', 'Coude collé au corps', 'Elbow at your side', [-12, 4]), k('wristR', 'L’avant-bras pivote vers l’extérieur', 'Forearm swings outward', [-8, -10])],
     dose: { type: 'reps', sets: 3, reps: 12, tempo: '2-1-3' },
-    fig: { view: 'front', frames: [{ elbowR: -70, farmScaleR: 0.45 }, { elbowR: 80, farmScaleR: 0.95 }], trace: 'wristR', period: 3.4 },
+    fig: { view: 'front', frames: [{ elbowR: -70, farmScaleR: 0.45 }, { elbowR: 80, farmScaleR: 0.95 }], held: [['band', 'wristR', [176]]], trace: 'wristR', period: 3.4 },
     track: { mode: 'reps', planes: {
       front: { metric: 'erFront', side: 'auto', from: 0.05, to: 0.6, checks: [{ m: 'elbowAway', max: 0.45, cue: 'elbowSide' }, { m: 'shrug', rel: true, max: 0.12, cue: 'shrug' }] },
     } },
@@ -245,8 +245,8 @@ export const EXERCISES = {
       ['Tiens 30–45 s, repos 1 min.', 'Hold 30–45 s, rest 1 min.']),
     keys: [k('wrist', 'Poignet neutre, aucun mouvement', 'Wrist neutral, no motion', [0, -14]), k('elbow', 'Coude fléchi, appuyé', 'Elbow bent, supported', [0, 14])],
     dose: { type: 'hold', sets: 1, reps: 5, hold: 40 },
-    fig: { view: 'hand', zoom: 1.3, anchor: { j: 'elbow', x: 8, y: 80 }, frames: [{ wrist: -4, mcp: 12, pip: 14, dip: 6, thumb: 25 }], props: ['table'], arc: ['wrist', 'elbow', 'mcp'] },
-    track: null,
+    fig: { view: 'hand', zoom: 1.3, anchor: { j: 'elbow', x: -6, y: 80 }, frames: [{ wrist: -4, mcp: 12, pip: 14, dip: 6, thumb: 25 }], props: ['table'], arc: ['wrist', 'elbow', 'mcp'] },
+    track: { mode: 'hold', kind: 'hand', cam: S('Filme de côté, téléphone à hauteur de la table : avant-bras et main entiers dans l’image.', 'Film from the side at table height: whole forearm and hand in view.'), planes: { hand: { metric: 'hAxis', rel: true, angular: true, absRel: true, min: 0, max: 12 } } },
   },
   ecc_wrist_ext: {
     name: S('Excentrique des extenseurs du poignet', 'Eccentric wrist extension'),
@@ -259,7 +259,7 @@ export const EXERCISES = {
     keys: [k('wrist', 'Descente lente (3–4 s)', 'Slow lowering (3–4 s)', [0, -16]), k('elbow', 'Avant-bras immobile', 'Forearm still', [0, 14])],
     dose: { type: 'reps', sets: 3, reps: 15, tempo: '0-0-4' },
     fig: { view: 'hand', zoom: 1.3, anchor: { j: 'elbow', x: 8, y: 80 }, frames: [{ wrist: -45, mcp: 85, pip: 100, dip: 65, thumb: 60, thumbIp: 30 }, { wrist: 45, mcp: 85, pip: 100, dip: 65, thumb: 60, thumbIp: 30 }], props: ['table'], held: [['dumbbell', 'pip']], trace: 'mcp', arc: ['wrist', 'elbow', 'mcp'] },
-    track: null,
+    track: { mode: 'reps', kind: 'hand', cam: S('Filme de côté, téléphone à hauteur de la table : avant-bras et main entiers dans l’image.', 'Film from the side at table height: whole forearm and hand in view.'), planes: { hand: { metric: 'hAxis', rel: true, angular: true, absRel: true, delta: 45, minRepSec: 2.5 } } },
   },
   ecc_wrist_flex: {
     name: S('Excentrique des fléchisseurs du poignet', 'Eccentric wrist flexion'),
@@ -272,7 +272,7 @@ export const EXERCISES = {
     keys: [k('wrist', 'Descente lente', 'Slow lowering', [0, -16])],
     dose: { type: 'reps', sets: 3, reps: 15, tempo: '0-0-4' },
     fig: { view: 'hand', zoom: 1.3, anchor: { j: 'elbow', x: 8, y: 80 }, frames: [{ wrist: 45, mcp: 85, pip: 100, dip: 65, thumb: 60, thumbIp: 30, side: 'palmUp' }, { wrist: -40, mcp: 85, pip: 100, dip: 65, thumb: 60, thumbIp: 30, side: 'palmUp' }], props: ['table'], held: [['dumbbell', 'pip']], trace: 'mcp' },
-    track: null,
+    track: { mode: 'reps', kind: 'hand', cam: S('Filme de côté, téléphone à hauteur de la table : avant-bras et main entiers dans l’image.', 'Film from the side at table height: whole forearm and hand in view.'), planes: { hand: { metric: 'hAxis', rel: true, angular: true, absRel: true, delta: 45, minRepSec: 2.5 } } },
   },
   tyler_twist: {
     name: S('Torsion à la barre flexible (Tyler twist)', 'Flexbar Tyler twist'),
@@ -298,7 +298,7 @@ export const EXERCISES = {
     keys: [k('mcp', 'Rotation de l’avant-bras seulement', 'Forearm rotation only', [10, 10])],
     dose: { type: 'reps', sets: 3, reps: 12 },
     fig: { view: 'end', frames: [{ forearmRot: -75 }, { forearmRot: 75 }], props: ['table'], held: [['hammer']], trace: null },
-    track: null,
+    track: { mode: 'reps', kind: 'hand', cam: S('Place le téléphone devant le poing, dans l’axe de l’avant-bras, à 30–50 cm.', 'Place the phone in front of your fist, in line with the forearm, 30–50 cm away.'), planes: { hand: { metric: 'hRoll', rel: true, angular: true, absRel: true, delta: 50, minRepSec: 1.2 } } },
   },
 
   // ---------------- POIGNET / MAIN ----------------
@@ -338,8 +338,8 @@ export const EXERCISES = {
       ['Tiens 2 s à chaque extrémité.', 'Hold 2 s at each end.']),
     keys: [k('wrist', 'Amplitude maximale confortable', 'Full comfortable range', [0, -16])],
     dose: { type: 'reps', sets: 2, reps: 10 },
-    fig: { view: 'hand', zoom: 1.3, anchor: { j: 'elbow', x: 8, y: 80 }, frames: [{ wrist: -55, mcp: 15, pip: 20, dip: 10, thumb: 25 }, { wrist: 55, mcp: 15, pip: 20, dip: 10, thumb: 25 }], props: ['table'], arc: ['wrist', 'elbow', 'mcp'], trace: 'tip' },
-    track: null,
+    fig: { view: 'hand', zoom: 1.3, anchor: { j: 'elbow', x: -6, y: 80 }, frames: [{ wrist: -55, mcp: 15, pip: 20, dip: 10, thumb: 25 }, { wrist: 55, mcp: 15, pip: 20, dip: 10, thumb: 25 }], props: ['table'], arc: ['wrist', 'elbow', 'mcp'], trace: 'tip' },
+    track: { mode: 'reps', kind: 'hand', cam: S('Filme de côté, téléphone à hauteur de la table : avant-bras et main entiers dans l’image.', 'Film from the side at table height: whole forearm and hand in view.'), planes: { hand: { metric: 'hAxis', rel: true, angular: true, absRel: true, delta: 40, minRepSec: 1.2 } } },
   },
   radial_dev: {
     name: S('Déviation radiale progressive (pouce vers le haut)', 'Graded radial deviation (thumb up)'),
@@ -352,7 +352,7 @@ export const EXERCISES = {
     keys: [k('wrist', 'Bouge au poignet, pas à l’avant-bras', 'Move at the wrist, not forearm', [0, -16])],
     dose: { type: 'reps', sets: 3, reps: 10, tempo: '2-0-3' },
     fig: { view: 'hand', zoom: 1.3, anchor: { j: 'elbow', x: 8, y: 90 }, frames: [{ wrist: 15, mcp: 85, pip: 100, dip: 65, thumb: 60, thumbIp: 30, side: 'thumbUp', forearmRot: 15 }, { wrist: -20, mcp: 85, pip: 100, dip: 65, thumb: 60, thumbIp: 30, side: 'thumbUp', forearmRot: -20 }], props: ['table'], held: [['hammer']] },
-    track: null,
+    track: { mode: 'reps', kind: 'hand', cam: S('Filme de côté à hauteur de la table, le dos ou la paume de la main face au téléphone.', 'Film from the side at table height, with the back or palm of the hand facing the phone.'), planes: { hand: { metric: 'hAxis', rel: true, angular: true, absRel: true, delta: 15, minRepSec: 2 } } },
   },
   thumb_opp: {
     name: S('Opposition du pouce', 'Thumb opposition'),
@@ -365,7 +365,7 @@ export const EXERCISES = {
     keys: [k('thumbTip', 'Forme un O, pas un D', 'Make an O, not a D', [8, 8])],
     dose: { type: 'reps', sets: 2, reps: 10 },
     fig: { view: 'palm', frames: [{ thumb: 10 }, { opp: 1 }, { opp: 2 }, { opp: 3 }, { opp: 4 }], period: 8 },
-    track: null,
+    track: { mode: 'reps', kind: 'hand', cam: S('Paume face à la caméra, doigts vers le haut, à 30–50 cm : toute la main dans l’image.', 'Palm facing the camera, fingers up, 30–50 cm away: whole hand in view.'), planes: { hand: { metric: 'hPinch', rel: true, delta: 0.55, minRepSec: 0.8 } } },
   },
   thumb_cmc: {
     name: S('Stabilisation du pouce en « C »', 'Thumb “C” stabilization'),
@@ -378,7 +378,7 @@ export const EXERCISES = {
     keys: [k('thumbBase', 'Base du pouce stable', 'Stable thumb base', [-6, -12])],
     dose: { type: 'reps', sets: 2, reps: 10, holdTop: 5 },
     fig: { view: 'palm', frames: [{ thumb: 0, band: true }, { thumb: 38, band: true }] },
-    track: null,
+    track: { mode: 'reps', kind: 'hand', cam: S('Paume face à la caméra, doigts vers le haut, à 30–50 cm : toute la main dans l’image.', 'Palm facing the camera, fingers up, 30–50 cm away: whole hand in view.'), planes: { hand: { metric: 'hThumbAbd', rel: true, delta: 18, holdTop: 5, minRepSec: 1 } } },
   },
   grip_putty: {
     name: S('Préhension à la pâte thérapeutique', 'Therapy putty grip'),
@@ -391,7 +391,7 @@ export const EXERCISES = {
     keys: [k('pip', 'Fermeture complète des doigts', 'Full finger closure', [6, -14])],
     dose: { type: 'reps', sets: 3, reps: 12, holdTop: 3 },
     fig: { view: 'palm', frames: [{ mcp: 10, pip: 10, dip: 5, thumb: 20, ball: true }, { mcp: 80, pip: 100, dip: 60, opp: 2.2, ball: true }] },
-    track: null,
+    track: { mode: 'reps', kind: 'hand', cam: S('Paume face à la caméra, doigts vers le haut, à 30–50 cm : toute la main dans l’image.', 'Palm facing the camera, fingers up, 30–50 cm away: whole hand in view.'), planes: { hand: { metric: 'hClose', rel: true, delta: -0.45, holdTop: 3, minRepSec: 1 } } },
   },
 
   // ---------------- LOMBAIRE ----------------
@@ -496,7 +496,7 @@ export const EXERCISES = {
       ['Respire normalement pendant le maintien.', 'Breathe normally during the hold.']),
     keys: [k('pelvis', 'Hanches hautes, corps aligné', 'Hips up, body aligned', [0, -14]), k('elbow', 'Coude sous l’épaule', 'Elbow under shoulder', [-10, 0])],
     dose: { type: 'hold', sets: 3, reps: 1, hold: 25 },
-    fig: { view: 'side', anchor: { j: 'ankle', x: 36, y: 176 }, frames: [{ trunk: 74, head: 0, thigh: 262, shank: 258, foot: 0, uarm: 168, farm: 90, uarm2: 200, farm2: 200 }, { trunk: 68, head: 0, thigh: 248, shank: 248, foot: 0, uarm: 180, farm: 90, uarm2: 200, farm2: 200 }], props: ['mat'], arc: ['pelvis', 'shoulder', 'ankle'] },
+    fig: { view: 'side', anchor: { j: 'ankle', x: 36, y: 176 }, frames: [{ trunk: 74, head: 0, thigh: 262, shank: 258, foot: 0, uarm: 168, farm: 90, uarm2: 10, farm2: 10 }, { trunk: 68, head: 0, thigh: 248, shank: 248, foot: 0, uarm: 180, farm: 90, uarm2: 0, farm2: 0 }], props: ['mat'], arc: ['pelvis', 'shoulder', 'ankle'] },
     track: { mode: 'hold', planes: {
       front: { metric: 'bodyLine', min: 158, max: 200, checks: [] },
     } },
@@ -511,7 +511,7 @@ export const EXERCISES = {
       ['Reviens en serrant les fesses.', 'Return by squeezing the glutes.']),
     keys: [k('pelvis', 'Les hanches reculent', 'Hips move back', [-14, 0]), k('knee', 'Genoux peu fléchis', 'Knees only slightly bent', [10, 0]), k('shoulder', 'Dos droit', 'Neutral spine', [4, -12])],
     dose: { type: 'reps', sets: 3, reps: 10 },
-    fig: { view: 'side', frames: [{}, { trunk: 58, head: -8, thigh: 168, shank: 192, thigh2: 168, shank2: 192, uarm: 178, farm: 178, uarm2: 178, farm2: 178 }], trace: 'shoulder', arc: ['pelvis', 'shoulder', 'knee'] },
+    fig: { view: 'side', frames: [{ uarm: -30, farm: 180, uarm2: 200, farm2: 164 }, { trunk: 58, head: -8, thigh: 168, shank: 192, thigh2: 168, shank2: 192, uarm: 28, farm: 238, uarm2: 258, farm2: 222 }], held: ['dowelBack'], trace: 'shoulder', arc: ['pelvis', 'shoulder', 'knee'] },
     track: { mode: 'reps', planes: {
       side: { metric: 'trunkLean', from: 5, to: 50, checks: [{ m: 'knee', min: 140, cue: 'hinge' }] },
     } },
@@ -558,7 +558,7 @@ export const EXERCISES = {
       ['Redescends en 2–3 s.', 'Lower over 2–3 s.']),
     keys: [k('knee2', 'Le genou s’ouvre', 'Knee opens', [8, -10]), k('pelvis', 'Bassin immobile', 'Pelvis still', [-14, -6])],
     dose: { type: 'reps', sets: 3, reps: 12 },
-    fig: { view: 'side', anchor: { j: 'pelvis', x: 120, y: 166 }, frames: [{ trunk: 270, head: 0, uarm: 300, farm: 30, thigh: 100, shank: 285, foot: 180, thigh2: 96, shank2: 287, foot2: 180, uarm2: 92, farm2: 95 }, { trunk: 270, head: 0, uarm: 300, farm: 30, thigh: 100, shank: 285, foot: 180, thigh2: 45, shank2: 225, foot2: 180, uarm2: 92, farm2: 95 }], props: ['mat'], trace: 'knee2' },
+    fig: { view: 'side', mm: false, ground: false, anchor: { j: 'pelvis', x: 118, y: 160 }, frames: [{ trunk: 270, head: 0, uarm: 268, farm: 268, uarm2: 120, farm2: 100, thigh: 128, shank: 52, foot: 90, ts: 0.85, ss: 0.85, thigh2: 122, shank2: 58, foot2: 90, ts2: 0.85, ss2: 0.85 }, { trunk: 270, head: 0, uarm: 268, farm: 268, uarm2: 120, farm2: 100, thigh: 128, shank: 52, foot: 90, ts: 0.85, ss: 0.85, thigh2: 62, shank2: 118, foot2: 90, ts2: 0.72, ss2: 0.72 }], props: ['mat'], trace: 'knee2' },
     track: { mode: 'reps', planes: {
       front: { metric: 'kneeGap', from: 8, to: 38, checks: [] },
     } },
@@ -772,7 +772,7 @@ export const EXERCISES = {
       ['Tous les 2 jours.', 'Every other day.']),
     keys: [k('toe', 'Orteils en extension (fascia tendu)', 'Toes extended (fascia tensioned)', [10, -8]), k('ankle', 'Tempo lent 3-2-3', 'Slow 3-2-3 tempo', [-12, -4])],
     dose: { type: 'reps', sets: 3, reps: 12, tempo: '3-2-3', holdTop: 2 },
-    fig: { view: 'side', anchor: { j: 'toe', x: 135, y: 178 }, frames: [{}, { foot: 126, foot2: 126 }], trace: 'ankle' },
+    fig: { view: 'side', anchor: { j: 'toe', x: 135, y: 178 }, frames: [{ foot: 80, foot2: 80 }, { foot: 126, foot2: 126 }], props: ['roll'], trace: 'ankle' },
     track: { mode: 'reps', planes: {
       side: { metric: 'heelRise', rel: true, delta: 0.06, holdTop: 1.5, minRepSec: 5, checks: [{ m: 'knee', min: 158, cue: 'kneeStraight' }] },
       front: { metric: 'heelRise', rel: true, delta: 0.06, minRepSec: 5, checks: [{ m: 'trunkSide', abs: true, max: 8, cue: 'sideLean' }] },
