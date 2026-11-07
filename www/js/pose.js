@@ -88,7 +88,8 @@ const M = {
   trunkLean: (p, s, c) => c.facing * deg(Math.atan2(c.sh.x - c.hip.x, -(c.sh.y - c.hip.y))),
   trunkTilt: (p, s, c) => deg(Math.atan2(-(c.sh.y - c.hip.y), Math.abs(c.sh.x - c.hip.x))),
   shinLean: (p, s, c) => c.facing * deg(Math.atan2(S(p, s, 'kn').x - S(p, s, 'an').x, -(S(p, s, 'kn').y - S(p, s, 'an').y))),
-  neckFwd: (p, s, c) => (c.facing * (S(p, s, 'ear').x - S(p, s, 'sh').x)) / c.torso,
+  // oreilles et épaules des deux côtés (moyenne) : moins de tremblement que le seul côté visible
+  neckFwd: (p, s, c) => (c.facing * (c.ear.x - c.sh.x)) / c.torso,
   wristUp: (p, s, c) => (S(p, s, 'sh').y - S(p, s, 'wr').y) / c.torso,
   heelRise: (p, s, c) => -S(p, s, 'heel').y / c.legLen,
   hipY: (p, s, c) => (mid(p.anL, p.anR).y - c.hip.y) / (dist(p.hipL, p.hipR) || 1),
@@ -121,6 +122,9 @@ const M = {
   kneeGap: (p, s, c) => angle(p.knL, c.hip, p.knR),
   footLift: (p, s, c) => Math.abs(p.anL.y - p.anR.y) / c.legLen,
   hipLow: (p, s, c) => c.hip.y / c.shW,
+  // descente du bassin (vue de face) en fraction de la longueur de jambe mesurée au départ : plus stable que la largeur d'épaules
+  hipDrop: (p, s, c, o = {}) => c.hip.y / (o.legLen0 || c.legLen),
+  legLen: (p, s, c) => c.legLen,
   // ---- Main (21 points MediaPipe Hands, en pixels : p.hand) ----
   // direction de la main (poignet → tête du 3e métacarpien) dans l'image ; avant-bras immobile → variation = mouvement du poignet
   hAxis: (p) => { const h = p.hand; return deg(Math.atan2(h[9].x - h[0].x, -(h[9].y - h[0].y))); },
@@ -165,6 +169,7 @@ export const METRIC_INFO = {
   kneeGap: 'angle between the knees from the pelvis (clamshell opening)',
   footLift: 'foot lifted off the floor (fraction of leg length)',
   hipLow: 'hip height drop relative to shoulder width (squat depth in front view)',
+  hipDrop: 'pelvis drop from the start position, as a fraction of leg length (front view)',
   hAxis: 'wrist movement: change of the hand direction from the start position in degrees (forearm resting still)',
   hRoll: 'forearm rotation (pronation/supination) from the start position, in degrees',
   hPinch: 'thumb tip to nearest fingertip distance (negative fraction of palm length; close to 0 = tips touching)',
@@ -182,7 +187,7 @@ export function metric(name, p, side, opts = {}) {
   if (HAND_METRICS.has(name)) return p.hand ? M[name](p) : NaN;
   const c = ctx(p);
   if (opts.both && SIDED.has(name)) return (M[name](p, 'L', c) + M[name](p, 'R', c)) / 2;
-  return M[name](p, SIDED.has(name) ? side : null, c);
+  return M[name](p, SIDED.has(name) ? side : null, c, opts);
 }
 
 // Orientation : la personne est-elle de face ou de côté par rapport à la caméra ?
@@ -201,6 +206,8 @@ export function bodyVisible(p) {
 }
 
 // ---------- Compteur de répétitions / maintien ----------
+// Haut du mouvement : 85 % de la cible (la cible tient déjà compte du niveau du patient)
+const TOP = 0.85;
 export class Tracker {
   constructor(ex, planeKey, { romFactor = 1, holdTarget = 0, onRep = () => {}, onCue = () => {}, side = null } = {}) {
     this.forceSide = side; // 'L' | 'R' : côté travaillé choisi par le patient
@@ -212,14 +219,14 @@ export class Tracker {
     this.reps = 0; this.full = 0; this.partial = 0; this.repLog = [];
     this.state = 'rest'; this.peak = 0; this.p = 0; this.topSince = 0; this.repStart = 0;
     this.repFaults = new Set(); this.violation = {}; this.holdSec = 0; this.lastT = 0;
-    this.worstFrame = null; this.faultCount = {}; this.lastChecks = []; this.repWorst = {}; this.peakVal = null;
+    this.worstFrame = null; this.faultCount = {}; this.lastChecks = []; this.repWorst = {}; this.peakVal = null; this.ckHist = {};
   }
 
   get calibrated() { return !!this.base; }
 
   valueFor(p, side) {
     const s = this.spec;
-    let v = metric(s.metric, p, side, { both: s.both });
+    let v = metric(s.metric, p, side, { both: s.both, legLen0: this.legLen0 });
     if (s.abs) v = Math.abs(v);
     return v;
   }
@@ -234,19 +241,33 @@ export class Tracker {
     if (!this.base) {
       const snap = { L: this.valueFor(p, 'L'), R: this.valueFor(p, 'R'), checks: {} };
       for (const ck of s.checks || []) if (ck.rel) snap.checks[ck.m] = metric(ck.m, p, this.side);
+      if (!p.hand) snap.leg = metric('legLen', p, null);
       this.calib.push(snap);
       // départ immobile : les 18 dernières images doivent être stables (sinon le « zéro » serait pris en plein mouvement) ;
       // après ~4 s sans stabilité, on calibre quand même sur les dernières images
       if (this.calib.length > 18) this.calibAll = (this.calibAll || 0) + 1, this.calib.shift();
       const tol = s.calibTol ?? (this.mode === 'hold' ? Math.abs((s.max ?? 0) - (s.min ?? 0)) * 0.5 || 10 : s.rel ? Math.abs(s.delta) * 0.22 : Math.abs((s.to ?? 0) - (s.from ?? 0)) * 0.15 || 10);
-      const spread = (k) => { const v = this.calib.map((x) => x[k]); if (s.angular) { const r = v[0]; const d = v.map((x) => ((x - r + 540) % 360) - 180); return Math.max(...d) - Math.min(...d); } return Math.max(...v) - Math.min(...v); };
-      const stable = this.calib.length >= 18 && (spread('L') <= tol || !Number.isFinite(spread('L')));
-      if (this.calib.length >= 18 && (stable || (this.calibAll || 0) > 110)) {
+      // stabilité = écart-type (robuste au tremblement des points, contrairement à l'écart max − min)
+      const sd = (k) => { let v = this.calib.map((x) => x[k]).filter(Number.isFinite); if (!v.length) return NaN; if (s.angular) { const r = v[0]; v = v.map((x) => ((x - r + 540) % 360) - 180); } const m = v.reduce((a, b) => a + b, 0) / v.length; return Math.sqrt(v.reduce((a, b) => a + (b - m) ** 2, 0) / v.length); };
+      if (this.calib.length >= 18) {
+        const d = sd('L');
+        if (!this.calibBest || d < this.calibBest.sd) this.calibBest = { sd: d, win: this.calib.slice() };
+      }
+      const stable = this.calib.length >= 18 && (!Number.isFinite(sd('L')) || sd('L') * 2 <= tol);
+      // sans moment parfaitement immobile : fenêtre la plus stable des ~1,5 premières secondes (le patient est en position de départ)
+      if (this.calib.length >= 18 && !stable && (this.calibAll || 0) > 27 && this.calibBest) this.calib = this.calibBest.win;
+      if (this.calib.length >= 18 && (stable || (this.calibAll || 0) > 27)) {
         const avg = (f) => this.calib.reduce((a, x) => a + f(x), 0) / this.calib.length;
         // angles : moyenne circulaire (179° et −179° → 180°, pas 0°)
         const cavg = (f) => deg(Math.atan2(avg((x) => Math.sin(f(x) / 57.29578)), avg((x) => Math.cos(f(x) / 57.29578))));
         const A = s.angular ? cavg : avg;
+        // longueur de jambe au départ (référence d'échelle de « hipDrop ») : la base est recalculée avec cette échelle
+        if (s.metric === 'hipDrop') { this.legLen0 = avg((x) => x.leg); this.calib = this.calib.map((x) => ({ ...x, L: x.L * x.leg / this.legLen0, R: x.R * x.leg / this.legLen0 })); }
         this.base = { L: A((x) => x.L), R: A((x) => x.R), checks: {} };
+        // tremblement mesuré au repos (en fraction de l'amplitude visée) : lissage adapté à la caméra et à la lumière
+        const span = s.rel ? Math.abs(s.delta) * this.rom : Math.abs((s.to ?? 0) - (s.from ?? 0)) * this.rom;
+        const sdv = sd(this.side || 'L');
+        this.noiseP = span && Number.isFinite(sdv) ? sdv / span : 0;
         for (const ck of s.checks || []) if (ck.rel) this.base.checks[ck.m] = avg((x) => x.checks[ck.m]);
       }
       return { phase: 'calibrating', progress: 0, reps: 0, holdSec: 0 };
@@ -277,6 +298,9 @@ export class Tracker {
       let m = metric(ck.m, p, s.both && ck.m === 'kneeValgus' ? null : side);
       if (ck.rel) m -= this.base.checks[ck.m] ?? 0;
       if (ck.abs) m = Math.abs(m);
+      // médiane glissante (5 images) : un point qui saute une image ne déclenche pas de faute
+      const hist = (this.ckHist[ck.cue + ck.m] = (this.ckHist[ck.cue + ck.m] || []).concat(Number.isFinite(m) ? [m] : []).slice(-5));
+      if (hist.length) m = hist.slice().sort((x, y) => x - y)[hist.length >> 1];
       const bad = (ck.max != null && m > ck.max) || (ck.min != null && m < ck.min);
       const active = this.mode === 'hold' || this.state !== 'rest';
       checksNow.push({ cue: ck.cue, metric: ck.m, value: +m.toFixed(ck.max != null && Math.abs(ck.max) < 2 ? 3 : 1), limit: ck.max ?? ck.min, kind: ck.max != null ? 'max' : 'min', relative: !!ck.rel, bad });
@@ -285,8 +309,8 @@ export class Tracker {
         const worse = !w || (ck.max != null ? m > w.value : m < w.value);
         if (worse) this.repWorst[ck.cue] = { cue: ck.cue, metric: ck.m, value: +m.toFixed(3), limit: ck.max ?? ck.min, kind: ck.max != null ? 'max' : 'min', relative: !!ck.rel };
       }
-      this.violation[ck.cue] = bad && active ? (this.violation[ck.cue] || 0) + 1 : 0;
-      if (this.violation[ck.cue] >= 6) faults.push(ck.cue);
+      this.violation[ck.cue] = bad && active ? (this.violation[ck.cue] || 0) + dt : 0;
+      if (this.violation[ck.cue] >= 0.35) faults.push(ck.cue);
     }
     for (const f of faults) { this.repFaults.add(f); this.onCue(f); }
     this.lastChecks = checksNow;
@@ -303,32 +327,64 @@ export class Tracker {
     // Mode répétitions
     const { pr, to, d: dv } = prog(v, side);
     if (dv != null) v = dv; // écart à la position de départ (degrés ou fraction) : c'est ce que voient le patient et l'IA
-    this.p = this.p * 0.55 + Math.max(-0.5, Math.min(1.5, pr)) * 0.45;
+    // lissage dans le temps (≈ 0,12 s) : le tremblement des points ne crée ni fausse répétition ni fausse amplitude
+    let tau = s.smooth ?? ((s.minRepSec || 0) >= 2 || s.holdTop ? 0.16 : 0.12); // mouvements lents : lissage un peu plus fort
+    if (this.noiseP > 0.12) tau = Math.min(0.35, tau * this.noiseP / 0.12); // points qui tremblent beaucoup : lissage plus fort
+    const a = dt ? 1 - Math.exp(-dt / tau) : 0.45;
+    this.p = this.p + (Math.max(-0.5, Math.min(1.25, pr)) - this.p) * a; // au-delà de 125 % : aucune information utile (et retour plus rapide)
     const P = this.p, holdTop = s.holdTop || 0;
+    if (s.rel && this.state === 'rest') {
+      if (P < -0.35) { this.lowT = this.lowT || t; if (t - this.lowT > 1500) { this.base[side] = this.base[side] + (pr * (s.absRel ? Math.abs(s.delta) : s.delta) * this.rom); this.p = 0; this.lowT = 0; } }
+      else this.lowT = 0;
+    }
     if (this.p0 == null) {
       // progression de la position de départ réelle (chaque patient part d'un angle différent)
       const b = Math.max(prog(this.base.L, 'L').pr, prog(this.base.R, 'R').pr); // 'auto' : le côté au repos fixe le plancher
       this.p0 = s.rel ? 0 : Math.max(0, Math.min(0.45, s.side === 'auto' ? b : prog(this.base[side], side).pr));
     }
-    const startT = this.p0 + 0.2, endT = this.p0 + 0.1;
+    const span0 = 1 - this.p0;
+    const startT = this.p0 + 0.28 * span0, endT = this.p0 + 0.14 * span0;
+    if (this.state === 'rest' && P <= this.p0 + 0.08 * span0) this.restT = t; // dernier instant au repos
     if (this.state === 'rest' && P > startT) {
-      this.state = 'moving'; this.peak = P; this.repStart = t; this.repFaults = new Set(); this.topSince = 0; this.repWorst = {}; this.peakVal = v;
+      this.state = 'moving'; this.peak = P; this.moveStart = t; this.highMs = 0; this.repStart = Math.max(this.restT || t, t - 4000); this.repFaults = new Set(); this.topSince = 0; this.repWorst = {}; this.peakVal = v;
     }
     if (this.state === 'moving') {
       if (P > this.peak) { this.peak = P; this.peakVal = v; }
-      if (P >= 0.9) { if (!this.topSince) this.topSince = t; }
-      else if (this.topSince && holdTop && (t - this.topSince) / 1000 < holdTop && P < 0.8) this.onCue('holdIt');
-      if (this.topSince && P >= 0.9 && holdTop && (t - this.topSince) / 1000 >= holdTop) this.topOk = true;
-      if (P < endT) {
+      if (P >= 0.6) this.highMs = (this.highMs || 0) + dt * 1000;
+      // haut du mouvement : 85 % de la cible ; maintien toléré à 80 % (petits tremblements pendant la tenue)
+      if (P >= TOP) { if (!this.topSince) this.topSince = t; }
+      else if (this.topSince && P < TOP - 0.1 && !this.topOk) { if (holdTop && (t - this.topSince) / 1000 < holdTop * 0.8) this.onCue('holdIt'); this.topSince = 0; }
+      if (this.topSince && holdTop && (t - this.topSince) / 1000 >= holdTop * 0.8) this.topOk = true; // 80 % du temps de maintien
+      // retour presque au départ puis immobile ≥ 0,6 s (le patient ne revient jamais exactement à sa position initiale) :
+      // la répétition est terminée et le point de départ est ajusté (dérive de posture au fil de la série)
+      let settled = false;
+      if (this.peak >= 0.6 && P < 0.5) {
+        if (!this.lowStart) { this.lowStart = t; this.lowPts = []; }
+        this.lowPts.push([t, P]);
+        while (this.lowPts.length && t - this.lowPts[0][0] > 700) this.lowPts.shift();
+        if (t - this.lowStart > 600 && this.lowPts.length >= 8) {
+          // pente (régression linéaire) : immobile = |pente| < 0,2 / s, même si les points tremblent ; une descente lente n'est pas un arrêt
+          const n = this.lowPts.length, mt = this.lowPts.reduce((a, q) => a + q[0], 0) / n, mp = this.lowPts.reduce((a, q) => a + q[1], 0) / n;
+          const slope = (this.lowPts.reduce((a, q) => a + (q[0] - mt) * (q[1] - mp), 0) / (this.lowPts.reduce((a, q) => a + (q[0] - mt) ** 2, 0) || 1)) * 1000;
+          if (Math.abs(slope) < 0.2) { settled = true; this.lowMid = mp; }
+        }
+        if (settled) {
+          if (s.rel && !s.absRel) this.base[side] += this.lowMid * s.delta * this.rom;
+          if (s.rel && !s.absRel) this.p = 0;
+        }
+      } else this.lowStart = 0;
+      if (P < endT || settled) {
+        this.lowStart = 0;
         const dur = (t - this.repStart) / 1000;
-        const reachedTop = this.peak >= 0.9;
+        const reachedTop = this.peak >= TOP;
         const heldOk = !holdTop || this.topOk;
-        if (this.peak >= 0.5) {
+        // une vraie répétition : au moins 60 % de la cible et 0,6 s (sinon : tremblement ou faux départ, ignoré)
+        if (this.peak >= 0.6 && (this.highMs || 0) >= 150 && dur >= 0.6 && t - this.moveStart >= 450) { // ≥ 0,45 s hors de la zone de repos : pas un sursaut des points
           const full = reachedTop && heldOk;
           const fl = [...this.repFaults];
           const minSec = s.minRepSec || 1.0;
-          if (dur < minSec) { fl.push('slow'); this.onCue('slow'); }
-          if (!reachedTop) this.onCue('depth');
+          if (dur < minSec * 0.75) { fl.push('slow'); this.onCue('slow'); }
+          if (!reachedTop) this.onCue('depth'); else if (!heldOk) this.onCue('holdIt');
           const quality = Math.max(0, Math.min(1, 1 - 0.25 * new Set(fl).size - (full ? 0 : 0.3)));
           this.reps++; full ? this.full++ : this.partial++;
           for (const f of fl) this.faultCount[f] = (this.faultCount[f] || 0) + 1;

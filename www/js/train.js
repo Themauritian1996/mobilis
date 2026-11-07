@@ -144,9 +144,11 @@ export function viewTrain(id, cleanup) {
   function moveCheck(p, now, camPlane) {
     if (!T.mm || !T.mm.usable) return null;
     if (camPlane && camPlane !== figView) return null; // filmé dans l'autre plan : angles 2D non comparables
-    const st = T.mm.update(p, now);
+    const progressing = (T.lastSt && T.lastSt.phase === 'moving') || now - (T.lastRepT || 0) < 10000 || (T.mode === 'guided' && (dose.type === 'hold' || !!dose.holdTop));
+    const st = T.mm.update(p, now, { progressing });
+    const dtm = T.mvLastT ? Math.min(200, now - T.mvLastT) : 0; T.mvLastT = now;
     if (st.status === 'wrong') {
-      T.mvWrongInRep = true;
+      T.mvWrongMs = (T.mvWrongMs || 0) + dtm; // temps « mauvais mouvement » pendant la répétition en cours
       const k = hintKey(st.issues[0], figView);
       if (now - (T.mvSaid || 0) > 6000 || T.mvKey !== k) {
         T.mvSaid = now; T.mvKey = k;
@@ -364,16 +366,18 @@ export function viewTrain(id, cleanup) {
   function runSet() {
     const pl = planeFor(setIdx());
     const recentFaults = new Map(); T.recentFaults = recentFaults;
-    T.mm = new MoveMatcher(ex); T.mvKey = null; T.mvWrongInRep = false;
+    T.mm = new MoveMatcher(ex); T.mvKey = null; T.mvWrongMs = 0; T.mvLastT = 0;
     T.frame = null;
     T.tracker = new Tracker(ex, pl, { side: curSide(),
       romFactor: dose.romFactor,
       onCue: (k) => { if (cue(k)) { showCue(cueText(k), k === 'holdIt' || k === 'depth' ? '' : 'bad'); recentFaults.set(k, performance.now()); setTimeout(() => showCue(''), 2200); } },
       onRep: (rep) => {
+        T.lastRepT = performance.now();
         countAloud(T.tracker.reps);
         if (store.settings().vibrate !== false) try { navigator.vibrate?.(rep.full ? 35 : [20, 60, 20]); } catch (_) {}
-        if (T.mvWrongInRep) { T.tracker.flagRep('wrongMove'); rep = T.tracker.repLog[T.tracker.repLog.length - 1]; }
-        T.mvWrongInRep = T.mm?.state.status === 'wrong';
+        // répétition jugée « mauvais mouvement » seulement si le mouvement ne correspondait pas pendant ≥ 35 % de sa durée
+        if ((T.mvWrongMs || 0) >= 350 * rep.dur) { T.tracker.flagRep('wrongMove'); rep = T.tracker.repLog[T.tracker.repLog.length - 1]; }
+        T.mvWrongMs = 0;
         if (T.live?.review && !rep.faults.includes('wrongMove')) {
           T.live.review(T.kf || annotated(), { ...rep.meas, dur: rep.dur, faults: rep.faults, move: T.mm?.describe() }, T.tracker.repLog.slice(-4, -1).map((r) => ({ n: r.n, romPct: r.meas?.romPct, faults: r.faults })));
           T.kf = null; T.kfP = 0;

@@ -58,3 +58,37 @@ for (const id of ['ecc_wrist_ext', 'thumb_opp', 'pron_sup']) {
 }
 console.log(bad.length ? `À revoir : ${bad.map((b) => b.id).join(', ')}` : 'Main : tous les exercices comptent 5/5');
 if (bad.length) process.exit(1);
+
+// Mains « réelles » : tremblement des points, main tournée / retournée, amplitude 85–100 %, rythme variable
+let seed = 7;
+const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+const U = (a, b) => a + (b - a) * rnd();
+const gauss = () => { let s = 0; for (let i = 0; i < 6; i++) s += rnd(); return s - 3; };
+let wrongCount = 0, badReps = 0, totReps = 0;
+for (const [id, ex] of Object.entries(EXERCISES)) {
+  if (ex.track?.kind !== 'hand' || ex.track.mode !== 'reps') continue;
+  for (let k = 0; k < 8; k++) {
+    const fig = ex.fig, fr = fig.frames, A = fr[0], B0 = id === 'thumb_opp' ? fr[1] : fr[fr.length - 1];
+    const amp = U(0.85, 1), B = interpParams(A, B0, amp), rot = U(-0.4, 0.4), sc = U(0.7, 1.3), mir = rnd() < 0.5 ? -1 : 1, noise = U(0.4, 1.2);
+    const tr = new Tracker(ex, 'hand', { romFactor: 0.85 });
+    const spec = ex.track.planes.hand, hold = (spec.holdTop || 0) + U(0.3, 0.8);
+    let t = 0;
+    const step = (prm) => {
+      t += 33;
+      const L = handLm(fig, prm).map((p) => { const x = p.x * mir * sc, y = p.y * sc; return { x: x * Math.cos(rot) - y * Math.sin(rot) + gauss() * noise, y: x * Math.sin(rot) + y * Math.cos(rot) + gauss() * noise }; });
+      tr.update({ hand: L }, t);
+    };
+    for (let i = 0; i < 40; i++) step(A);
+    for (let r = 0; r < 6; r++) {
+      const up = U(0.8, 2) * 30, dn = U(1, 3) * 30 + (spec.minRepSec || 0) * 20;
+      for (let i = 0; i <= up; i++) step(interpParams(A, B, 0.5 - 0.5 * Math.cos(Math.PI * i / up)));
+      for (let i = 0; i < hold * 30; i++) step(B);
+      for (let i = 0; i <= dn; i++) step(interpParams(B, A, 0.5 - 0.5 * Math.cos(Math.PI * i / dn)));
+      for (let i = 0; i < U(0.3, 1) * 30; i++) step(A);
+    }
+    if (tr.reps !== 6) { wrongCount++; console.log('compte', id, tr.reps); }
+    totReps += tr.reps; badReps += tr.repLog.filter((r) => !r.full || r.faults.length).length;
+  }
+}
+console.log(`Main réelle : séries mal comptées ${wrongCount}, répétitions signalées à tort ${badReps}/${totReps}`);
+if (wrongCount || badReps > totReps * 0.05) process.exit(1);

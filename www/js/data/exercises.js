@@ -32,7 +32,7 @@ export const EXERCISES = {
     dose: { type: 'reps', sets: 2, reps: 10, holdTop: 4 },
     fig: { view: 'side', ground: false, zoom: 1.7, crop: ['head', 'shoulder', 'nose', 'elbow'], anchor: { j: 'shoulder', x: 112, y: 100 }, frames: [{ head: 26, uarm: 182, farm: 178 }, { head: -8, uarm: 182, farm: 178 }], trace: 'head', period: 3.4 },
     track: { mode: 'reps', planes: {
-      side: { metric: 'neckFwd', rel: true, delta: -0.06, holdTop: 3, checks: [{ m: 'trunkLean', abs: true, max: 12, cue: 'trunkSway' }] },
+      side: { metric: 'neckFwd', rel: true, delta: -0.06, holdTop: 3, checks: [{ m: 'trunkLean', rel: true, abs: true, max: 12, cue: 'trunkSway' }] },
     } },
   },
   dnf: {
@@ -60,7 +60,7 @@ export const EXERCISES = {
     dose: { type: 'reps', sets: 2, reps: 10 },
     fig: { view: 'front', frames: [{ headRot: 0 }, { headRot: 1 }, { headRot: 0 }, { headRot: -1 }], period: 4.4 },
     track: { mode: 'reps', planes: {
-      front: { metric: 'headRot', abs: true, from: 0.05, to: 0.5, checks: [{ m: 'headTilt', abs: true, max: 10, cue: 'headTilt' }, { m: 'shrug', rel: true, max: 0.12, cue: 'shrug' }] },
+      front: { metric: 'headRot', abs: true, from: 0.05, to: 0.42, checks: [{ m: 'headTilt', rel: true, abs: true, max: 10, cue: 'headTilt' }, { m: 'shrug', rel: true, max: 0.12, cue: 'shrug' }] },
     } },
   },
   row_band: {
@@ -75,7 +75,7 @@ export const EXERCISES = {
     dose: { type: 'reps', sets: 3, reps: 12, tempo: '2-1-3' },
     fig: { view: 'side', anchor: { j: 'ankle', x: 100, y: 178 }, frames: [{ uarm: 100, farm: 95, uarm2: 100, farm2: 95 }, { uarm: 205, farm: 95, uarm2: 205, farm2: 95 }], trace: 'elbow', arc: ['elbow', 'shoulder', 'wrist'], held: [['band', 'wrist', [222, 112]]], props: [['wall', 222]] },
     track: { mode: 'reps', planes: {
-      side: { metric: 'shFlex', from: 70, to: -10, checks: [{ m: 'trunkLean', abs: true, max: 12, cue: 'trunkSway' }] },
+      side: { metric: 'shFlex', from: 70, to: -10, checks: [{ m: 'trunkLean', rel: true, abs: true, max: 12, cue: 'trunkSway' }] },
     } },
   },
 
@@ -107,7 +107,7 @@ export const EXERCISES = {
     dose: { type: 'reps', sets: 2, reps: 10 },
     fig: { view: 'front', frames: [{ shAbdR: 90, shAbdL: 90, elbowR: 90, elbowL: 90 }, { shAbdR: 155, shAbdL: 155, elbowR: 20, elbowL: 20 }], trace: 'wristL' },
     track: { mode: 'reps', planes: {
-      front: { metric: 'armElev', both: true, from: 90, to: 150, checks: [{ m: 'armSym', max: 15, cue: 'symmetry' }, { m: 'trunkSide', abs: true, max: 8, cue: 'sideLean' }, { m: 'shrug', rel: true, max: 0.12, cue: 'shrug' }] },
+      front: { metric: 'armElev', both: true, from: 90, to: 150, checks: [{ m: 'armSym', max: 15, cue: 'symmetry' }, { m: 'trunkSide', rel: true, abs: true, max: 8, cue: 'sideLean' }, { m: 'shrug', rel: true, max: 0.12, cue: 'shrug' }] },
       side: { metric: 'wristUp', from: 0.2, to: 0.85, checks: [{ m: 'trunkLean', min: -8, cue: 'arch' }] },
     } },
   },
@@ -137,7 +137,7 @@ export const EXERCISES = {
       ['30 à 60 s dans chaque sens.', '30–60 s each direction.']),
     keys: [k('wrist', 'Le bras est passif', 'Arm is passive', [10, 6]), k('shoulder', 'Mouvement initié par le tronc', 'Motion driven by trunk', [8, -10])],
     dose: { type: 'hold', sets: 2, reps: 2, hold: 45 },
-    fig: { view: 'side', anchor: { j: 'ankle', x: 66, y: 178 }, frames: [{ trunk: 72, head: 18, uarm: 168, farm: 168, uarm2: 145, farm2: 95, thigh: 186, shank: 178, thigh2: 170, shank2: 182 }, { trunk: 72, head: 18, uarm: 195, farm: 195, uarm2: 145, farm2: 95, thigh: 186, shank: 178, thigh2: 170, shank2: 182 }], trace: 'wrist', props: [['table', 124, 121]], period: 2.4 },
+    fig: { view: 'side', anchor: { j: 'ankle', x: 66, y: 178 }, frames: [{ trunk: 72, head: 18, uarm: 168, farm: 168, uarm2: 131, farm2: 126, thigh: 186, shank: 178, thigh2: 170, shank2: 182 }, { trunk: 72, head: 18, uarm: 195, farm: 195, uarm2: 131, farm2: 126, thigh: 186, shank: 178, thigh2: 170, shank2: 182 }], trace: 'wrist', props: [['table', 136, 119]], period: 2.4 },
     track: null,
   },
   stick_flex: {
@@ -152,7 +152,7 @@ export const EXERCISES = {
     dose: { type: 'reps', sets: 2, reps: 10, holdTop: 3 },
     fig: { view: 'side', frames: [{ uarm: 160, farm: 130, uarm2: 160, farm2: 130 }, { uarm: 18, farm: 14, uarm2: 18, farm2: 14 }], held: [['dowel', 'wrist']], trace: 'wrist', arc: ['shoulder', 'pelvis', 'elbow'] },
     track: { mode: 'reps', planes: {
-      side: { metric: 'shFlex', from: 25, to: 145, holdTop: 2, checks: [{ m: 'trunkLean', min: -8, cue: 'arch' }] },
+      side: { metric: 'shFlex', from: 25, to: 140, holdTop: 2, checks: [{ m: 'trunkLean', min: -8, cue: 'arch' }] },
       front: { metric: 'wristUp', from: -0.2, to: 0.9, checks: [{ m: 'armSym', max: 20, cue: 'symmetry' }, { m: 'shrug', rel: true, max: 0.14, cue: 'shrug' }] },
     } },
   },
@@ -168,8 +168,8 @@ export const EXERCISES = {
     dose: { type: 'reps', sets: 3, reps: 10, tempo: '2-0-3' },
     fig: { view: 'front', frames: [{ shAbdR: 10, shAbdL: 10 }, { shAbdR: 110, shAbdL: 110 }], trace: 'wristL', arc: ['shL', 'hipL', 'elbowL'], held: [['dumbbell', 'wristR'], ['dumbbell', 'wristL']] },
     track: { mode: 'reps', planes: {
-      front: { metric: 'armElev', both: true, from: 15, to: 110, checks: [{ m: 'armSym', max: 15, cue: 'symmetry' }, { m: 'trunkSide', abs: true, max: 8, cue: 'sideLean' }, { m: 'shrug', rel: true, max: 0.12, cue: 'shrug' }] },
-      side: { metric: 'wristUp', from: -0.85, to: 0.15, checks: [{ m: 'trunkLean', min: -8, cue: 'arch' }, { m: 'trunkLean', abs: true, max: 12, cue: 'trunkSway' }] },
+      front: { metric: 'armElev', both: true, from: 15, to: 100, checks: [{ m: 'armSym', max: 15, cue: 'symmetry' }, { m: 'trunkSide', rel: true, abs: true, max: 8, cue: 'sideLean' }, { m: 'shrug', rel: true, max: 0.12, cue: 'shrug' }] },
+      side: { metric: 'wristUp', from: -0.85, to: 0.15, checks: [{ m: 'trunkLean', min: -8, cue: 'arch' }, { m: 'trunkLean', rel: true, abs: true, max: 12, cue: 'trunkSway' }] },
     } },
   },
   er_band: {
@@ -197,9 +197,9 @@ export const EXERCISES = {
       ['Redescends lentement.', 'Slide back down slowly.']),
     keys: [k('elbow', 'Avant-bras en contact avec le mur', 'Forearms stay on the wall', [-12, 6]), k('pelvis', 'Pas de cambrure', 'No arching', [-14, 0])],
     dose: { type: 'reps', sets: 2, reps: 10 },
-    fig: { view: 'side', anchor: { j: 'ankle', x: 150, y: 178 }, frames: [{ uarm: 90, farm: 0, uarm2: 90, farm2: 0 }, { uarm: 25, farm: 8, uarm2: 25, farm2: 8 }], trace: 'elbow', props: [['wall', 192]] },
+    fig: { view: 'side', anchor: { j: 'ankle', x: 150, y: 178 }, frames: [{ uarm: 90, farm: 0, uarm2: 90, farm2: 0 }, { trunk: 7, thigh: 187, shank: 187, uarm: 30, farm: 0, uarm2: 30, farm2: 0 }], trace: 'elbow', props: [['wall', 185]] },
     track: { mode: 'reps', planes: {
-      side: { metric: 'shFlex', from: 90, to: 150, checks: [{ m: 'trunkLean', min: -8, cue: 'arch' }] },
+      side: { metric: 'shFlex', from: 90, to: 145, checks: [{ m: 'trunkLean', min: -8, cue: 'arch' }] },
       front: { metric: 'wristUp', from: 0.4, to: 1.1, checks: [{ m: 'armSym', max: 15, cue: 'symmetry' }, { m: 'shrug', rel: true, max: 0.12, cue: 'shrug' }] },
     } },
   },
@@ -213,7 +213,7 @@ export const EXERCISES = {
       ['Le corps reste aligné du talon à la tête.', 'Keep your body aligned from heels to head.']),
     keys: [k('pelvis', 'Corps aligné, pas de bassin cassé', 'Body in one line', [-4, -14]), k('elbow', 'Coudes à ~45° du corps', 'Elbows ~45° from body', [6, 12])],
     dose: { type: 'reps', sets: 3, reps: 10 },
-    fig: { view: 'side', anchor: { j: 'ankle', x: 112, y: 178 }, frames: [{ trunk: 22, head: 0, thigh: 202, shank: 202, uarm: 92, farm: 92, uarm2: 92, farm2: 92 }, { trunk: 26, head: 0, thigh: 206, shank: 206, uarm: 150, farm: 35, uarm2: 150, farm2: 35 }], props: [['wall', 196]], arc: ['elbow', 'shoulder', 'wrist'] },
+    fig: { view: 'side', anchor: { j: 'ankle', x: 85, y: 178 }, frames: [{ trunk: 22, head: 0, thigh: 202, shank: 202, uarm: 92, farm: 92, uarm2: 92, farm2: 92 }, { trunk: 31, head: 0, thigh: 211, shank: 211, uarm: 123, farm: 29, uarm2: 123, farm2: 29 }], props: [['wall', 196]], arc: ['elbow', 'shoulder', 'wrist'] },
     track: { mode: 'reps', planes: {
       side: { metric: 'elbow', from: 165, to: 100, checks: [{ m: 'bodyLine', min: 158, cue: 'bodyLine' }] },
     } },
@@ -232,7 +232,7 @@ export const EXERCISES = {
     dose: { type: 'reps', sets: 3, reps: 12, tempo: '2-0-3' },
     fig: { view: 'side', frames: [{ uarm: 182, farm: 176 }, { uarm: 176, farm: 28 }], trace: 'wrist', arc: ['elbow', 'shoulder', 'wrist'], held: [['dumbbell', 'wrist']] },
     track: { mode: 'reps', planes: {
-      side: { metric: 'elbow', from: 160, to: 60, checks: [{ m: 'shFlex', abs: true, max: 25, cue: 'elbowPin' }, { m: 'trunkLean', abs: true, max: 10, cue: 'trunkSway' }] },
+      side: { metric: 'elbow', from: 160, to: 60, checks: [{ m: 'shFlex', abs: true, max: 25, cue: 'elbowPin' }, { m: 'trunkLean', rel: true, abs: true, max: 10, cue: 'trunkSway' }] },
     } },
   },
   iso_wrist_ext: {
@@ -408,7 +408,7 @@ export const EXERCISES = {
     fig: { view: 'side', anchor: { j: 'ankle', x: 160, y: 178 }, frames: [{ ...SUPINE_HOOK }, { ...SUPINE_HOOK, trunk: 243, thigh: 66, thigh2: 66, uarm: 92, farm: 90 }], props: ['mat'], trace: 'pelvis', arc: ['pelvis', 'shoulder', 'knee'] },
     track: { mode: 'reps', planes: {
       side: { metric: 'hip', from: 125, to: 168, holdTop: 1.5, checks: [] },
-      front: { metric: 'hipY', rel: true, delta: 0.35, checks: [{ m: 'pelvisDrop', abs: true, max: 8, cue: 'pelvis' }] },
+      front: { metric: 'hipY', rel: true, delta: 0.35, checks: [{ m: 'pelvisDrop', rel: true, abs: true, max: 8, cue: 'pelvis' }] },
     } },
   },
   bird_dog: {
@@ -423,8 +423,8 @@ export const EXERCISES = {
     dose: { type: 'reps', sets: 3, reps: 8, holdTop: 3 },
     fig: { view: 'side', anchor: { j: 'knee', x: 92, y: 178 }, frames: [{ ...QUAD }, { ...QUAD, uarm: 88, farm: 88, thigh2: 268, shank2: 268, foot2: 180 }], props: ['mat'], trace: 'wrist' },
     track: { mode: 'reps', planes: {
-      side: { metric: 'hipMax', from: 100, to: 165, holdTop: 2, checks: [{ m: 'trunkTilt', abs: true, max: 12, cue: 'bodyLine' }] },
-      front: { metric: 'wristUp', both: false, from: -0.9, to: 0.0, checks: [{ m: 'pelvisDrop', abs: true, max: 10, cue: 'pelvis' }] },
+      side: { metric: 'hipMax', from: 100, to: 165, holdTop: 2, checks: [{ m: 'trunkTilt', rel: true, abs: true, max: 12, cue: 'bodyLine' }] },
+      front: { metric: 'wristUp', both: false, from: -0.9, to: 0.0, checks: [{ m: 'pelvisDrop', rel: true, abs: true, max: 10, cue: 'pelvis' }] },
     } },
   },
   cat_camel: {
@@ -465,9 +465,9 @@ export const EXERCISES = {
       ['Redescends un pied à la fois.', 'Lower one foot at a time.']),
     keys: [k('pelvis', 'Le bas du dos s’arrondit doucement', 'Low back gently rounds', [0, 12])],
     dose: { type: 'reps', sets: 1, reps: 6, holdTop: 15 },
-    fig: { view: 'side', anchor: { j: 'pelvis', x: 120, y: 172 }, frames: [{ ...SUPINE_HOOK }, { ...SUPINE_HOOK, thigh: -30, shank: 70, thigh2: -30, shank2: 70, uarm: 60, farm: 28 }], props: ['mat'], trace: 'knee' },
+    fig: { view: 'side', anchor: { j: 'pelvis', x: 120, y: 172 }, frames: [{ ...SUPINE_HOOK }, { ...SUPINE_HOOK, thigh: -30, shank: 70, thigh2: -30, shank2: 70, foot: -30, foot2: -30, uarm: 60, farm: 28 }], props: ['mat'], trace: 'knee' },
     track: { mode: 'reps', planes: {
-      side: { metric: 'hip', from: 120, to: 65, holdTop: 5, checks: [] },
+      side: { metric: 'hip', from: 120, to: 72, holdTop: 5, checks: [] },
     } },
   },
   dead_bug: {
@@ -482,7 +482,7 @@ export const EXERCISES = {
     dose: { type: 'reps', sets: 3, reps: 8 },
     fig: { view: 'side', anchor: { j: 'pelvis', x: 110, y: 172 }, frames: [{ trunk: 270, head: 0, thigh: 0, shank: 90, foot: 0, thigh2: 0, shank2: 90, foot2: 0, uarm: 0, farm: 0, uarm2: 0, farm2: 0 }, { trunk: 270, head: 0, thigh: 72, shank: 80, foot: 0, thigh2: 0, shank2: 90, foot2: 0, uarm: 0, farm: 0, uarm2: -70, farm2: -70 }], props: ['mat'], trace: 'ankle' },
     track: { mode: 'reps', planes: {
-      side: { metric: 'hipMax', from: 95, to: 155, checks: [] },
+      side: { metric: 'hipMax', from: 95, to: 150, checks: [] },
     } },
   },
   side_plank: {
@@ -496,7 +496,7 @@ export const EXERCISES = {
       ['Respire normalement pendant le maintien.', 'Breathe normally during the hold.']),
     keys: [k('pelvis', 'Hanches hautes, corps aligné', 'Hips up, body aligned', [0, -14]), k('elbow', 'Coude sous l’épaule', 'Elbow under shoulder', [-10, 0])],
     dose: { type: 'hold', sets: 3, reps: 1, hold: 25 },
-    fig: { view: 'side', anchor: { j: 'ankle', x: 36, y: 176 }, frames: [{ trunk: 74, head: 0, thigh: 262, shank: 258, foot: 0, uarm: 168, farm: 90, uarm2: 10, farm2: 10 }, { trunk: 68, head: 0, thigh: 248, shank: 248, foot: 0, uarm: 180, farm: 90, uarm2: 0, farm2: 0 }], props: ['mat'], arc: ['pelvis', 'shoulder', 'ankle'] },
+    fig: { view: 'side', anchor: { j: 'ankle', x: 36, y: 176 }, frames: [{ trunk: 74, head: 0, thigh: 262, shank: 258, foot: 140, uarm: 168, farm: 90, uarm2: 10, farm2: 10 }, { trunk: 68, head: 0, thigh: 248, shank: 248, foot: 135, uarm: 180, farm: 90, uarm2: 0, farm2: 0 }], props: ['mat'], arc: ['pelvis', 'shoulder', 'ankle'] },
     track: { mode: 'hold', planes: {
       front: { metric: 'bodyLine', min: 158, max: 200, checks: [] },
     } },
@@ -511,9 +511,9 @@ export const EXERCISES = {
       ['Reviens en serrant les fesses.', 'Return by squeezing the glutes.']),
     keys: [k('pelvis', 'Les hanches reculent', 'Hips move back', [-14, 0]), k('knee', 'Genoux peu fléchis', 'Knees only slightly bent', [10, 0]), k('shoulder', 'Dos droit', 'Neutral spine', [4, -12])],
     dose: { type: 'reps', sets: 3, reps: 10 },
-    fig: { view: 'side', frames: [{ uarm: -30, farm: 180, uarm2: 200, farm2: 164 }, { trunk: 58, head: -8, thigh: 168, shank: 192, thigh2: 168, shank2: 192, uarm: 28, farm: 238, uarm2: 258, farm2: 222 }], held: ['dowelBack'], trace: 'shoulder', arc: ['pelvis', 'shoulder', 'knee'] },
+    fig: { view: 'side', frames: [{ uarm: 0, farm: 202, uarm2: 200, farm2: 164 }, { trunk: 58, head: -8, thigh: 168, shank: 192, thigh2: 168, shank2: 192, uarm: 58, farm: 260, uarm2: 258, farm2: 222 }], held: ['dowelBack'], trace: 'shoulder', arc: ['pelvis', 'shoulder', 'knee'] },
     track: { mode: 'reps', planes: {
-      side: { metric: 'trunkLean', from: 5, to: 50, checks: [{ m: 'knee', min: 140, cue: 'hinge' }] },
+      side: { metric: 'trunkLean', from: 5, to: 45, checks: [{ m: 'knee', min: 140, cue: 'hinge' }] },
     } },
   },
   sit_stand: {
@@ -526,10 +526,10 @@ export const EXERCISES = {
       ['Rassieds-toi lentement, sans te laisser tomber.', 'Sit back down slowly, don’t drop.']),
     keys: [k('knee', 'Genoux au-dessus des orteils', 'Knees over toes', [10, -8]), k('shoulder', 'Nez au-dessus des orteils au départ', 'Nose over toes to start', [10, -10])],
     dose: { type: 'reps', sets: 3, reps: 10 },
-    fig: { view: 'side', anchor: { j: 'ankle', x: 128, y: 178 }, frames: [{ trunk: 38, head: -8, thigh: 92, shank: 186, thigh2: 92, shank2: 186, uarm: 120, farm: 80, uarm2: 120, farm2: 80 }, { uarm: 120, farm: 80, uarm2: 120, farm2: 80 }], props: [['chair', 46, 140]], trace: 'pelvis', arc: ['knee', 'pelvis', 'ankle'] },
+    fig: { view: 'side', anchor: { j: 'ankle', x: 128, y: 178 }, frames: [{ trunk: 38, head: -8, thigh: 92, shank: 186, thigh2: 92, shank2: 186, uarm: 203, farm: 70, uarm2: 203, farm2: 70 }, { uarm: 165, farm: 32, uarm2: 165, farm2: 32 }], props: [['chair', 46, 140]], trace: 'pelvis', arc: ['knee', 'pelvis', 'ankle'] },
     track: { mode: 'reps', planes: {
-      side: { metric: 'knee', from: 168, to: 105, checks: [{ m: 'trunkLean', max: 55, cue: 'trunk' }] },
-      front: { metric: 'hipLow', rel: true, delta: 0.55, checks: [{ m: 'kneeValgus', max: 0.1, cue: 'valgus' }, { m: 'trunkSide', abs: true, max: 10, cue: 'sideLean' }] },
+      side: { metric: 'knee', from: 100, to: 165, checks: [{ m: 'trunkLean', max: 55, cue: 'trunk' }] },
+      front: { metric: 'hipDrop', rel: true, delta: 0.24, checks: [{ m: 'kneeValgus', max: 0.1, cue: 'valgus' }, { m: 'trunkSide', rel: true, abs: true, max: 10, cue: 'sideLean' }] },
     } },
   },
   sciatic_glide: {
@@ -542,7 +542,7 @@ export const EXERCISES = {
       ['Doux et rythmé : pas de douleur qui persiste.', 'Gentle and rhythmic: no lingering pain.']),
     keys: [k('knee', 'Genou et tête bougent en sens opposé', 'Knee and head move opposite ways', [10, -10])],
     dose: { type: 'reps', sets: 2, reps: 10 },
-    fig: { view: 'side', anchor: { j: 'pelvis', x: 78, y: 138 }, frames: [{ ...SIT, head: 20 }, { ...SIT, shank: 98, foot: 30, head: -18 }], props: [['chair', 46, 140]], trace: 'ankle' },
+    fig: { view: 'side', anchor: { j: 'pelvis', x: 78, y: 138 }, frames: [{ ...SIT, head: 20, foot2: 90 }, { ...SIT, shank: 98, foot: 30, head: -18, foot2: 90 }], props: [['chair', 46, 140]], trace: 'ankle' },
     track: null,
   },
 
@@ -575,7 +575,7 @@ export const EXERCISES = {
     dose: { type: 'reps', sets: 3, reps: 12 },
     fig: { view: 'front', frames: [{}, { hipAbdL: 30, trunk: -3 }], trace: 'ankleL', arc: ['hipL', 'pelvis', 'kneeL'] },
     track: { mode: 'reps', planes: {
-      front: { metric: 'hipAbd', side: 'auto', from: 4, to: 26, checks: [{ m: 'trunkSide', abs: true, max: 8, cue: 'sideLean' }] },
+      front: { metric: 'hipAbd', side: 'auto', from: 4, to: 24, checks: [{ m: 'trunkSide', rel: true, abs: true, max: 8, cue: 'sideLean' }] },
     } },
   },
   iso_hip_abd: {
@@ -588,7 +588,7 @@ export const EXERCISES = {
       ['Tiens 30–45 s.', 'Hold 30–45 s.']),
     keys: [k('kneeR', 'Pousse latéralement', 'Push outward', [-12, 0])],
     dose: { type: 'hold', sets: 1, reps: 5, hold: 40 },
-    fig: { view: 'front', frames: [{ hipAbdR: 6, thighScaleR: 0.8, liftR: 10 }], props: [['wall', 76]] },
+    fig: { view: 'front', frames: [{ hipAbdR: 8, thighScaleR: 0.75, liftR: 26, shAbdR: -4 }], props: [['wall', 90]] },
     track: null,
   },
   step_up: {
@@ -601,10 +601,10 @@ export const EXERCISES = {
       ['Redescends lentement.', 'Step down slowly.']),
     keys: [k('knee', 'Genou dans l’axe du pied', 'Knee tracks over foot', [10, -6]), k('pelvis', 'Bassin à niveau', 'Pelvis level', [-14, 0])],
     dose: { type: 'reps', sets: 3, reps: 10 },
-    fig: { view: 'side', anchor: { j: 'ankle', x: 132, y: 158 }, frames: [{ trunk: 20, thigh: 118, shank: 200, thigh2: 192, shank2: 188, uarm: 190, farm: 180 }, { trunk: 0, thigh: 180, shank: 180, thigh2: 160, shank2: 210, foot2: 120 }], props: [['step', 104, 64]], trace: 'pelvis', arc: ['knee', 'pelvis', 'ankle'] },
+    fig: { view: 'side', anchor: { j: 'ankle', x: 132, y: 158 }, frames: [{ trunk: 20, thigh: 118, shank: 200, thigh2: 192, shank2: 188, uarm: 190, farm: 180 }, { trunk: 0, thigh: 180, shank: 180, thigh2: 178, shank2: 222, foot2: 130 }], props: [['step', 112, 60]], trace: 'pelvis', arc: ['knee', 'pelvis', 'ankle'] },
     track: { mode: 'reps', planes: {
       side: { metric: 'knee', from: 110, to: 168, checks: [{ m: 'trunkLean', max: 30, cue: 'trunk' }] },
-      front: { metric: 'hipLow', rel: true, delta: -0.45, checks: [{ m: 'kneeValgus', max: 0.1, cue: 'valgus' }, { m: 'pelvisDrop', abs: true, max: 8, cue: 'pelvis' }] },
+      front: { metric: 'hipDrop', rel: true, delta: -0.2, checks: [{ m: 'kneeValgus', max: 0.1, cue: 'valgus' }, { m: 'pelvisDrop', rel: true, abs: true, max: 8, cue: 'pelvis' }] },
     } },
   },
   bridge_long: {
@@ -619,7 +619,7 @@ export const EXERCISES = {
     dose: { type: 'hold', sets: 1, reps: 5, hold: 30 },
     fig: { view: 'side', anchor: { j: 'ankle', x: 186, y: 160 }, frames: [{ trunk: 270, head: 0, thigh: 72, shank: 82, foot: 20, thigh2: 72, shank2: 82, foot2: 20, uarm: 90, farm: 90 }, { trunk: 254, head: 0, thigh: 88, shank: 100, foot: 20, thigh2: 88, shank2: 100, foot2: 20, uarm: 92, farm: 90 }], props: [['step', 172, 40], 'mat'], trace: 'pelvis' },
     track: { mode: 'hold', planes: {
-      side: { metric: 'bodyLine', min: 160, max: 200, checks: [] },
+      side: { metric: 'bodyLine', min: 150, max: 200, checks: [] },
     } },
   },
   hip_flex_stretch: {
@@ -647,7 +647,7 @@ export const EXERCISES = {
     dose: { type: 'hold', sets: 2, reps: 2, hold: 30 },
     fig: { view: 'front', frames: [{ thighScaleR: 0.7, liftR: 16, shankR: 10 }] },
     track: { mode: 'hold', planes: {
-      front: { metric: 'footLift', min: 0.05, max: 9, checks: [{ m: 'pelvisDrop', abs: true, max: 8, cue: 'pelvis' }, { m: 'trunkSide', abs: true, max: 10, cue: 'sideLean' }] },
+      front: { metric: 'footLift', min: 0.05, max: 9, checks: [{ m: 'pelvisDrop', rel: true, abs: true, max: 8, cue: 'pelvis' }, { m: 'trunkSide', rel: true, abs: true, max: 10, cue: 'sideLean' }] },
     } },
   },
 
@@ -665,7 +665,7 @@ export const EXERCISES = {
     fig: { view: 'side', frames: [{ uarm: 90, farm: 90, uarm2: 90, farm2: 90 }, { trunk: 35, head: -10, thigh: 98, shank: 206, thigh2: 98, shank2: 206, uarm: 92, farm: 92, uarm2: 92, farm2: 92 }], trace: 'pelvis', arc: ['knee', 'pelvis', 'ankle'] },
     track: { mode: 'reps', planes: {
       side: { metric: 'knee', from: 168, to: 95, checks: [{ m: 'trunkLean', max: 45, cue: 'trunk' }, { m: 'heelRise', rel: true, max: 0.04, cue: 'heelDown' }] },
-      front: { metric: 'hipLow', rel: true, delta: 0.45, checks: [{ m: 'kneeValgus', max: 0.1, cue: 'valgus' }, { m: 'kneeSym', max: 15, cue: 'symmetry' }, { m: 'trunkSide', abs: true, max: 8, cue: 'sideLean' }] },
+      front: { metric: 'hipDrop', rel: true, delta: 0.2, checks: [{ m: 'kneeValgus', max: 0.1, cue: 'valgus' }, { m: 'kneeSym', max: 15, cue: 'symmetry' }, { m: 'trunkSide', rel: true, abs: true, max: 8, cue: 'sideLean' }] },
     } },
   },
   slr: {
@@ -678,9 +678,9 @@ export const EXERCISES = {
       ['Redescends en 3 s.', 'Lower over 3 s.']),
     keys: [k('knee', 'Genou verrouillé', 'Knee locked', [8, -10])],
     dose: { type: 'reps', sets: 3, reps: 12, tempo: '2-1-3' },
-    fig: { view: 'side', anchor: { j: 'pelvis', x: 92, y: 172 }, frames: [{ trunk: 270, head: 0, thigh: 92, shank: 92, foot: 0, thigh2: 45, shank2: 150, uarm: 90, farm: 90 }, { trunk: 270, head: 0, thigh: 50, shank: 50, foot: 320, thigh2: 45, shank2: 150, uarm: 90, farm: 90 }], props: ['mat'], trace: 'ankle', arc: ['pelvis', 'shoulder', 'knee'] },
+    fig: { view: 'side', anchor: { j: 'pelvis', x: 92, y: 172 }, frames: [{ trunk: 270, head: 0, thigh: 92, shank: 92, foot: 0, thigh2: 45, shank2: 150, foot2: 90, uarm: 90, farm: 90 }, { trunk: 270, head: 0, thigh: 50, shank: 50, foot: -40, thigh2: 45, shank2: 150, foot2: 90, uarm: 90, farm: 90 }], props: ['mat'], trace: 'ankle', arc: ['pelvis', 'shoulder', 'knee'] },
     track: { mode: 'reps', planes: {
-      side: { metric: 'hip', from: 172, to: 138, checks: [{ m: 'knee', min: 160, cue: 'kneeStraight' }] },
+      side: { metric: 'hip', from: 172, to: 145, checks: [{ m: 'knee', min: 160, cue: 'kneeStraight' }] },
     } },
   },
   knee_ext_sit: {
@@ -693,9 +693,9 @@ export const EXERCISES = {
       ['Ajoute un poids à la cheville pour progresser.', 'Add an ankle weight to progress.']),
     keys: [k('knee', 'Extension complète', 'Full extension', [8, -10]), k('pelvis', 'Cuisse reste sur la chaise', 'Thigh stays on chair', [-12, 4])],
     dose: { type: 'reps', sets: 3, reps: 12, holdTop: 2 },
-    fig: { view: 'side', anchor: { j: 'pelvis', x: 78, y: 138 }, frames: [{ ...SIT }, { ...SIT, shank: 96, foot: 10 }], props: [['chair', 46, 140]], trace: 'ankle', arc: ['knee', 'pelvis', 'ankle'] },
+    fig: { view: 'side', anchor: { j: 'pelvis', x: 78, y: 138 }, frames: [{ ...SIT, foot2: 90 }, { ...SIT, shank: 96, foot: 10, foot2: 90 }], props: [['chair', 46, 140]], trace: 'ankle', arc: ['knee', 'pelvis', 'ankle'] },
     track: { mode: 'reps', planes: {
-      side: { metric: 'knee', from: 100, to: 165, holdTop: 1.5, checks: [{ m: 'trunkLean', abs: true, max: 20, cue: 'trunkSway' }] },
+      side: { metric: 'knee', from: 100, to: 160, holdTop: 1.5, checks: [{ m: 'trunkLean', rel: true, abs: true, max: 20, cue: 'trunkSway' }] },
     } },
   },
   wall_sit: {
@@ -708,9 +708,9 @@ export const EXERCISES = {
       ['Tiens 30–45 s, douleur ≤ 3/10.', 'Hold 30–45 s, pain ≤3/10.']),
     keys: [k('knee', 'Genoux au-dessus des chevilles', 'Knees over ankles', [10, -6]), k('pelvis', 'Dos contre le mur', 'Back on the wall', [-14, 0])],
     dose: { type: 'hold', sets: 1, reps: 5, hold: 40 },
-    fig: { view: 'side', anchor: { j: 'ankle', x: 132, y: 178 }, frames: [{ trunk: 0, head: 0, thigh: 112, shank: 188, thigh2: 112, shank2: 188, uarm: 180, farm: 160 }], props: [['wall', 88]], arc: ['knee', 'pelvis', 'ankle'] },
+    fig: { view: 'side', anchor: { j: 'ankle', x: 132, y: 178 }, frames: [{ trunk: 0, head: 0, thigh: 120, shank: 182, thigh2: 120, shank2: 182, uarm: 180, farm: 160 }], props: [['wall', 81]], arc: ['knee', 'pelvis', 'ankle'] },
     track: { mode: 'hold', planes: {
-      side: { metric: 'knee', min: 100, max: 140, checks: [{ m: 'trunkLean', abs: true, max: 20, cue: 'trunk' }] },
+      side: { metric: 'knee', min: 95, max: 150, checks: [{ m: 'trunkLean', abs: true, max: 20, cue: 'trunk' }] },
     } },
   },
   step_down: {
@@ -723,9 +723,9 @@ export const EXERCISES = {
       ['Remonte lentement.', 'Rise slowly.']),
     keys: [k('kneeL', 'Genou ne rentre pas vers l’intérieur', 'Knee doesn’t cave in', [12, 0]), k('hipR', 'Bassin à niveau', 'Pelvis level', [-12, -8])],
     dose: { type: 'reps', sets: 3, reps: 10, tempo: '3-0-2' },
-    fig: { view: 'front', anchor: { j: 'ankleL', x: 132, y: 160 }, frames: [{ liftR: -2 }, { thighScaleL: 0.84, shankL: -6, thighScaleR: 0.95, liftR: -14, trunk: -2 }], props: [['step', 112, 44]], trace: 'ankleR' },
+    fig: { view: 'front', anchor: { j: 'ankleL', x: 132, y: 160 }, frames: [{ liftR: -2 }, { thighScaleL: 0.74, shankL: -8, thighScaleR: 0.95, liftR: -10, trunk: -2 }], props: [['step', 112, 44]], trace: 'ankleR' },
     track: { mode: 'reps', planes: {
-      front: { metric: 'hipLow', rel: true, delta: 0.19, checks: [{ m: 'kneeValgus', max: 0.08, cue: 'valgus' }, { m: 'pelvisDrop', abs: true, max: 8, cue: 'pelvis' }, { m: 'trunkSide', abs: true, max: 10, cue: 'sideLean' }] },
+      front: { metric: 'hipDrop', rel: true, delta: 0.1, checks: [{ m: 'kneeValgus', max: 0.08, cue: 'valgus' }, { m: 'pelvisDrop', rel: true, abs: true, max: 8, cue: 'pelvis' }, { m: 'trunkSide', rel: true, abs: true, max: 10, cue: 'sideLean' }] },
       side: { metric: 'knee', from: 170, to: 130, checks: [{ m: 'trunkLean', max: 30, cue: 'trunk' }] },
     } },
   },
@@ -758,8 +758,8 @@ export const EXERCISES = {
     dose: { type: 'reps', sets: 3, reps: 15, tempo: '2-1-3' },
     fig: { view: 'side', anchor: { j: 'toe', x: 135, y: 178 }, frames: [{}, { foot: 126, foot2: 126 }], trace: 'ankle', arc: ['ankle', 'knee', 'toe'] },
     track: { mode: 'reps', planes: {
-      side: { metric: 'heelRise', rel: true, delta: 0.06, checks: [{ m: 'trunkLean', abs: true, max: 12, cue: 'trunkSway' }, { m: 'knee', min: 158, cue: 'kneeStraight' }] },
-      front: { metric: 'heelRise', rel: true, delta: 0.06, checks: [{ m: 'trunkSide', abs: true, max: 8, cue: 'sideLean' }] },
+      side: { metric: 'heelRise', rel: true, delta: 0.06, checks: [{ m: 'trunkLean', rel: true, abs: true, max: 12, cue: 'trunkSway' }, { m: 'knee', min: 158, cue: 'kneeStraight' }] },
+      front: { metric: 'heelRise', rel: true, delta: 0.06, checks: [{ m: 'trunkSide', rel: true, abs: true, max: 8, cue: 'sideLean' }] },
     } },
   },
   heel_raise_towel: {
@@ -775,7 +775,7 @@ export const EXERCISES = {
     fig: { view: 'side', anchor: { j: 'toe', x: 135, y: 178 }, frames: [{ foot: 80, foot2: 80 }, { foot: 126, foot2: 126 }], props: ['roll'], trace: 'ankle' },
     track: { mode: 'reps', planes: {
       side: { metric: 'heelRise', rel: true, delta: 0.06, holdTop: 1.5, minRepSec: 5, checks: [{ m: 'knee', min: 158, cue: 'kneeStraight' }] },
-      front: { metric: 'heelRise', rel: true, delta: 0.06, minRepSec: 5, checks: [{ m: 'trunkSide', abs: true, max: 8, cue: 'sideLean' }] },
+      front: { metric: 'heelRise', rel: true, delta: 0.06, minRepSec: 5, checks: [{ m: 'trunkSide', rel: true, abs: true, max: 8, cue: 'sideLean' }] },
     } },
   },
   ecc_heel_drop: {
@@ -788,7 +788,7 @@ export const EXERCISES = {
       ['Tendinopathie d’insertion : arrête au niveau de la marche.', 'Insertional tendinopathy: stop at step level.']),
     keys: [k('ankle', 'Descente lente', 'Slow lowering', [-12, -4]), k('knee', 'Genou tendu (puis fléchi pour le soléaire)', 'Knee straight (then bent for soleus)', [10, -6])],
     dose: { type: 'reps', sets: 3, reps: 15, tempo: '0-0-4' },
-    fig: { view: 'side', zoom: 0.82, anchor: { j: 'toe', x: 128, y: 162 }, frames: [{ foot: 124, foot2: 124 }, { foot: 62, foot2: 62 }], props: [['step', 112, 56]], trace: 'ankle', arc: ['ankle', 'knee', 'toe'] },
+    fig: { view: 'side', zoom: 0.82, anchor: { j: 'toe', x: 115, y: 162 }, frames: [{ foot: 124, foot2: 124 }, { foot: 62, foot2: 62 }], props: [['step', 112, 56]], trace: 'ankle', arc: ['ankle', 'knee', 'toe'] },
     track: { mode: 'reps', planes: {
       side: { metric: 'ankle', from: 125, to: 85, minRepSec: 3, checks: [{ m: 'knee', min: 155, cue: 'kneeStraight' }] },
     } },
@@ -803,9 +803,9 @@ export const EXERCISES = {
       ['Recule le pied quand c’est facile.', 'Move the foot back as it gets easy.']),
     keys: [k('ankle', 'Talon au sol', 'Heel down', [-12, -2]), k('knee', 'Genou vers le mur', 'Knee to the wall', [10, -6])],
     dose: { type: 'reps', sets: 2, reps: 12, holdTop: 2 },
-    fig: { view: 'side', anchor: { j: 'ankle', x: 150, y: 178 }, frames: [{ uarm: 110, farm: 80, uarm2: 110, farm2: 80, thigh2: 195, shank2: 190 }, { trunk: 6, thigh: 162, shank: 214, uarm: 100, farm: 70, uarm2: 100, farm2: 70, thigh2: 200, shank2: 195 }], props: [['wall', 196]], trace: 'knee', arc: ['ankle', 'knee', 'toe'] },
+    fig: { view: 'side', anchor: { j: 'ankle', x: 150, y: 178 }, frames: [{ uarm: 183, farm: 59, uarm2: 183, farm2: 59, thigh2: 195, shank2: 190 }, { thigh: 162, shank: 214, uarm: 198, farm: 53, uarm2: 198, farm2: 53, thigh2: 200, shank2: 195 }], props: [['wall', 175]], trace: 'knee', arc: ['ankle', 'knee', 'toe'] },
     track: { mode: 'reps', planes: {
-      side: { metric: 'shinLean', from: 3, to: 32, holdTop: 1.5, checks: [{ m: 'heelRise', rel: true, max: 0.03, cue: 'heelDown' }] },
+      side: { metric: 'shinLean', from: 3, to: 28, holdTop: 1.5, checks: [{ m: 'heelRise', rel: true, max: 0.03, cue: 'heelDown' }] },
     } },
   },
   calf_stretch: {

@@ -71,6 +71,14 @@ export function reference(ex) {
     const min = Math.min(...vals), max = Math.max(...vals);
     ref.feats[LIMB[name] ? `${name}.${set}` : name] = { name, set, min, max, mid: (min + max) / 2, delta: max - min, def };
   }
+  // Articulations utiles au contrôle : celles qui bougent, celles du même membre (ex. coude tendu au pendule) et le tronc.
+  // Les membres non concernés (bras pendant un squat, jambes pendant un exercice d'épaule) varient d'un patient à l'autre :
+  // ils ne sont pas comparés à la démonstration (sinon : faux « mauvais mouvement »).
+  const movingLimbs = new Set(Object.values(ref.feats).filter((r) => r.delta >= 12 && LIMB[r.name]).map((r) => `${LIMB[r.name]}.${r.set}`));
+  for (const [k, r] of Object.entries(ref.feats)) {
+    if (r.delta >= 12 || !LIMB[r.name]) continue;
+    if (!movingLimbs.has(`${LIMB[r.name]}.${r.set}`)) delete ref.feats[k];
+  }
   return ref;
 }
 
@@ -86,7 +94,8 @@ function livePoints(p, view, set, near) {
   return { sh: P(p['sh' + S]), el: P(p['el' + S]), wr: P(p['wr' + S]), hip: P(p['hip' + S]), kn: P(p['kn' + S]), an: P(p['an' + S]) };
 }
 
-const TOL = { trunk: 28, shoulder: 35, elbow: 30, hip: 32, hipAbd: 25, knee: 30 };
+// Tolérances (degrés) : morphologie, angle de la caméra, imprécision 2D
+const TOL = { trunk: 30, shoulder: 38, elbow: 34, hip: 34, hipAbd: 25, knee: 32 };
 
 export class MoveMatcher {
   constructor(ex) {
@@ -96,8 +105,9 @@ export class MoveMatcher {
   }
   get usable() { return !!this.ref; }
 
-  // p : points en pixels (toPx) ; t : ms
-  update(p, t) {
+  // p : points en pixels (toPx) ; t : ms ; ctx.progressing : le compteur voit le mouvement progresser
+  // (répétition en cours, maintien en haut ou répétition récente) → pas de faux « immobile » pendant un maintien
+  update(p, t, ctx = {}) {
     if (!this.ref) return this.state;
     if (!this.t0) this.t0 = t;
     const dt = this.lastT ? Math.min(0.2, (t - this.lastT) / 1000) : 0; this.lastT = t;
@@ -112,7 +122,7 @@ export class MoveMatcher {
       return o;
     }), P: { near } };
     this.buf.push(sample);
-    while (this.buf.length && t - this.buf[0].t > 4000) this.buf.shift();
+    while (this.buf.length && t - this.buf[0].t > 8000) this.buf.shift(); // 8 s : couvre une répétition lente avec maintien
     this.totalTime += dt; if (this.state.status === 'wrong') this.wrongTime += dt;
     if (t - this.lastEval < 500) return this.state;
     this.lastEval = t;
@@ -136,7 +146,7 @@ export class MoveMatcher {
           if (lo > r.max + tol || hi < r.min - tol) {
             const off = (lo > r.max + tol ? lo - r.max : hi - r.min);
             issues.push({ k, name: r.name, kind: 'off', live: Math.round(med), expected: Math.round(r.mid), dir: Math.sign(off) }); err += Math.abs(off);
-          } else if (elapsed > 5 && range < Math.max(10, 0.35 * r.delta)) { issues.push({ k, name: r.name, kind: 'still', live: Math.round(range), expected: Math.round(r.delta) }); err += 0.35 * r.delta - range; }
+          } else if (elapsed > 8 && !ctx.progressing && range < Math.max(10, 0.3 * r.delta)) { issues.push({ k, name: r.name, kind: 'still', live: Math.round(range), expected: Math.round(r.delta) }); err += 0.35 * r.delta - range; }
         }
       }
       const cand = { issues, live, err, n, map: mi };
@@ -144,7 +154,7 @@ export class MoveMatcher {
     }
     if (!best || best.n < 2) { this.state = { status: 'unsure', issues: [], live: best?.live || {} }; this.badStreak = 0; return this.state; }
     this.badStreak = best.issues.length ? this.badStreak + 1 : 0;
-    const status = this.badStreak >= 3 ? 'wrong' : best.issues.length ? 'checking' : 'ok';
+    const status = this.badStreak >= 4 ? 'wrong' : best.issues.length ? 'checking' : 'ok'; // ≥ 2 s de suite avant de conclure
     // problème principal = plus grand écart
     const W = { trunk: 60, hip: 40 };
     const prio = (i) => (i.kind === 'off' ? 100 : 0) + (W[i.name] || 20) - (i.k.endsWith('.far') ? 30 : 0) + Math.min(90, Math.abs(i.live - i.expected)) / 3;

@@ -114,7 +114,7 @@ function palmPose(p, anchor) {
   j.fingers = FINGERS.map((f, i) => {
     const extra = (q.fingers && q.fingers[i]) || 0;
     // doigt visé par le pouce (opp entre 0 et 1 : l'index se prépare progressivement)
-    const opp = !q.opp ? 0 : q.opp < 1 ? (i === 0 ? q.opp * 0.6 : 0) : Math.abs(q.opp - (i + 1)) < 0.5 ? 1 - Math.abs(q.opp - (i + 1)) * 2 : 0;
+    const opp = !q.opp ? 0 : q.opp < 1 ? (i === 0 ? q.opp : 0) : Math.abs(q.opp - (i + 1)) < 0.5 ? 1 - Math.abs(q.opp - (i + 1)) * 2 : 0;
     const a = [q.mcp + extra * 80 + opp * 30, q.pip + extra * 95 + opp * 35, q.dip + extra * 60 + opp * 15];
     const base = [f.x + (i - 1.5) * q.spread * 0.15, top - 2];
     const pts = [base]; let cum = 0, cur = base;
@@ -276,7 +276,7 @@ function drawProps(g, fig, j0) {
   if ((v === 'foot' || v === 'footBack') && fig.ground !== false) el('line', { x1: 20, y1: j0.heel[1] + 2, x2: 220, y2: j0.heel[1] + 2, class: 'fg-ground' }, g);
   for (const p of props) {
     const [name, a = 0, b = 0] = Array.isArray(p) ? p : [p];
-    if (name === 'wall') el('rect', { x: a || 196, y: 20, width: 10, height: 162, class: 'fg-prop' }, g);
+    if (name === 'wall') el('rect', { x: a || 196, y: -40, width: 10, height: 222, class: 'fg-prop' }, g);
     if (name === 'step') el('rect', { x: a || 90, y: 162, width: b || 60, height: 20, rx: 3, class: 'fg-prop' }, g);
     if (name === 'chair') {
       const x = a || 56, y = b || 142;

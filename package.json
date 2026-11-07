@@ -7,7 +7,7 @@
   "scripts": {
     "fetch-model": "bash scripts/fetch-model.sh",
     "vendor": "bash scripts/vendor.sh",
-    "test": "node tests/tracker.test.mjs && node tests/hand.test.mjs && node tests/figures.test.mjs && node tests/gemini.test.mjs",
+    "test": "node tests/tracker.test.mjs && node tests/hand.test.mjs && node tests/figures.test.mjs && node tests/gemini.test.mjs && node tests/realism.test.mjs",
     "serve": "npx serve www",
     "android:sync": "npx cap sync android"
   },

@@ -13,6 +13,16 @@ Application web + APK Android qui filme le patient pendant ses exercices, analys
 | Comptes et données | Firebase `mobilis-6828b` : Google + courriel, Firestore à Montréal, règles « chaque patient voit seulement ses données » |
 | Coach Gemini | clé personnelle entrée dans **Profil → Coach IA** (GitHub Pages n'a pas de serveur). Pour une clé cachée côté serveur, voir l'option Cloudflare plus bas. |
 
+## Nouveautés 1.10
+
+- **Comptage et « mauvaise répétition » fiabilisés** : testés sur des milliers de répétitions de « patients simulés » faisant l'exercice correctement (taille, côté face à la caméra, téléphone tourné ou penché, amplitude 85–100 %, rythme variable, bras ou jambes non concernés placés autrement, tremblement des points) : 27 % de répétitions correctes signalées à tort → 0 %, comptes exacts ; les vrais mauvais mouvements restent détectés.
+  - Lissage du signal adapté au tremblement mesuré au repos ; une répétition doit vraiment quitter le repos (pas de répétition fantôme) ; haut du mouvement à 85 % de la cible ; maintien toléré à 80 % du temps ; « trop vite » mesuré sur toute la répétition.
+  - Point de départ pris seulement à l'arrêt (écart-type), réajusté si le patient ne revient pas exactement à sa position (dérive de posture).
+  - Contrôles « reste immobile » (tronc, bassin, inclinaison de la tête) mesurés par rapport au départ : un téléphone un peu penché ne crée plus de fautes.
+  - Contrôle « bon mouvement » : seulement les articulations concernées (les bras pendant un squat ne comptent plus), plus d'« immobile » pendant un maintien, et une répétition n'est jugée mauvaise que si ≥ 35 % de sa durée ne correspondait pas.
+  - Cibles ajustées pour qu'imiter la démonstration suffise (élévation scapulaire, glissement au mur, genou-poitrine, dead bug, jambe tendue, extension assise, descente de marche, genou au mur, flexion au bâton, abduction, charnière, rotation cervicale) ; assis-debout : départ assis ; descente de marche de face mesurée en longueur de jambe.
+- **Démonstrations réalistes** (vérifiées automatiquement à chaque instant) : plus rien n'entre dans un mur, une marche ou une table ; amplitudes humaines de la hanche, de l'épaule, de la cheville et du cou ; aucune articulation qui « fait le tour ». Corrigés : push-up au mur (mains sur le mur), genou au mur (le genou touche le mur), glissement au mur (avant-bras sur le mur), pendule (appui sur la table), assis-debout (bras croisés), squat au mur (60°), abduction isométrique (genou contre le mur), montée et descente de marche, jambe tendue, pieds au repos.
+
 ## Nouveautés 1.9
 
 - **Suivi de la main par la caméra** (MediaPipe Hands, 21 points, sur le téléphone) : 9 exercices du poignet, de la main et du pouce sont maintenant comptés et analysés — excentriques des extenseurs/fléchisseurs, flexion-extension, déviation radiale, pronation-supination, opposition du pouce, ouverture du pouce, préhension à la pâte, isométrique du poignet (maintien immobile chronométré). Consigne de cadrage propre à chaque exercice, squelette de la main affiché et envoyé au coach IA.
