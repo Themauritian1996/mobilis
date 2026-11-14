@@ -9,13 +9,17 @@ import { state, go, profile, sessions, todaySession, nextExercise, syncProgress,
 import { esc, icon, IC, toast, mountFigs, figSvg, figureBlock, sleep } from './ui.js';
 import { startLiveCoach, liveAvailable, primeAudio } from './live.js';
 import { createPreciseCoach, fineKind } from './ai-coach.js';
-import { loadHands, detectHands, pickHand, handPx, drawHand, handInFrame } from './hand.js';
+import { loadHands, detectHands, pickHand, handPx, drawHand, handInFrame, HandSideVote } from './hand.js';
+import { canvasSize, fitRect, projectLandmarks, LandmarkSmoother, SubjectGuard, Pacer } from './overlay.js';
 import { MoveMatcher, drawGuides, hintKey } from './movematch.js';
 import { haveList, missing } from './equip.js';
 import { EQUIP } from './data/exercises.js';
 import { CUES } from './i18n.js';
 
 const RING = 276.5;
+// Cadence d'analyse (images / s) : assez pour compter juste, sans saturer le téléphone
+const HZ = { hand: 18, body: 25, guided: 15 };
+const FRAME_MAX = 960; // plus grand côté de l'image analysée et affichée (pixels)
 
 export function doseText(d) {
   if (d.type === 'hold') return `${d.sets > 1 ? d.sets + ' × ' : ''}${d.reps > 1 ? d.reps + ' × ' : ''}${d.hold} ${t('sec')}`;
@@ -66,6 +70,48 @@ export function viewTrain(id, cleanup) {
   const $ = (s) => root.querySelector(s);
   const video = $('video'), canvas = $('canvas.overlay'), g = canvas.getContext('2d');
   mountFigs(root);
+
+  // ---------- Image analysée = image affichée ----------
+  // L'analyse (MediaPipe) prend 30–80 ms sur un téléphone : si on dessinait le squelette par-dessus la vidéo en direct,
+  // il serait toujours en retard sur l'image (doigts « à la traîne »). On copie donc l'image de la caméra dans `frame`,
+  // on analyse CETTE copie, puis on la dessine dans le canevas (même cadrage « cover » et même miroir que la vidéo)
+  // avec le squelette par-dessus : l'image et le squelette viennent toujours du même instant.
+  const frame = document.createElement('canvas'), fctx = frame.getContext('2d', { alpha: false });
+  const V = { W: 0, H: 0, fw: 0, fh: 0, t: 0 };
+  // miroir = caméra avant (celle que le téléphone a réellement ouverte, pas seulement celle demandée)
+  const isMirror = () => (T.mirror != null ? T.mirror : T.facing === 'user');
+  function sizeCanvas() {
+    const { W, H } = canvasSize(canvas.clientWidth, canvas.clientHeight, window.devicePixelRatio || 1);
+    if (canvas.width !== W || canvas.height !== H) { canvas.width = W; canvas.height = H; }
+    V.W = W; V.H = H;
+  }
+  function grab(now) {
+    const vw = video.videoWidth, vh = video.videoHeight;
+    if (!vw || !vh || video.readyState < 2) return false;
+    const k = Math.min(1, FRAME_MAX / Math.max(vw, vh)), fw = Math.round(vw * k), fh = Math.round(vh * k);
+    if (frame.width !== fw || frame.height !== fh) { frame.width = fw; frame.height = fh; }
+    fctx.drawImage(video, 0, 0, fw, fh);
+    V.fw = fw; V.fh = fh; V.t = now;
+    return true;
+  }
+  // Fond du canevas : l'image analysée (vidéo selfie activée) ou rien (vidéo masquée : squelette seul)
+  function paintFrame() {
+    sizeCanvas();
+    const { W, H } = V;
+    g.setTransform(1, 0, 0, 1, 0, 0); g.setLineDash([]);
+    g.clearRect(0, 0, W, H);
+    if (!T.selfView || !V.fw) return;
+    const r = fitRect(V.fw, V.fh, W, H, 'cover');
+    g.save(); if (isMirror()) { g.translate(W, 0); g.scale(-1, 1); }
+    g.drawImage(frame, r.ox, r.oy, r.w, r.h); g.restore();
+  }
+  const project = (lm) => projectLandmarks(lm, V.fw, V.fh, V.W, V.H, 'cover');
+  function clearOverlay() { g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, canvas.width, canvas.height); T.drawn = null; }
+  // Lissage d'affichage seulement (le compteur reçoit les points bruts), garde-fou « quelqu'un passe derrière », main suivie
+  const smooth = new LandmarkSmoother(), guard = new SubjectGuard(), sideVote = new HandSideVote();
+  function resetTrack() { smooth.reset(); guard.reset(); sideVote.reset(); T.handPrev = null; T.wrongHandMs = 0; T.drawn = null; }
+  // État de la superposition (tests de bout en bout : tests/overlay.e2e.mjs)
+  root.__overlay = () => ({ drawn: T.drawn, W: V.W, H: V.H, fw: V.fw, fh: V.fh, mirror: isMirror(), selfView: T.selfView, lm: T.lastLm, hand: T.lastHand, handInfo: T.handInfo, ticks: T.ticks || 0, cost: T.cost || 0, reps: T.tracker?.reps, calibrated: !!T.tracker?.calibrated });
 
   // Écran toujours allumé pendant la séance (sinon le téléphone se met en veille au milieu d'une série)
   let wake = null;
@@ -163,7 +209,7 @@ export function viewTrain(id, cleanup) {
     if (!T.liveAI || T.live || !T.stream || !T.active) return;
     if ((store.settings().aiMode || 'precise') === 'live') {
       T.live = startLiveCoach({
-        video, mirror: T.facing === 'user', context: liveCtx(), getState: liveState, frame: () => annotated(512),
+        video, mirror: isMirror(), context: liveCtx(), getState: liveState, frame: () => annotated(512),
         onText: (txt, final) => aiText(txt, final),
         onState: (st) => { if (st === 'error' && T.liveState !== 'error') toast(t('liveErr'), 4500); T.liveState = st; paintAI(); },
       });
@@ -196,10 +242,14 @@ export function viewTrain(id, cleanup) {
   const shot = document.createElement('canvas');
   function annotated(w = 384) {
     if (!video.videoWidth) return null;
-    shot.width = w; shot.height = Math.round((video.videoHeight / video.videoWidth) * w);
-    const g2 = shot.getContext('2d'), mirror = T.facing === 'user';
-    g2.save(); if (mirror) { g2.translate(w, 0); g2.scale(-1, 1); } g2.drawImage(video, 0, 0, w, shot.height); g2.restore();
-    if (handEx || fine === 'hand') { if (T.lastHand) drawHand(g2, T.lastHand, w, shot.height, mirror, { keep: true, bad: !!T.lastFj?.size }); }
+    // image analysée la plus récente (celle des points) ; à défaut (pas d'analyse en cours) : la vidéo, sans squelette
+    const fresh = V.fw && performance.now() - V.t < 400, src = fresh ? frame : video;
+    const sw = fresh ? V.fw : video.videoWidth, sh = fresh ? V.fh : video.videoHeight;
+    shot.width = w; shot.height = Math.round((sh / sw) * w);
+    const g2 = shot.getContext('2d'), mirror = isMirror();
+    g2.save(); if (mirror) { g2.translate(w, 0); g2.scale(-1, 1); } g2.drawImage(src, 0, 0, w, shot.height); g2.restore();
+    if (!fresh) { /* points d'une autre image : on ne les dessine pas */ }
+    else if (handEx || fine === 'hand') { if (T.lastHand) drawHand(g2, T.lastHand, w, shot.height, mirror, { keep: true, bad: !!T.lastFj?.size }); }
     else if (T.lastLm && fine !== 'foot') drawSkeleton(g2, T.lastLm, w, shot.height, T.lastFj || new Set(), mirror, true);
     if (T.lastSt?.value != null && T.mode === 'camera') {
       g2.fillStyle = 'rgba(0,0,0,.6)'; g2.fillRect(0, 0, w, 22); g2.fillStyle = '#fff'; g2.font = '13px sans-serif';
@@ -215,27 +265,27 @@ export function viewTrain(id, cleanup) {
     T.gpRun = true;
     try { await loadPose(); } catch (_) { T.gpRun = false; return; }
     T.mm = new MoveMatcher(ex); T.mvKey = null;
-    let last = 0, lastTurn = 0;
-    const tick = (now) => {
-      if (!T.active || T.mode !== 'guided' || !T.stream) { T.gpRun = false; g.clearRect(0, 0, canvas.width, canvas.height); return; }
-      if (now - last > 120) {
-        last = now; const lm = detect(video, now); T.lastLm = lm;
-        const W = canvas.width = canvas.clientWidth * devicePixelRatio, H = canvas.height = canvas.clientHeight * devicePixelRatio;
-        if (lm) {
-          const vw = video.videoWidth, vh = video.videoHeight, sc = Math.max(W / vw, H / vh), ox = (W - vw * sc) / 2, oy = (H - vh * sc) / 2;
-          const proj = lm.map((l) => ({ x: (l.x * vw * sc + ox) / W, y: (l.y * vh * sc + oy) / H, visibility: l.visibility }));
-          const p = toPx(lm, vw, vh);
-          let plane = null;
-          if (bodyVisible(p)) {
-            const dp = detectPlane(p); plane = dp === 'side' || dp === 'front' ? dp : null;
-            if (plane && plane !== figView && now - lastTurn > 9000 && T.mm.usable) { lastTurn = now; const k = figView === 'side' ? 'turnSide' : 'turnFront'; cue(k); showCue(t(k), 'bad'); }
-            moveCheck(p, now, plane);
-          }
-          if (T.selfView) { drawSkeleton(g, proj, W, H, new Set(), T.facing === 'user'); if (T.guides) drawGuides(g, proj, W, H, T.mm, T.facing === 'user'); }
-          else g.clearRect(0, 0, W, H);
-        } else g.clearRect(0, 0, W, H);
-      }
+    let lastTurn = 0; const pace = new Pacer(HZ.guided); resetTrack();
+    const tick = () => {
+      if (!T.active || T.mode !== 'guided' || !T.stream) { T.gpRun = false; clearOverlay(); return; }
       requestAnimationFrame(tick);
+      const now = performance.now();
+      if (T.paused || !pace.due(now) || !grab(now)) return;
+      const gd = guard.check(detect(frame, now), now, V.fw / V.fh), lm = gd.lm; T.lastLm = lm;
+      pace.done(now, performance.now());
+      paintFrame();
+      if (!lm) { smooth.reset(); T.drawn = null; return; }
+      const p = toPx(lm, V.fw, V.fh);
+      if (bodyVisible(p) && !gd.jumped) {
+        const dp = detectPlane(p), plane = dp === 'side' || dp === 'front' ? dp : null;
+        if (plane && plane !== figView && now - lastTurn > 9000 && T.mm.usable) { lastTurn = now; const k = figView === 'side' ? 'turnSide' : 'turnFront'; cue(k); showCue(t(k), 'bad'); }
+        moveCheck(p, now, plane);
+      }
+      if (T.selfView) {
+        const proj = project(smooth.apply(lm, now));
+        T.drawn = drawSkeleton(g, proj, V.W, V.H, new Set(), isMirror(), true);
+        if (T.guides) drawGuides(g, proj, V.W, V.H, T.mm, isMirror());
+      }
     };
     requestAnimationFrame(tick);
   }
@@ -243,20 +293,18 @@ export function viewTrain(id, cleanup) {
   async function guidedHands() {
     if (T.gpRun) return; T.gpRun = true;
     try { await loadHands(); } catch (_) { T.gpRun = false; return; }
-    let last = 0;
-    const tick = (now) => {
-      if (!T.active || T.mode !== 'guided' || !T.stream) { T.gpRun = false; g.clearRect(0, 0, canvas.width, canvas.height); return; }
-      if (now - last > 100) {
-        last = now;
-        const W = canvas.width = canvas.clientWidth * devicePixelRatio, H = canvas.height = canvas.clientHeight * devicePixelRatio;
-        const hd = pickHand(detectHands(video, now), curSide());
-        T.lastHand = hd ? hd.lm : null;
-        if (hd && T.selfView) {
-          const vw = video.videoWidth, vh = video.videoHeight, sc = Math.max(W / vw, H / vh), ox = (W - vw * sc) / 2, oy = (H - vh * sc) / 2;
-          drawHand(g, hd.lm.map((l) => ({ x: (l.x * vw * sc + ox) / W, y: (l.y * vh * sc + oy) / H })), W, H, T.facing === 'user');
-        } else g.clearRect(0, 0, W, H);
-      }
+    const pace = new Pacer(HZ.guided); resetTrack();
+    const tick = () => {
+      if (!T.active || T.mode !== 'guided' || !T.stream) { T.gpRun = false; clearOverlay(); return; }
       requestAnimationFrame(tick);
+      const now = performance.now();
+      if (T.paused || !pace.due(now) || !grab(now)) return;
+      const hd = pickHand(detectHands(frame, now), curSide(), T.handPrev);
+      pace.done(now, performance.now());
+      T.handPrev = hd; T.lastHand = hd ? hd.lm : null;
+      paintFrame();
+      if (hd && T.selfView) T.drawn = drawHand(g, project(smooth.apply(hd.lm, now)), V.W, V.H, isMirror(), { keep: true });
+      else { T.drawn = null; if (!hd) smooth.reset(); }
     };
     requestAnimationFrame(tick);
   }
@@ -326,14 +374,18 @@ export function viewTrain(id, cleanup) {
   $('[data-t="guided"]').onclick = () => { T.mode = 'guided'; stopCam(); setup(); };
   $('[data-t="flip"]').onclick = async () => {
     T.facing = T.facing === 'user' ? 'environment' : 'user'; store.saveSettings({ camera: T.facing });
-    if (T.stream) { stopCam(); await openCam(); }
+    if (T.stream) { stopCam(); try { await openCam(); } catch (e) { console.warn(e); toast(t('mirrorErr'), 4000); } }
   };
-  function stopCam() { stopLive(); if (T.stream) T.stream.getTracks().forEach((tk) => tk.stop()); T.stream = null; video.srcObject = null; video.hidden = true; paintVideoBtn(); }
+  function stopCam() { stopLive(); if (T.stream) T.stream.getTracks().forEach((tk) => tk.stop()); T.stream = null; video.srcObject = null; video.hidden = true; V.fw = 0; clearOverlay(); paintVideoBtn(); }
   async function openCam() {
     T.stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: T.facing, width: { ideal: 960 }, height: { ideal: 720 } } });
     video.srcObject = T.stream; await video.play();
     video.hidden = false;
-    video.classList.toggle('mirror', T.facing === 'user');
+    // caméra réellement ouverte (un téléphone peut donner l'autre caméra que celle demandée) : le miroir suit la vraie caméra
+    let fm = null; try { fm = T.stream.getVideoTracks()[0]?.getSettings?.().facingMode || null; } catch (_) {}
+    T.mirror = (fm === 'user' || fm === 'environment' ? fm : T.facing) === 'user';
+    video.classList.toggle('mirror', T.mirror);
+    resetTrack();
     paintVideoBtn();
   }
   // Mode guidé avec vidéo : le patient se voit en miroir, le schéma passe en vignette
@@ -367,7 +419,7 @@ export function viewTrain(id, cleanup) {
     const pl = planeFor(setIdx());
     const recentFaults = new Map(); T.recentFaults = recentFaults;
     T.mm = new MoveMatcher(ex); T.mvKey = null; T.mvWrongMs = 0; T.mvLastT = 0;
-    T.frame = null;
+    T.frame = null; resetTrack(); T.ticks = 0;
     T.tracker = new Tracker(ex, pl, { side: curSide(),
       romFactor: dose.romFactor,
       onCue: (k) => { if (cue(k)) { showCue(cueText(k), k === 'holdIt' || k === 'depth' ? '' : 'bad'); recentFaults.set(k, performance.now()); setTimeout(() => showCue(''), 2200); } },
@@ -384,7 +436,7 @@ export function viewTrain(id, cleanup) {
         }
         if (rep.full && !rep.faults.length && T.tracker.full % 3 === 0 && cue('great')) { showCue(cueText('great'), 'good'); setTimeout(() => showCue(''), 1500); }
         if (dose.type !== 'hold' && T.tracker.reps === dose.reps - 1) setTimeout(() => cue('lastRep'), 600);
-        if (store.settings().sendFrame && (!T.frame || rep.faults.length)) T.frame = grabFrame(video, T.facing === 'user');
+        if (store.settings().sendFrame && (!T.frame || rep.faults.length)) T.frame = grabFrame(video, isMirror());
         if (dose.type !== 'hold' && T.tracker.reps >= dose.reps) setTimeout(endSet, 900);
       },
     });
@@ -409,60 +461,72 @@ export function viewTrain(id, cleanup) {
       }
       return false;
     };
+    const pace = new Pacer(handEx ? HZ.hand : HZ.body);
+    const tock = (now) => { pace.done(now, performance.now()); T.ticks = (T.ticks || 0) + 1; T.cost = pace.cost; };
     if (handEx) {
       const loopHand = () => {
         if (!T.active) return;
-        const now = performance.now();
-        if (T.paused) { T.raf = requestAnimationFrame(loopHand); return; }
-        const W = canvas.width = canvas.clientWidth * devicePixelRatio, H = canvas.height = canvas.clientHeight * devicePixelRatio;
-        const hd = pickHand(detectHands(video, now), curSide());
-        if (hd) {
-          const vw = video.videoWidth, vh = video.videoHeight, sc = Math.max(W / vw, H / vh), ox = (W - vw * sc) / 2, oy = (H - vh * sc) / 2;
-          const proj = hd.lm.map((l) => ({ x: (l.x * vw * sc + ox) / W, y: (l.y * vh * sc + oy) / H }));
-          const inFrame = handInFrame(hd.lm);
-          drawHand(g, proj, W, H, T.facing === 'user', { bad: !inFrame });
-          T.lastHand = hd.lm; T.lastFj = new Set();
-          if (!inFrame && now - lastWarn > 4000) { lastWarn = now; if (cue('handInView')) showCue(cueText('handInView'), 'bad'); }
-          const st = T.tracker.update({ hand: handPx(hd.lm, vw, vh) }, now); T.lastSt = st;
-          if (hud(st)) return;
-        } else {
-          g.clearRect(0, 0, W, H);
-          if (now - lastWarn > 3000) { lastWarn = now; cue('handInView'); showCue(cueText('handInView'), 'bad'); }
-        }
         T.raf = requestAnimationFrame(loopHand);
+        const now = performance.now();
+        if (T.paused || !pace.due(now) || !grab(now)) return;
+        const side = curSide();
+        const hd = pickHand(detectHands(frame, now), side, T.handPrev);
+        tock(now);
+        T.handPrev = hd;
+        paintFrame();
+        if (!hd) {
+          smooth.reset(); T.lastHand = null; T.drawn = null; T.handInfo = null;
+          if (now - lastWarn > 3000) { lastWarn = now; cue('handInView'); showCue(cueText('handInView'), 'bad'); }
+          return;
+        }
+        const inFrame = handInFrame(hd.lm);
+        T.drawn = drawHand(g, project(smooth.apply(hd.lm, now)), V.W, V.H, isMirror(), { keep: true, bad: !inFrame });
+        T.lastHand = hd.lm; T.lastFj = new Set(); T.handInfo = { label: hd.label, score: hd.score, world: !!hd.world };
+        if (!inFrame && now - lastWarn > 4000) { lastWarn = now; if (cue('handInView')) showCue(cueText('handInView'), 'bad'); }
+        // Avant de commencer à compter : la main montrée est clairement celle de l'autre côté → on le dit (6 s au plus,
+        // ensuite on compte quand même : de profil, l'étiquette gauche / droite du modèle peut se tromper)
+        const wrongSide = !T.tracker.calibrated && sideVote.push(hd, side);
+        if (side && hd.label && !T.tracker.calibrated && !sideVote.ready) return; // 6 premières images : on vérifie d'abord de quelle main il s'agit
+        if (wrongSide && (T.wrongHandMs || 0) < 6000) {
+          T.wrongHandMs = (T.wrongHandMs || 0) + Math.min(200, now - (T.wrongHandT || now)); T.wrongHandT = now;
+          if (now - lastWarn > 4000) { lastWarn = now; const k = side === 'L' ? 'wrongHandL' : 'wrongHandR'; showCue(t(k), 'bad'); speak(t(k), { interrupt: true }); setTimeout(() => { if ($('.cue span').textContent === t(k)) showCue(''); }, 3500); }
+          return;
+        }
+        T.wrongHandT = 0;
+        // main qui sort de l'image : points extrapolés, mesures fausses → on ne compte pas ces images
+        if (!handInFrame(hd.lm, 0.04)) return;
+        const st = T.tracker.update({ hand: handPx(hd.lm, V.fw, V.fh), hand3: hd.world || undefined }, now); T.lastSt = st;
+        hud(st);
       };
       T.raf = requestAnimationFrame(loopHand);
       return;
     }
     const loop = () => {
       if (!T.active) return;
+      T.raf = requestAnimationFrame(loop);
       const now = performance.now();
-      if (T.paused) { T.raf = requestAnimationFrame(loop); return; }
-      const lm = detect(video, now);
-      const W = canvas.width = canvas.clientWidth * devicePixelRatio, H = canvas.height = canvas.clientHeight * devicePixelRatio;
+      if (T.paused || !pace.due(now) || !grab(now)) return;
+      const gd = guard.check(detect(frame, now), now, V.fw / V.fh), lm = gd.lm;
+      tock(now);
+      paintFrame();
       const fj = new Set();
       for (const [k, ts] of recentFaults) if (now - ts < 1500) (FAULT_JOINTS[k] || []).forEach((j) => fj.add(j));
-      if (lm) {
-        const vw = video.videoWidth, vh = video.videoHeight;
-        const sc = Math.max(W / vw, H / vh), ox = (W - vw * sc) / 2, oy = (H - vh * sc) / 2;
-        const proj = lm.map((l) => ({ x: (l.x * vw * sc + ox) / W, y: (l.y * vh * sc + oy) / H, visibility: l.visibility }));
-        drawSkeleton(g, proj, W, H, fj, T.facing === 'user');
-        T.lastLm = lm; T.lastFj = fj;
-        const p = toPx(lm, vw, vh);
-        if (!bodyVisible(p)) { if (now - lastWarn > 3000) { lastWarn = now; cue('notVisible'); showCue(t('notVisible'), 'bad'); } }
-        else {
-          const dp = detectPlane(p);
-          if (dp && dp !== 'between' && dp !== pl && !T.tracker.calibrated) {
-            if (now - lastWarn > 3500) { lastWarn = now; const k = pl === 'side' ? 'turnSide' : 'turnFront'; cue(k); showCue(t(k), 'bad'); }
-          } else {
-            const st = T.tracker.update(p, now); T.lastSt = st;
-            if (T.tracker.calibrated) { moveCheck(p, now, pl); if (T.guides) drawGuides(g, proj, W, H, T.mm, T.facing === 'user'); }
-            // image clé = point le plus avancé de la répétition (dans hud)
-            if (hud(st)) return;
-          }
-        }
-      } else g.clearRect(0, 0, W, H);
-      T.raf = requestAnimationFrame(loop);
+      if (!lm) { smooth.reset(); T.drawn = null; return; }
+      const proj = project(smooth.apply(lm, now));
+      T.drawn = drawSkeleton(g, proj, V.W, V.H, fj, isMirror(), true);
+      T.lastLm = lm; T.lastFj = fj;
+      if (gd.jumped) return; // quelqu'un passe derrière : on garde le squelette du patient, on ne compte pas cette image
+      const p = toPx(lm, V.fw, V.fh);
+      if (!bodyVisible(p)) { if (now - lastWarn > 3000) { lastWarn = now; cue('notVisible'); showCue(t('notVisible'), 'bad'); } return; }
+      const dp = detectPlane(p);
+      if (dp && dp !== 'between' && dp !== pl && !T.tracker.calibrated) {
+        if (now - lastWarn > 3500) { lastWarn = now; const k = pl === 'side' ? 'turnSide' : 'turnFront'; cue(k); showCue(t(k), 'bad'); }
+        return;
+      }
+      const st = T.tracker.update(p, now); T.lastSt = st;
+      if (T.tracker.calibrated) { moveCheck(p, now, pl); if (T.guides) drawGuides(g, proj, V.W, V.H, T.mm, isMirror()); }
+      // image clé = point le plus avancé de la répétition (dans hud)
+      hud(st);
     };
     T.raf = requestAnimationFrame(loop);
   }
@@ -473,7 +537,7 @@ export function viewTrain(id, cleanup) {
     T.paused = on;
     const b = $('[data-t="pause"]'); b.innerHTML = `${icon(on ? 'play' : 'pause', 18)} ${t(on ? 'resume' : 'pause')}`; b.classList.toggle('on', on);
     if (on) {
-      stopLive(); showCue('');
+      stopLive(); showCue(''); clearOverlay(); // en pause : la vidéo en direct, sans squelette figé
       center(`<div class="rest-box"><span class="eyebrow">${t('pausedLbl')}</span><p class="small" style="opacity:.8;margin:6px 0 14px">${t('pausedD')}</p><button class="btn sm" data-t="resume">${icon('play', 16)} ${t('resume')}</button></div>`);
       root.querySelector('[data-t="resume"]').onclick = () => setPause(false);
       speak(t('pausedSpoken'), { interrupt: true });
@@ -487,7 +551,7 @@ export function viewTrain(id, cleanup) {
 
   function endSet() {
     if (!T.active) return;
-    T.active = false; stopLive(); cancelAnimationFrame(T.raf); g.clearRect(0, 0, canvas.width, canvas.height); showCue('');
+    T.active = false; stopLive(); cancelAnimationFrame(T.raf); clearOverlay(); showCue('');
     const sum = T.tracker.summary();
     const pl = planeFor(setIdx());
     T.sets.push({ side: curSide(), plane: pl, mode: sum.mode, reps: sum.reps, full: sum.full, partial: sum.partial, holdSec: sum.holdSec, quality: sum.quality, faults: sum.faults });
@@ -648,6 +712,7 @@ export function viewTrain(id, cleanup) {
       if (needCheckin) sess.checkin = fb.checkin;
       const adj = P.adjustLevel(prof, it, all, sess.checkin);
       it.change = adj.change;
+      it.reason = adj.reason;
       const prev = sess.items.find((i) => i.id === id);
       if (prev) it.redo = (prev.redo || 0) + 1; // exercice refait le même jour : on garde le dernier essai
       sess.items = sess.items.filter((i) => i.id !== id).concat(it);

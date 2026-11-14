@@ -565,5 +565,7 @@
 "diffShort": "dificuldade",
 "trend_up": "subindo",
 "trend_down": "baixando",
-"trend_steady": "estável"
+"trend_steady": "estável",
+"wrongHandL": "Estamos a trabalhar a mão esquerda: mostra a tua mão esquerda à câmara.",
+"wrongHandR": "Estamos a trabalhar a mão direita: mostra a tua mão direita à câmara."
 }

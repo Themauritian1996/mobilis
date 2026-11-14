@@ -66,7 +66,7 @@ function patient(fig) {
   return { A: addDefined(A), B: addDefined(B), moving, add };
 }
 
-function simulate(id, plane, { reps = 6, wrong = null } = {}) {
+function simulate(id, plane, { reps = 6, wrong = null, rate = [24, 30] } = {}) {
   const ex = EXERCISES[id], fig = wrong?.fig || ex.fig, spec = ex.track.planes[plane];
   const pt = patient(fig);
   const cam = { mirror: rnd() < 0.5, sx: U(0.86, 1), sy: U(0.94, 1.06), roll: U(-5, 5) * Math.PI / 180, noise: U(0.002, 0.005) * Number(process.env.NOISE || 1) };
@@ -76,7 +76,7 @@ function simulate(id, plane, { reps = 6, wrong = null } = {}) {
   const holdTop = Math.max(spec.holdTop || 0, ex.dose.holdTop || 0);
   const tr = new Tracker(ex, plane, { romFactor: romF });
   const mm = new MoveMatcher(ex);
-  const fps = U(24, 30), dt = 1000 / fps;
+  const fps = U(rate[0], rate[1]), dt = 1000 / fps;
   let t = 0, wrongMs = 0, flagged = 0, lastRepT = -1e9;
   const frame = (prm) => {
     t += dt;
@@ -133,6 +133,21 @@ for (const [id, ex] of Object.entries(EXERCISES)) {
 }
 console.table(rows);
 if (process.env.V) console.log(detail.slice(0, 40));
+// Cadence d'un téléphone : l'app analyse 20–25 images/s (corps) quand le téléphone suit, 9–15/s sur un appareil lent.
+// Le compte doit rester exact et les bonnes répétitions ne doivent pas être signalées plus souvent.
+const phone = { reps: 0, bad: 0, cnt: 0, holds: 0, holdsOk: 0, worst: [] };
+for (const [id, ex] of Object.entries(EXERCISES)) {
+  if (!ex.track || ex.track.kind === 'hand' || (ex.fig.frames.length < 2 && ex.track.mode !== 'hold')) continue;
+  if (process.env.ONLY && !process.env.ONLY.split(',').includes(id)) continue;
+  const v = ex.fig.view || 'side', plane = v === 'front' ? 'front' : 'side';
+  if (!ex.track.planes[plane]) continue;
+  for (let k = 0; k < 8; k++) {
+    const r = simulate(id, plane, { rate: k < 4 ? [9, 14] : [15, 25] });
+    if (ex.track.mode === 'hold') { phone.holds++; if (r.ok && !r.flagged) phone.holdsOk++; else phone.worst.push(`${id} maintien`); continue; }
+    phone.reps += r.reps; phone.bad += r.bad; if (r.reps !== 6) { phone.cnt++; phone.worst.push(`${id} ${r.reps}/6`); } else if (r.bad) phone.worst.push(`${id} ${r.bad} signalée(s) ${JSON.stringify(r.why)}`);
+  }
+}
+console.log(`Cadence téléphone (9–25 analyses/s) : répétitions signalées à tort ${(100 * phone.bad / Math.max(1, phone.reps)).toFixed(1)} % (${phone.bad}/${phone.reps}) ; séries mal comptées : ${phone.cnt} ; maintiens ${phone.holdsOk}/${phone.holds}`, phone.worst.slice(0, 12));
 // Exercices guidés (miroir) : le contrôle « bon mouvement » ne doit pas crier au mauvais mouvement à tort
 const guided = [];
 for (const [id, ex] of Object.entries(EXERCISES)) {
@@ -181,5 +196,5 @@ for (const [id, plane, fig, hit] of wrongCases) {
   console.log(`Mauvais mouvement « ${id} » détecté : ${det}/6`);
   if (det < 5) missed++;
 }
-if (rate > 0.08 || countErr > 0 || missed) { console.log('ÉCHEC'); process.exit(1); }
+if (rate > 0.08 || countErr > 0 || missed || phone.cnt > 0 || phone.holdsOk < phone.holds || phone.bad > phone.reps * 0.05) { console.log('ÉCHEC'); process.exit(1); }
 console.log('Patients simulés : OK');

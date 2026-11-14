@@ -51,14 +51,17 @@ export class OneEuro {
   }
 }
 
-/** Lissage d'AFFICHAGE d'une liste de points normalisés (le comptage reçoit toujours les points bruts). */
+/** Lissage d'AFFICHAGE d'une liste de points normalisés (le comptage reçoit toujours les points bruts).
+ *  Le point affiché ne s'écarte jamais de plus de `maxLag` (0,4 % de l'image) du point détecté : le squelette est dessiné
+ *  sur l'image même qui a été analysée, il ne doit pas « traîner » derrière un doigt qui bouge vite, même à 5 analyses / s. */
 export class LandmarkSmoother {
-  constructor(opts) { this.opts = opts; this.f = []; }
+  constructor(opts = {}) { this.opts = opts; this.maxLag = opts.maxLag ?? 0.004; this.f = []; }
   reset() { this.f = []; }
   apply(lm, t) {
     if (!lm) { this.reset(); return lm; }
     if (this.f.length !== lm.length) this.f = lm.map(() => [new OneEuro(this.opts), new OneEuro(this.opts)]);
-    return lm.map((l, i) => ({ ...l, x: this.f[i][0].filter(l.x, t), y: this.f[i][1].filter(l.y, t) }));
+    const one = (f, v) => { const y = f.filter(v, t), c = Math.max(v - this.maxLag, Math.min(v + this.maxLag, y)); f.x = c; return c; };
+    return lm.map((l, i) => ({ ...l, x: one(this.f[i][0], l.x), y: one(this.f[i][1], l.y) }));
   }
 }
 
@@ -93,7 +96,7 @@ export class SubjectGuard {
   }
 }
 
-/** Cadence d'analyse : au plus `hz` analyses par seconde, et jamais plus de ~75 % du temps passé à analyser
+/** Cadence d'analyse : au plus `hz` analyses par seconde, et jamais plus de ~80 % du temps passé à analyser
  *  (téléphone lent : on laisse de l'air à l'interface et à la voix). */
 export class Pacer {
   constructor(hz) { this.min = 1000 / hz; this.next = 0; this.cost = 0; }
@@ -101,7 +104,7 @@ export class Pacer {
   done(start, end) {
     const c = end - start; this.cost = this.cost ? this.cost * 0.7 + c * 0.3 : c;
     // petite marge (4 ms) : requestAnimationFrame arrive par pas de 16,7 ms, on ne rate pas une image pour 1 ms
-    this.next = start + Math.max(this.min, this.cost * 1.33) - 4;
+    this.next = start + Math.max(this.min, this.cost * 1.25) - 4;
   }
 }
 
@@ -115,4 +118,11 @@ export function poseColors() {
     colors = { ok: ok || '#2dd4bf', bad: bad || '#ff7a59' }; colorsT = now;
   }
   return colors;
+}
+
+/** Ordre d'essai des moteurs MediaPipe : processeur graphique puis processeur. `localStorage['mobilis.delegate'] = 'CPU'`
+ *  force le processeur (tests automatisés sans carte graphique, ou appareil dont le moteur graphique est défaillant). */
+export function delegates() {
+  let d = null; try { d = localStorage.getItem('mobilis.delegate'); } catch (_) {}
+  return d === 'CPU' ? ['CPU'] : ['GPU', 'CPU'];
 }

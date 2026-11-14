@@ -1,6 +1,6 @@
 // Estimation de pose 2D sur l'appareil (MediaPipe Pose Landmarker) + métriques biomécaniques + compteur de répétitions.
 import { CONFIG } from './config.js';
-import { poseColors } from './overlay.js';
+import { poseColors, delegates } from './overlay.js';
 
 let landmarker = null;
 
@@ -15,7 +15,7 @@ export async function loadPose(onStatus = () => {}) {
     const r = await fetch(CONFIG.poseModelLocal, { method: 'HEAD' });
     if (r.ok) modelAssetPath = CONFIG.poseModelLocal;
   } catch (_) { /* pas de modèle local */ }
-  for (const delegate of ['GPU', 'CPU']) {
+  for (const delegate of delegates()) {
     try {
       landmarker = await mp.PoseLandmarker.createFromOptions(fileset, {
         baseOptions: { modelAssetPath, delegate },
@@ -271,27 +271,33 @@ export class Tracker {
     const s = this.spec;
     if (!this.side) this.side = this.forceSide || (p.hand ? 'R' : visibleSide(p));
 
-    // Calibration : ~0,6 s immobile en position de départ
+    // Calibration : ~0,6 s immobile en position de départ.
+    // Fenêtres mesurées en TEMPS (et non en nombre d'images) : même comportement à 30 images/s (ordinateur) qu'à 10–18
+    // analyses/s (téléphone) — avant, 18 images à 10/s faisaient attendre 1,8 s et l'arrêt entre deux répétitions n'était plus vu.
     if (!this.base) {
-      const snap = { L: this.valueFor(p, 'L'), R: this.valueFor(p, 'R'), checks: {} };
+      const snap = { t, L: this.valueFor(p, 'L'), R: this.valueFor(p, 'R'), checks: {} };
+      if (!this.calibT0) this.calibT0 = t;
       for (const ck of s.checks || []) if (ck.rel) snap.checks[ck.m] = metric(ck.m, p, this.side);
       if (!p.hand) snap.leg = metric('legLen', p, null);
       else snap.v3 = handDir3(s.metric, p); // direction 3D de départ (main filmée de biais)
       this.calib.push(snap);
       // départ immobile : les 18 dernières images doivent être stables (sinon le « zéro » serait pris en plein mouvement) ;
       // après ~4 s sans stabilité, on calibre quand même sur les dernières images
-      if (this.calib.length > 18) this.calibAll = (this.calibAll || 0) + 1, this.calib.shift();
+      // fenêtre glissante la plus courte qui couvre ≥ 0,54 s avec ≥ 8 mesures (= 18 images à 30 images/s, comme avant)
+      while (this.calib.length > 8 && t - this.calib[1].t >= 540) this.calib.shift();
+      const full = this.calib.length >= 8 && t - this.calib[0].t >= 540; // fenêtre pleine : ≥ 0,54 s et ≥ 8 mesures
+      const late = t - this.calibT0 > 1450; // ~1,5 s sans stabilité
       const tol = s.calibTol ?? (this.mode === 'hold' ? Math.abs((s.max ?? 0) - (s.min ?? 0)) * 0.5 || 10 : s.rel ? Math.abs(s.delta) * 0.22 : Math.abs((s.to ?? 0) - (s.from ?? 0)) * 0.15 || 10);
       // stabilité = écart-type (robuste au tremblement des points, contrairement à l'écart max − min)
       const sd = (k) => { let v = this.calib.map((x) => x[k]).filter(Number.isFinite); if (!v.length) return NaN; if (s.angular) { const r = v[0]; v = v.map((x) => ((x - r + 540) % 360) - 180); } const m = v.reduce((a, b) => a + b, 0) / v.length; return Math.sqrt(v.reduce((a, b) => a + (b - m) ** 2, 0) / v.length); };
-      if (this.calib.length >= 18) {
+      if (full) {
         const d = sd('L');
         if (!this.calibBest || d < this.calibBest.sd) this.calibBest = { sd: d, win: this.calib.slice() };
       }
-      const stable = this.calib.length >= 18 && (!Number.isFinite(sd('L')) || sd('L') * 2 <= tol);
+      const stable = full && (!Number.isFinite(sd('L')) || sd('L') * 2 <= tol);
       // sans moment parfaitement immobile : fenêtre la plus stable des ~1,5 premières secondes (le patient est en position de départ)
-      if (this.calib.length >= 18 && !stable && (this.calibAll || 0) > 27 && this.calibBest) this.calib = this.calibBest.win;
-      if (this.calib.length >= 18 && (stable || (this.calibAll || 0) > 27)) {
+      if (full && !stable && late && this.calibBest) this.calib = this.calibBest.win;
+      if (full && (stable || late)) {
         const avg = (f) => this.calib.reduce((a, x) => a + f(x), 0) / this.calib.length;
         // angles : moyenne circulaire (179° et −179° → 180°, pas 0°)
         const cavg = (f) => deg(Math.atan2(avg((x) => Math.sin(f(x) / 57.29578)), avg((x) => Math.cos(f(x) / 57.29578))));
@@ -403,7 +409,7 @@ export class Tracker {
         if (!this.lowStart) { this.lowStart = t; this.lowPts = []; }
         this.lowPts.push([t, P]);
         while (this.lowPts.length && t - this.lowPts[0][0] > 700) this.lowPts.shift();
-        if (t - this.lowStart > 600 && this.lowPts.length >= 8) {
+        if (t - this.lowStart > 600 && this.lowPts.length >= 4) {
           // pente (régression linéaire) : immobile = |pente| < 0,2 / s, même si les points tremblent ; une descente lente n'est pas un arrêt
           const n = this.lowPts.length, mt = this.lowPts.reduce((a, q) => a + q[0], 0) / n, mp = this.lowPts.reduce((a, q) => a + q[1], 0) / n;
           const slope = (this.lowPts.reduce((a, q) => a + (q[0] - mt) * (q[1] - mp), 0) / (this.lowPts.reduce((a, q) => a + (q[0] - mt) ** 2, 0) || 1)) * 1000;

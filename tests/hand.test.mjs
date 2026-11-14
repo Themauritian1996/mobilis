@@ -113,7 +113,9 @@ export function tilted(L, { yaw, pitch, roll = 0, sc = 1, mir = 1, noise = 0, no
   const R = L.map((p) => rot3({ x: (p.x - c.x) * mir, y: p.y - c.y, z: 0 }, yaw, pitch, roll));
   return {
     hand: R.map((p) => ({ x: (p.x + c.x) * sc + gaussFn() * noise, y: (p.y + c.y) * sc + gaussFn() * noise, z: p.z * sc })),
-    hand3: R.map((p) => ({ x: p.x * m + gaussFn() * noise3, y: p.y * m + gaussFn() * noise3, z: p.z * m + gaussFn() * noise3 * 2 })),
+    // bruit 3D : même tremblement relatif qu'en 2D pour x, y et 1,5 × plus pour z — mesuré avec le vrai modèle sur des photos
+    // bruitées (écart-type de l'ouverture du pouce : 1,1–3,8° en 3D contre 0,9–2,3° en 2D)
+    hand3: R.map((p) => ({ x: (p.x + gaussFn() * noise * noise3) * m, y: (p.y + gaussFn() * noise * noise3) * m, z: (p.z + gaussFn() * noise * noise3 * 1.5) * m })),
   };
 }
 // Fraction du trajet du schéma qui donne exactement `share` × l'amplitude cible de l'exercice (main bien de face)
@@ -136,7 +138,7 @@ function tiltSeries(use3d, romFactor = 0.85, exact = false) {
       const amp = exact ? fracFor(id, U(0.95, 1.05)) : U(0.88, 1), B = interpParams(A, B0, amp);
       // k = 0…3 : orientations extrêmes (±35° sur les deux axes) ; ensuite tirées au hasard dans ±35°
       const ext = [[35, 35], [-35, 35], [35, -35], [-35, -35]][k];
-      const o = { yaw: (ext ? ext[0] : U(-35, 35)) * D2R, pitch: (ext ? ext[1] : U(-35, 35)) * D2R, roll: U(-0.4, 0.4), sc: U(0.7, 1.3), mir: rnd() < 0.5 ? -1 : 1, noise: U(0.4, 1.0), noise3: U(0.0015, 0.003) };
+      const o = { yaw: (ext ? ext[0] : U(-35, 35)) * D2R, pitch: (ext ? ext[1] : U(-35, 35)) * D2R, roll: U(-0.4, 0.4), sc: U(0.7, 1.3), mir: rnd() < 0.5 ? -1 : 1, noise: U(0.4, 1.0), noise3: 1 };
       const tr = new Tracker(ex, 'hand', { romFactor });
       const spec = ex.track.planes.hand, hold = (spec.holdTop || 0) + U(0.3, 0.8);
       // 18 images/s : cadence d'analyse de la main dans l'app (train.js)
@@ -166,7 +168,7 @@ if (t3.wrong || t3.bad > t3.tot * 0.05) process.exit(1);
 const f2 = tiltSeries(false, 1, true), f3 = tiltSeries(true, 1, true);
 console.log(`Amplitude juste (95–105 % de la cible), main de biais : 2D seule ${f2.bad}/${f2.tot} signalées à tort, ${f2.wrong} séries mal comptées`, f2.worst);
 console.log(`                                                       avec 3D  ${f3.bad}/${f3.tot} signalées à tort, ${f3.wrong} séries mal comptées`, f3.worst);
-if (f3.wrong || f3.bad > f3.tot * 0.05) process.exit(1);
+if (f3.wrong || f3.bad > f3.tot * 0.02 || f3.bad > f2.bad) process.exit(1);
 
 // Invariance pure : les mesures 3D des doigts / du pouce ne changent pas quand on tourne la main (sans bruit)
 {

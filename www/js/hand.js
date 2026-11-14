@@ -2,7 +2,7 @@
 // de la main et du pouce : mouvement du poignet, rotation de l'avant-bras, fermeture du poing, opposition du pouce.
 // La vidéo ne quitte jamais le téléphone.
 import { CONFIG } from './config.js';
-import { poseColors } from './overlay.js';
+import { poseColors, delegates } from './overlay.js';
 
 let hands = null;
 
@@ -17,7 +17,7 @@ export async function loadHands(onStatus = () => {}) {
     const r = await fetch(CONFIG.handModelLocal, { method: 'HEAD' });
     if (r.ok) modelAssetPath = CONFIG.handModelLocal;
   } catch (_) { /* pas de modèle local */ }
-  for (const delegate of ['GPU', 'CPU']) {
+  for (const delegate of delegates()) {
     try {
       hands = await mp.HandLandmarker.createFromOptions(fileset, {
         baseOptions: { modelAssetPath, delegate },
@@ -74,9 +74,9 @@ export function pickHand(list, side, prev = null) {
 }
 
 /** Vote sur les dernières images : la main suivie est-elle clairement celle de l'AUTRE côté ?
- *  (≥ 80 % des 12 dernières étiquettes, score ≥ 0,9). Sert à prévenir le patient avant de commencer à compter. */
+ *  (au moins 5 des 6 dernières étiquettes, score ≥ 0,9). Sert à prévenir le patient avant de commencer à compter. */
 export class HandSideVote {
-  constructor(n = 12) { this.n = n; this.v = []; }
+  constructor(n = 6) { this.n = n; this.v = []; }
   reset() { this.v = []; }
   push(hand, side) {
     if (!side || !hand || !hand.label) return false;
@@ -84,14 +84,16 @@ export class HandSideVote {
     if (this.v.length > this.n) this.v.shift();
     return this.wrong;
   }
-  get wrong() { return this.v.length >= this.n && this.v.reduce((a, b) => a + b, 0) >= this.n * 0.8; }
+  get ready() { return this.v.length >= this.n; }
+  get wrong() { return this.ready && this.v.reduce((a, b) => a + b, 0) >= this.n - 1; }
 }
 
 export const handPx = (lm, w, h) => lm.map((l) => ({ x: l.x * w, y: l.y * h, z: (l.z || 0) * w }));
 
 // Main entièrement visible : poignet + bouts des doigts dans l'image
-export function handInFrame(lm) {
-  return [0, 4, 8, 12, 16, 20].every((k) => lm[k] && lm[k].x > 0.01 && lm[k].x < 0.99 && lm[k].y > 0.01 && lm[k].y < 0.99);
+// `out` : débordement toléré (0,04 = le point peut dépasser le bord de 4 % : encore fiable pour compter)
+export function handInFrame(lm, out = -0.01) {
+  return [0, 4, 8, 12, 16, 20].every((k) => lm[k] && lm[k].x > -out && lm[k].x < 1 + out && lm[k].y > -out && lm[k].y < 1 + out);
 }
 
 export const HAND_CONN = [[0, 1], [1, 2], [2, 3], [3, 4], [0, 5], [5, 6], [6, 7], [7, 8], [5, 9], [9, 10], [10, 11], [11, 12],
