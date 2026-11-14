@@ -297,7 +297,10 @@ export async function checkRxUpdate() {
   try {
     const rx = await store.getRx(p.rxCode);
     if (!rx || (rx.version || 1) <= (p.rxVersion || 1)) return;
-    await updateProfile({ phase: rx.phase, plan: { phase: rx.phase, ids: rx.ids }, levels: { ...(p.levels || {}), ...(rx.levels || {}) }, lockPhase: !rx.auto, rxVersion: rx.version, rxNotes: rx.notes || '', nextVisit: rx.nextVisit || p.nextVisit, clinician: rx.clinician || p.clinician });
+    const days = rx.days?.length ? rx.days : p.days;
+    const np = await updateProfile({ phase: rx.phase, plan: { phase: rx.phase, ids: rx.ids }, levels: { ...(p.levels || {}), ...(rx.levels || {}) }, lockPhase: !rx.auto, rxVersion: rx.version, rxNotes: rx.notes || '', nextVisit: rx.nextVisit || p.nextVisit, clinician: rx.clinician || p.clinician,
+      days, perWeek: days?.length || p.perWeek, equipment: rx.equip || p.equipment || null, side: rx.side || p.side || null });
+    if (np.remind?.on) { try { (await import('./calendar.js')).scheduleReminders(np); } catch (e) { console.warn(e); } }
     toast(t('rxUpdated'), 4000);
     render();
   } catch (e) { console.warn(e); }

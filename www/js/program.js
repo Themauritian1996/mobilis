@@ -152,22 +152,70 @@ export function weeklyStats(profile, sessions) {
 
 export const plannedPerWeek = (profile) => (profile.days?.length || profile.perWeek || 3);
 
-// Série de jours consécutifs (au calendrier prévu) sans séance manquée
+// Jour prévu ? Fonction pure unique : jours de la semaine du profil + exceptions du calendrier
+// (calSkip : repos volontaire ; calExtra : séance ajoutée ; calMoves : { jour prévu: nouveau jour }).
+export function isPlannedDay(profile, dateKey) {
+  const p = profile || {};
+  if ((p.calSkip || []).includes(dateKey)) return false;
+  if ((p.calExtra || []).includes(dateKey)) return true;
+  const moves = p.calMoves || {};
+  if (Object.values(moves).includes(dateKey)) return true;
+  if (moves[dateKey]) return false;
+  const days = p.days?.length ? p.days : [1, 3, 5];
+  const since = p.joinedAt || p.startDate;
+  if (since && dateKey < todayKey(since)) return false;
+  return days.includes(new Date(dateKey + 'T12:00').getDay());
+}
+
+// Modifie les exceptions : op = rest | add | move (k -> to) | undo ; renvoie le patch de profil
+export function exceptionPatch(prof, op, k, to) {
+  const moves = { ...(prof.calMoves || {}) }; let skip = [...(prof.calSkip || [])]; let extra = [...(prof.calExtra || [])];
+  const origin = Object.keys(moves).find((o) => moves[o] === k);
+  if (op === 'rest') { if (!skip.includes(k)) skip.push(k); extra = extra.filter((x) => x !== k); }
+  else if (op === 'add') { if (!extra.includes(k)) extra.push(k); skip = skip.filter((x) => x !== k); }
+  else if (op === 'move') {
+    skip = skip.filter((x) => x !== to);
+    if (extra.includes(k)) extra = [...extra.filter((x) => x !== k), to];
+    else if (origin) { if (origin === to) delete moves[origin]; else moves[origin] = to; }
+    else moves[k] = to;
+  } else if (op === 'undo') {
+    skip = skip.filter((x) => x !== k); extra = extra.filter((x) => x !== k);
+    for (const o of Object.keys(moves)) if (o === k || moves[o] === k) delete moves[o];
+  }
+  return { calMoves: moves, calSkip: skip, calExtra: extra };
+}
+// Série de jours prévus consécutifs réalisés, sans séance manquée
 export function streak(profile, sessions, now = Date.now()) {
   const done = new Set(sessions.map((s) => todayKey(s.date)));
-  const days = profile.days?.length ? profile.days : [1, 3, 5];
+  const today = todayKey(now);
   let n = 0;
-  const since = profile.joinedAt || profile.startDate || 0;
-  for (let i = 0; i < 120; i++) {
-    const d = new Date(now - i * DAY);
-    if (d.getTime() < since - DAY) break;
-    if (!days.includes(d.getDay())) continue;
+  const d = new Date(now); d.setHours(12, 0, 0, 0);
+  for (let i = 0; i < 400; i++, d.setDate(d.getDate() - 1)) {
     const k = todayKey(d.getTime());
+    if (k < '2000-01-01') break;
+    if (!isPlannedDay(profile, k)) {
+      if (profile?.joinedAt && k < todayKey(profile.joinedAt) && !(profile.calExtra || []).includes(k)) break;
+      continue;
+    }
     if (done.has(k)) n++;
-    else if (i === 0) continue; // aujourd'hui pas encore fait : ne casse pas la série
+    else if (k === today) continue; // aujourd'hui pas encore fait : ne casse pas la série
     else break;
   }
   return n;
+}
+
+// Adhérence d'un mois (m : 0-11) : jours prévus jusqu'à aujourd'hui et ceux réalisés
+export function monthAdherence(profile, sessions, year, m, now = Date.now()) {
+  const done = new Set(sessions.map((s) => todayKey(s.date)));
+  const today = todayKey(now);
+  let planned = 0, hit = 0, count = 0;
+  const n = new Date(year, m + 1, 0).getDate();
+  for (let i = 1; i <= n; i++) {
+    const k = todayKey(new Date(year, m, i, 12).getTime());
+    if (done.has(k)) count++;
+    if (k <= today && isPlannedDay(profile, k)) { planned++; if (done.has(k)) hit++; }
+  }
+  return { sessions: count, planned, hit, pct: planned ? Math.round((hit / planned) * 100) : 0 };
 }
 
 // Résumé partagé avec le clinicien (aucune vidéo, aucune donnée inutile)

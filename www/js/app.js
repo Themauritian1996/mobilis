@@ -10,7 +10,7 @@ import { esc, icon, IC, toast, stopFigs, mountFigs, figSvg, figureBlock, nav, ap
 import { viewOnboard, viewCodeEntry, viewRxImport, checkRxUpdate, layName, medName } from './onboarding.js';
 import { viewTrain, doseText } from './train.js';
 import { viewSession } from './session.js';
-import { viewCalendar, appointments } from './calendar.js';
+import { viewCalendar, appointments, refreshReminders } from './calendar.js';
 import { viewClinic, viewRxEditor, viewTestStart } from './clinic.js';
 
 const $app = document.getElementById('app');
@@ -145,7 +145,7 @@ async function weeklyMaybe() {
 
 function viewHome() {
   const prof = profile();
-  weeklyMaybe(); checkRxUpdate();
+  weeklyMaybe(); checkRxUpdate(); refreshReminders(prof);
   const week = P.weekNumber(prof); const phase = prof.phase || 1;
   const prog = P.todaysProgram(prof); const s = todaySession();
   const done = new Set((s?.items || []).map((i) => i.id));
@@ -157,7 +157,7 @@ function viewHome() {
   const journal = (state.data.journal || []).find((j) => j.day === today);
   const flare = P.inFlare(prof);
   const appt = appointments(prof).find((a) => a.date >= today);
-  const isTrainDay = (prof.days || [1, 3, 5]).includes(new Date().getDay());
+  const isTrainDay = P.isPlannedDay(prof, today);
   const npi = P.nextPhaseInfo(prof, sessions());
   const path = P.pathologyById(prof.pathology);
 
