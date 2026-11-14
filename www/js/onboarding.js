@@ -218,6 +218,13 @@ export function viewCodeEntry() {
   $app().querySelector('#go').onclick = () => { const v = store.cleanCode(c.value); if (v.length === 6) go('#/rx/' + v); else { const e = $app().querySelector('#err'); e.hidden = false; e.textContent = t('codeInvalid'); } };
 }
 
+// Réglages fins du clinicien : dose par exercice (avec le niveau auquel elle a été fixée), progression auto, niveau maximal
+export function rxExtras(rx) {
+  const rxDose = {};
+  for (const [id, d] of Object.entries(rx.dose || {})) if (d && rx.ids?.includes(id)) rxDose[id] = { ...d, lv: rx.levels?.[id] || 2 };
+  return { rxDose, autoEx: { ...(rx.autoEx || {}) }, maxLevel: { ...(rx.maxLevel || {}) } };
+}
+
 // Profil patient construit à partir d'un programme du clinicien
 function rxToProfile(rx, prev, extra = {}) {
   const weeks = { 1: 0, 2: 2, 3: 6 }[rx.phase] || 0;
@@ -227,7 +234,7 @@ function rxToProfile(rx, prev, extra = {}) {
     irritability: prev?.irritability || 'med', painBase: prev?.painBase ?? 3, days: rx.days || prev?.days || [1, 3, 5], perWeek: (rx.days || prev?.days || [1, 3, 5]).length,
     startDate: Date.now() - weeks * 7 * DAY, joinedAt: prev?.joinedAt || Date.now(), rxCode: rx.code || null, rxVersion: rx.version || 1, clinician: rx.clinician || '', rxNotes: rx.notes || '',
     nextVisit: rx.nextVisit || prev?.nextVisit || null, lang: getLang(), flareUntil: 0,
-    equipment: rx.equip || prev?.equipment || null, side: rx.side || prev?.side || null, ...extra,
+    equipment: rx.equip || prev?.equipment || null, side: rx.side || prev?.side || null, ...rxExtras(rx), ...extra,
   };
 }
 
@@ -299,7 +306,7 @@ export async function checkRxUpdate() {
     if (!rx || (rx.version || 1) <= (p.rxVersion || 1)) return;
     const days = rx.days?.length ? rx.days : p.days;
     const np = await updateProfile({ phase: rx.phase, plan: { phase: rx.phase, ids: rx.ids }, levels: { ...(p.levels || {}), ...(rx.levels || {}) }, lockPhase: !rx.auto, rxVersion: rx.version, rxNotes: rx.notes || '', nextVisit: rx.nextVisit || p.nextVisit, clinician: rx.clinician || p.clinician,
-      days, perWeek: days?.length || p.perWeek, equipment: rx.equip || p.equipment || null, side: rx.side || p.side || null });
+      days, perWeek: days?.length || p.perWeek, equipment: rx.equip || p.equipment || null, side: rx.side || p.side || null, ...rxExtras(rx) });
     if (np.remind?.on) { try { (await import('./calendar.js')).scheduleReminders(np); } catch (e) { console.warn(e); } }
     toast(t('rxUpdated'), 4000);
     render();

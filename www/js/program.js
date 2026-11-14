@@ -23,9 +23,49 @@ export function doseFor(exId, level = 3, flare = false) {
   const d = { type: b.type, sets: Math.max(1, b.sets - (i === 0 ? 1 : 0)), tempo: b.tempo, holdTop: b.holdTop, romFactor: ROM_F[i] };
   if (b.type === 'hold') { d.hold = Math.round((b.hold * HOLD_F[i]) / 5) * 5 || 5; d.reps = b.reps; }
   else d.reps = Math.max(4, Math.round(b.reps * REP_F[i]));
-  if (flare) { d.sets = Math.max(1, d.sets - 1); d.romFactor = Math.max(0.5, d.romFactor - 0.15); if (d.hold) d.hold = Math.max(5, Math.round(d.hold * 0.6)); else d.reps = Math.max(4, Math.round(d.reps * 0.7)); }
+  if (flare) { d.romFactor = Math.max(0.5, d.romFactor - 0.15); flareCut(d); }
   d.loadNote = i === 4 ? 'load' : null;
   return d;
+}
+// Journée difficile : une série et un tiers de répétitions (ou de secondes) en moins
+function flareCut(d) {
+  d.sets = Math.max(1, d.sets - 1);
+  if (d.hold) d.hold = Math.max(5, Math.round(d.hold * 0.6)); else d.reps = Math.max(4, Math.round(d.reps * 0.7));
+  return d;
+}
+const lvIdx = (l) => Math.max(1, Math.min(5, l || 3)) - 1;
+// Dose fixée par le clinicien à un niveau donné, adaptée à un autre niveau (même facteur relatif que doseFor)
+export function scaleDose(exId, d, fromLv, toLv) {
+  if (!d) return d;
+  const r = { ...d };
+  if (fromLv === toLv) return r;
+  const hold = EXERCISES[exId]?.dose?.type === 'hold';
+  const a = lvIdx(fromLv), b = lvIdx(toLv);
+  if (hold) { if (d.hold) r.hold = Math.max(5, Math.round((d.hold * HOLD_F[b]) / HOLD_F[a] / 5) * 5); }
+  else if (d.reps) r.reps = Math.max(3, Math.round((d.reps * REP_F[b]) / REP_F[a]));
+  return r;
+}
+// Dose d'un exercice : niveau (doseFor) -> dose du clinicien adaptée au niveau (rxDose) -> réglages permanents du patient (doseOver)
+// -> réglages d'aujourd'hui (todayOver)
+export function doseOf(profile, id, level, flare = false, to = null) {
+  const rd = profile.rxDose?.[id];
+  let dose = doseFor(id, level, flare && !rd);
+  dose.rest = DEFAULT_REST;
+  if (rd) {
+    const s = scaleDose(id, rd, rd.lv ?? level, level);
+    const m = { ...dose };
+    if (s.sets) m.sets = s.sets;
+    if (s.reps && m.type === 'reps') m.reps = s.reps;
+    if (s.hold && m.type === 'hold') m.hold = s.hold;
+    if (s.rest != null) m.rest = s.rest;
+    if (flare) { m.romFactor = doseFor(id, level, true).romFactor; flareCut(m); }
+    dose = m;
+    if (s.rest != null) dose.rest = s.rest;
+  }
+  to = to || todayOver(profile);
+  dose = applyOver(applyOver(dose, profile.doseOver?.[id]), to.items?.[id]);
+  if (!profile.doseOver?.[id] && !to.items?.[id]) delete dose.custom;
+  return dose;
 }
 
 // Exercices de la phase : plan du clinicien s'il correspond à la phase, sinon protocole de la pathologie
@@ -62,11 +102,8 @@ export function todaysProgram(profile, { withSkipped = false } = {}) {
   return exerciseIds(profile).map((id) => {
     const lv = levelOf(profile, id);
     const level = flare ? Math.max(1, lv - 1) : lv;
-    let dose = doseFor(id, level, flare);
-    dose.rest = DEFAULT_REST;
-    dose = applyOver(applyOver(dose, profile.doseOver?.[id]), to.items[id]);
-    if (!profile.doseOver?.[id] && !to.items[id]) delete dose.custom;
-    return { id, level, dose, flare, skipped: to.skip.includes(id), kept: !!profile.doseOver?.[id] };
+    const dose = doseOf(profile, id, level, flare, to);
+    return { id, level, dose, flare, skipped: to.skip.includes(id), kept: !!profile.doseOver?.[id], rx: !!profile.rxDose?.[id] };
   }).filter((x) => withSkipped || !x.skipped);
 }
 // Durée estimée d'un exercice (secondes) : séries × (répétitions × tempo, ou maintien) + repos + mise en place
@@ -77,22 +114,56 @@ export function exerciseSeconds(d) {
   return d.sets * work + Math.max(0, d.sets - 1) * (d.rest ?? DEFAULT_REST) + 40;
 }
 
-// Règle de progression après chaque exercice (modèle de surveillance de la douleur)
+// Séances précédentes d'un exercice : un seul essai par jour (le dernier), jours différents de `dayKey`, du plus ancien au plus récent
+export function priorItems(sessions, id, dayKey, n = 3) {
+  const byDay = new Map();
+  for (const s of sessions || []) for (const i of s.items || []) {
+    if (i.id !== id) continue;
+    const ts = i.ts ?? s.date, k = todayKey(ts);
+    if (k === dayKey) continue;
+    const o = byDay.get(k);
+    if (!o || ts >= o.ts) byDay.set(k, { ...i, ts });
+  }
+  return [...byDay.values()].sort((a, b) => a.ts - b.ts).slice(-n);
+}
+export const itemQuality = (i) => avg((i.sets || []).map((s) => s.quality).filter((x) => x != null));
+export function lastItem(sessions, id) {
+  let best = null;
+  for (const s of sessions || []) for (const i of s.items || []) if (i.id === id && (!best || (i.ts ?? s.date) >= (best.ts ?? 0))) best = { ...i, ts: i.ts ?? s.date };
+  return best;
+}
+
+// Règle de progression après chaque exercice (échelle de difficulté 1 très facile … 5 trop difficile)
+// reason : pain | hard | easy | steady | locked | max | flare
 export function adjustLevel(profile, item, sessions, checkin) {
   const path = pathologyById(profile.pathology);
   const painMax = path?.painMax ?? 4;
   const cur = levelOf(profile, item.id);
+  const cap = Math.max(1, Math.min(5, profile.maxLevel?.[item.id] ?? 5));
   if (inFlare(profile)) return { level: cur, change: 0, reason: 'flare' };
-  const q = avg(item.sets.map((s) => s.quality).filter((x) => x != null));
-  const prev = sessions.slice(-3).flatMap((s) => s.items.filter((i) => i.id === item.id)).slice(-1)[0];
-  let next = cur, reason = 'same';
-  if (item.pain > painMax || checkin === 'worse') { next = cur - 1; reason = 'pain'; }
-  else if (item.difficulty >= 5 || (q != null && q < 0.5)) { next = cur - 1; reason = 'hard'; }
-  else if (item.difficulty <= 2 && (q == null || q >= 0.8) && item.pain <= painMax - 1) {
-    if (prev && prev.difficulty <= 2 && prev.pain <= painMax - 1) { next = cur + 1; reason = 'easy'; }
+  const q = itemQuality(item);
+  const d = item.difficulty, pain = item.pain ?? 0;
+  const calm = (i) => (i.pain ?? 0) <= painMax - 1;
+  const okQ = (x) => x == null || x >= 0.8;
+  const prior = priorItems(sessions, item.id, todayKey(item.ts ?? Date.now()), 3);
+  const down = (reason) => ({ level: Math.max(1, cur - 1), change: cur > 1 ? -1 : 0, reason });
+  // Sécurité : une douleur au-delà de la limite fait toujours baisser d'un niveau, même si le clinicien gère la progression
+  if (pain > painMax || checkin === 'worse') return down('pain');
+  if (profile.autoEx?.[item.id] === false) return { level: cur, change: 0, reason: 'locked' };
+  if (d >= 5 || (q != null && q < 0.5)) return down('hard');
+  let up = false;
+  if (d <= 2 && okQ(q) && calm(item)) {
+    const p = prior.slice(-1)[0];
+    up = !!p && p.difficulty <= 2 && calm(p) && okQ(itemQuality(p));
+  } else if (d === 3 && okQ(q) && calm(item)) {
+    const p = prior.slice(-2);
+    up = p.length === 2 && p.every((i) => i.difficulty === 3 && calm(i) && okQ(itemQuality(i)));
   }
-  next = Math.max(1, Math.min(5, next));
-  return { level: next, change: Math.sign(next - cur), reason };
+  if (up) {
+    if (cur >= cap) return { level: cur, change: 0, reason: 'max' };
+    return { level: Math.min(5, cur + 1), change: 1, reason: 'easy' };
+  }
+  return { level: cur, change: 0, reason: 'steady' };
 }
 
 // Revue hebdomadaire : avance la phase seulement si la douleur est sous contrôle (sauf si le clinicien verrouille)
@@ -227,10 +298,21 @@ export function progressSummary(profile, sessions, now = Date.now()) {
     name: profile.name || '', week: weekNumber(profile, now), phase: profile.phase || 1,
     sessions7: last7.length, planned: plannedPerWeek(profile),
     pain7: pains.length ? +avg(pains).toFixed(1) : null, quality7: qs.length ? Math.round(avg(qs) * 100) : null,
-    levels: profile.levels || {}, flare: inFlare(profile, now),
+    levels: profile.levels || {}, flare: inFlare(profile, now), ex: exerciseSummary(profile, sessions),
     last: sessions.slice(-5).reverse().map((s) => ({ date: s.date, n: s.items.length, pain: avg(s.items.map((i) => i.pain)) })),
     notes: recentNotes(sessions, 5),
   };
+}
+// Par exercice du programme : niveau, dernière difficulté et douleur, tendance (up | down | steady) d'après les 3 dernières séances
+export function exerciseSummary(profile, sessions) {
+  const out = {};
+  for (const id of exerciseIds(profile)) {
+    const items = priorItems(sessions, id, '', 3);
+    const last = items.slice(-1)[0];
+    const ch = items.reduce((a, i) => a + (i.change || 0), 0);
+    out[id] = { level: levelOf(profile, id), lastDifficulty: last?.difficulty ?? null, lastPain: last?.pain ?? null, trend: ch > 0 ? 'up' : ch < 0 ? 'down' : 'steady' };
+  }
+  return out;
 }
 // Commentaires écrits / dictés par le patient après ses exercices (les plus récents d'abord)
 export function recentNotes(sessions, n = 5) {

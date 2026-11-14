@@ -1,5 +1,6 @@
 // Estimation de pose 2D sur l'appareil (MediaPipe Pose Landmarker) + métriques biomécaniques + compteur de répétitions.
 import { CONFIG } from './config.js';
+import { poseColors } from './overlay.js';
 
 let landmarker = null;
 
@@ -28,9 +29,10 @@ export async function loadPose(onStatus = () => {}) {
   return landmarker;
 }
 
-export function detect(video, ts) {
-  if (!landmarker || video.readyState < 2) return null;
-  const res = landmarker.detectForVideo(video, ts);
+/** `src` : élément vidéo ou canevas contenant l'image à analyser. */
+export function detect(src, ts) {
+  if (!landmarker || (src.readyState != null && src.readyState < 2)) return null;
+  const res = landmarker.detectForVideo(src, ts);
   return res && res.landmarks && res.landmarks[0] ? res.landmarks[0] : null;
 }
 
@@ -125,18 +127,50 @@ const M = {
   // descente du bassin (vue de face) en fraction de la longueur de jambe mesurée au départ : plus stable que la largeur d'épaules
   hipDrop: (p, s, c, o = {}) => c.hip.y / (o.legLen0 || c.legLen),
   legLen: (p, s, c) => c.legLen,
-  // ---- Main (21 points MediaPipe Hands, en pixels : p.hand) ----
+  // ---- Main (21 points MediaPipe Hands) ----
+  // p.hand  : points 2D en pixels de l'image ;
+  // p.hand3 : points 3D « monde » en mètres (worldLandmarks), si disponibles.
+  // Poignet et rotation de l'avant-bras : direction dans l'image par rapport au départ (l'avant-bras ne bouge pas) ;
+  // le Tracker corrige l'effet d'une main filmée de biais grâce aux points 3D (voir tilt3).
   // direction de la main (poignet → tête du 3e métacarpien) dans l'image ; avant-bras immobile → variation = mouvement du poignet
   hAxis: (p) => { const h = p.hand; return deg(Math.atan2(h[9].x - h[0].x, -(h[9].y - h[0].y))); },
   // rotation de l'avant-bras vu dans son axe : orientation de la ligne des jointures (index → auriculaire)
   hRoll: (p) => { const h = p.hand; return deg(Math.atan2(h[17].x - h[5].x, -(h[17].y - h[5].y))); },
+  // Doigts et pouce : distances et angles mesurés en 3D quand c'est possible → identiques quelle que soit
+  // l'orientation de la main face à la caméra (en 2D, une main tournée de 30° « raccourcit » les doigts).
   // pouce → pulpe du doigt le plus proche (fraction de la longueur de la paume, négatif : plus proche de 0 = contact)
-  hPinch: (p) => { const h = p.hand, palm = dist(h[0], h[9]) || 1; return -Math.min(...[8, 12, 16, 20].map((k) => dist(h[4], h[k]))) / palm; },
-  // fermeture de la main : distance moyenne bout des doigts → poignet (fraction de la paume ; ≈ 1,9 main ouverte, ≈ 1 poing)
-  hClose: (p) => { const h = p.hand, palm = dist(h[0], h[9]) || 1; return [8, 12, 16, 20].reduce((a, k) => a + dist(h[k], h[0]), 0) / 4 / palm; },
-  // ouverture du pouce (abduction / « C ») : angle entre le pouce et le 2e métacarpien
-  hThumbAbd: (p) => { const h = p.hand; return angle({ x: h[4].x - h[2].x + h[0].x, y: h[4].y - h[2].y + h[0].y }, h[0], h[5]); },
+  hPinch: (p) => { const h = H3(p), d = D3(p), palm = d(h[0], h[9]) || 1; return -Math.min(...[8, 12, 16, 20].map((k) => d(h[4], h[k]))) / palm; },
+  // fermeture de la main : distance moyenne bout des doigts → poignet (fraction de la paume ; ≈ 1,8 main ouverte, ≈ 1 poing)
+  hClose: (p) => { const h = H3(p), d = D3(p), palm = d(h[0], h[9]) || 1; return [8, 12, 16, 20].reduce((a, k) => a + d(h[k], h[0]), 0) / 4 / palm; },
+  // ouverture du pouce (abduction / « C ») : angle entre le pouce (2 → 4) et le 2e métacarpien (0 → 5)
+  hThumbAbd: (p) => { const h = H3(p), z = p.hand3 ? 1 : 0; return angle3(sub3(h[4], h[2], z), sub3(h[5], h[0], z)); },
 };
+// points de la main utilisés pour les distances : 3D (mètres) si disponibles, sinon 2D (pixels ; le z relatif du modèle 2D est ignoré)
+const H3 = (p) => p.hand3 || p.hand;
+const D3 = (p) => (p.hand3 ? d3 : dist);
+const sub3 = (a, b, z = 1) => ({ x: a.x - b.x, y: a.y - b.y, z: z ? (a.z || 0) - (b.z || 0) : 0 });
+const d3 = (a, b) => Math.hypot(a.x - b.x, a.y - b.y, (a.z || 0) - (b.z || 0));
+const unit3 = (v) => { const n = Math.hypot(v.x, v.y, v.z) || 1; return { x: v.x / n, y: v.y / n, z: v.z / n }; };
+function angle3(a, b) {
+  const d = (Math.hypot(a.x, a.y, a.z) * Math.hypot(b.x, b.y, b.z)) || 1;
+  return deg(Math.acos(Math.max(-1, Math.min(1, (a.x * b.x + a.y * b.y + a.z * b.z) / d))));
+}
+// Segment 3D dont la direction décrit le mouvement des mesures angulaires de la main
+const HAND_DIR3 = { hAxis: [0, 9], hRoll: [5, 17] };
+/** Direction 3D (vecteur unitaire) du segment d'une mesure angulaire de la main, ou null (pas de points 3D). */
+export function handDir3(name, p) {
+  const seg = HAND_DIR3[name], h = p.hand3;
+  if (!seg || !h) return null;
+  return unit3(sub3(h[seg[1]], h[seg[0]]));
+}
+/** Main filmée de biais : l'angle vu dans l'image (d2, degrés) sous-estime l'angle réel. On le corrige avec l'angle 3D
+ *  entre la direction de départ et la direction actuelle (a3), sans jamais réduire d2 et au plus de +35 % (le z du modèle
+ *  est moins précis que x, y) ; rien sous 4° (au repos, le bruit 3D ne doit pas créer de mouvement). */
+export function tiltCorrect(d2, a3) {
+  const a = Math.abs(d2);
+  if (!(a3 > 0) || a < 4) return d2;
+  return d2 * Math.max(1, Math.min(1.35, a3 / a));
+}
 export const HAND_METRICS = new Set(['hAxis', 'hRoll', 'hPinch', 'hClose', 'hThumbAbd']);
 // Sens anatomique de chaque mesure (envoyé à l'IA pour qu'elle interprète des chiffres valides)
 export const METRIC_INFO = {
@@ -173,7 +207,7 @@ export const METRIC_INFO = {
   hAxis: 'wrist movement: change of the hand direction from the start position in degrees (forearm resting still)',
   hRoll: 'forearm rotation (pronation/supination) from the start position, in degrees',
   hPinch: 'thumb tip to nearest fingertip distance (negative fraction of palm length; close to 0 = tips touching)',
-  hClose: 'mean fingertip-to-wrist distance (fraction of palm length; about 1.9 open hand, about 1.0 closed fist)',
+  hClose: 'mean fingertip-to-wrist distance (fraction of palm length, measured in 3D; about 1.8 open hand, about 1.0 closed fist)',
   hThumbAbd: 'thumb opening angle from the index metacarpal, in degrees',
 };
 const SIDED = new Set(['knee', 'hip', 'elbow', 'ankle', 'bodyLine', 'armElev', 'shFlex', 'shinLean', 'neckFwd', 'wristUp', 'heelRise', 'erFront', 'elbowAway', 'hipAbd', 'kneeValgus']);
@@ -242,6 +276,7 @@ export class Tracker {
       const snap = { L: this.valueFor(p, 'L'), R: this.valueFor(p, 'R'), checks: {} };
       for (const ck of s.checks || []) if (ck.rel) snap.checks[ck.m] = metric(ck.m, p, this.side);
       if (!p.hand) snap.leg = metric('legLen', p, null);
+      else snap.v3 = handDir3(s.metric, p); // direction 3D de départ (main filmée de biais)
       this.calib.push(snap);
       // départ immobile : les 18 dernières images doivent être stables (sinon le « zéro » serait pris en plein mouvement) ;
       // après ~4 s sans stabilité, on calibre quand même sur les dernières images
@@ -269,16 +304,22 @@ export class Tracker {
         const sdv = sd(this.side || 'L');
         this.noiseP = span && Number.isFinite(sdv) ? sdv / span : 0;
         for (const ck of s.checks || []) if (ck.rel) this.base.checks[ck.m] = avg((x) => x.checks[ck.m]);
+        const v3 = this.calib.map((x) => x.v3).filter(Boolean);
+        if (v3.length >= this.calib.length / 2) this.base3 = unit3({ x: v3.reduce((a, v) => a + v.x, 0), y: v3.reduce((a, v) => a + v.y, 0), z: v3.reduce((a, v) => a + v.z, 0) });
       }
       return { phase: 'calibrating', progress: 0, reps: 0, holdSec: 0 };
     }
 
     // Choix du côté : 'auto' = côté qui bouge le plus, sinon côté le plus visible
     let side = this.side, v;
+    // main : angle 3D entre la direction de départ et la direction actuelle (corrige une main filmée de biais)
+    const cur3 = this.base3 ? handDir3(s.metric, p) : null;
+    const a3 = cur3 ? angle3(this.base3, cur3) : null;
+    this.tilt3 = a3;
     const prog = (val, sd) => {
       if (s.rel && (s.angular || s.absRel)) {
         // écart à la position de départ ; angulaire : ramené entre −180 et 180 ; absRel : dans un sens ou dans l'autre
-        let d = val - this.base[sd]; if (s.angular) d = ((d + 540) % 360) - 180; if (s.absRel) d = Math.abs(d);
+        let d = val - this.base[sd]; if (s.angular) { d = ((d + 540) % 360) - 180; if (a3 != null) d = tiltCorrect(d, a3); } if (s.absRel) d = Math.abs(d);
         const span = (s.absRel ? Math.abs(s.delta) : s.delta) * this.rom;
         return { pr: d / (span || 1), from: 0, to: span, d };
       }
@@ -334,7 +375,7 @@ export class Tracker {
     this.p = this.p + (Math.max(-0.5, Math.min(1.25, pr)) - this.p) * a; // au-delà de 125 % : aucune information utile (et retour plus rapide)
     const P = this.p, holdTop = s.holdTop || 0;
     if (s.rel && this.state === 'rest') {
-      if (P < -0.35) { this.lowT = this.lowT || t; if (t - this.lowT > 1500) { this.base[side] = this.base[side] + (pr * (s.absRel ? Math.abs(s.delta) : s.delta) * this.rom); this.p = 0; this.lowT = 0; } }
+      if (P < -0.35) { this.lowT = this.lowT || t; if (t - this.lowT > 1500) { this.base[side] = this.base[side] + (pr * (s.absRel ? Math.abs(s.delta) : s.delta) * this.rom); if (cur3) this.base3 = cur3; this.p = 0; this.lowT = 0; } }
       else this.lowT = 0;
     }
     if (this.p0 == null) {
@@ -369,7 +410,7 @@ export class Tracker {
           if (Math.abs(slope) < 0.2) { settled = true; this.lowMid = mp; }
         }
         if (settled) {
-          if (s.rel && !s.absRel) this.base[side] += this.lowMid * s.delta * this.rom;
+          if (s.rel && !s.absRel) { this.base[side] += this.lowMid * s.delta * this.rom; if (cur3) this.base3 = cur3; }
           if (s.rel && !s.absRel) this.p = 0;
         }
       } else this.lowStart = 0;
@@ -417,27 +458,34 @@ export class Tracker {
 }
 
 // ---------- Dessin du squelette ----------
+// Segment ou point peu visible (caché, hors image, deviné par le modèle) : on ne le dessine pas
+export const DRAW_VIS = 0.5;
+export const SKELETON_JOINTS = [0, 11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28];
+/** lm : points en coordonnées normalisées de l'écran. Retourne les articulations réellement dessinées
+ *  ({ i, x, y } en pixels du canevas, miroir compris). */
 export function drawSkeleton(g, lm, w, h, faultJoints = new Set(), mirror = false, keep = false) {
   if (!keep) g.clearRect(0, 0, w, h);
-  if (!lm) return;
+  if (!lm) return null;
   const X = (l) => (mirror ? (1 - l.x) * w : l.x * w);
+  const seen = (l) => l && (l.visibility ?? 1) >= DRAW_VIS;
   g.lineCap = 'round';
-  const css = getComputedStyle(document.documentElement);
-  const ok = css.getPropertyValue('--pose-ok').trim() || '#2dd4bf';
-  const bad = css.getPropertyValue('--pose-bad').trim() || '#ff7a59';
+  const { ok, bad } = poseColors();
   g.lineWidth = Math.max(3, w / 160);
   for (const [a, b] of CONNECTIONS) {
     const A = lm[a], B = lm[b];
-    if ((A.visibility ?? 1) < 0.4 || (B.visibility ?? 1) < 0.4) continue;
+    if (!seen(A) || !seen(B)) continue;
     g.strokeStyle = faultJoints.has(a) || faultJoints.has(b) ? bad : ok;
     g.beginPath(); g.moveTo(X(A), A.y * h); g.lineTo(X(B), B.y * h); g.stroke();
   }
-  for (const i of [0, 11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28]) {
+  const drawn = [];
+  for (const i of SKELETON_JOINTS) {
     const l = lm[i];
-    if ((l.visibility ?? 1) < 0.4) continue;
+    if (!seen(l)) continue;
     g.fillStyle = faultJoints.has(i) ? bad : '#ffffff';
     g.beginPath(); g.arc(X(l), l.y * h, Math.max(3, w / 140), 0, Math.PI * 2); g.fill();
+    drawn.push({ i, x: X(l), y: l.y * h });
   }
+  return drawn;
 }
 
 // Articulations à colorer selon la faute détectée

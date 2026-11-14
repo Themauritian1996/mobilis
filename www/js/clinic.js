@@ -8,6 +8,8 @@ import * as store from './store.js';
 import { state, go, profile } from './state.js';
 import { esc, icon, IC, toast, nav, mountFigs, figSvg, sheet, copyText, shareText } from './ui.js';
 import { layName, startTrial } from './onboarding.js';
+import * as P from './program.js';
+import { doseText } from './train.js';
 
 const $app = () => document.getElementById('app');
 const fmtDate = (ts) => new Date(ts).toLocaleDateString(locale(), { day: 'numeric', month: 'short' });
@@ -34,6 +36,7 @@ export async function viewClinic() {
         const adh = p.planned ? Math.round((p.sessions7 / p.planned) * 100) : 0;
         return `<div class="list" style="margin-top:10px"><div class="toggle"><span><b>${esc(p.name || t('patient'))}</b><br><small class="muted">${t('week')} ${p.week} · ${t('phase')} ${p.phase} · ${t('updated')} ${fmtDate(p.updated)}</small></span>${p.flare ? `<span class="chip neg">${t('flareShort')}</span>` : ''}</div>
           <div class="kpis"><div><b class="${adh >= 80 ? 'pos' : adh < 50 ? 'neg' : ''}">${p.sessions7}/${p.planned}</b><span>${t('sessions7')}</span></div><div><b class="${p.pain7 != null && p.pain7 > painMax ? 'neg' : ''}">${p.pain7 ?? '–'}</b><span>${t('avgPain')}</span></div><div><b>${p.quality7 != null ? p.quality7 + '%' : '–'}</b><span>${t('quality')}</span></div></div>
+          ${exProgress(p, rx)}
           ${p.notes?.length ? `<div class="toggle" style="display:block"><b class="small">${t('patientComments')}</b>${p.notes.slice(0, 3).map((n) => `<div class="small" style="margin-top:6px"><span class="muted">${fmtDate(n.date)} · ${esc(tr(EXERCISES[n.ex]?.name))}${n.pain != null ? ' · ' + n.pain + '/10' : ''}</span><br>« ${esc(n.text)} »</div>`).join('')}</div>` : ''}</div>`;
       }).join('') : (rx.code ? `<p class="small muted" style="margin:10px 0 0">${t('waitingPatient')}</p>` : '')}
       <div class="row" style="margin-top:12px"><button class="btn sm ghost grow" data-share="${rxRef(rx)}">${icon('share', 16)} ${t('sendCode')}</button><button class="btn sm ghost grow" data-test="${rxRef(rx)}">${icon('play', 14)} ${t('testRx')}</button><button class="btn sm grow" data-go="#/clinic/rx/${rxRef(rx)}">${t('adjust')}</button></div></div>`;
@@ -41,6 +44,15 @@ export async function viewClinic() {
   const find = (ref) => list.find((x) => rxRef(x) === ref);
   box.querySelectorAll('[data-share]').forEach((b) => (b.onclick = () => { const rx = find(b.dataset.share); shareSheet(rx.code, linkOf(rx)); }));
   box.querySelectorAll('[data-test]').forEach((b) => (b.onclick = () => startTrial(find(b.dataset.test))));
+}
+
+// Progression par exercice (niveau, dernière difficulté et douleur, tendance), compacte et repliée
+function exProgress(p, rx) {
+  const ex = p.ex || {};
+  const ids = (rx.ids || Object.keys(ex)).filter((id) => ex[id] && EXERCISES[id]);
+  if (!ids.length) return '';
+  const arrow = { up: '↑', down: '↓', steady: '→' };
+  return `<details class="ex-prog"><summary class="small">${t('exProgress')}</summary>${ids.map((id) => { const e = ex[id]; return `<div class="small"><span class="nm">${esc(tr(EXERCISES[id].name))}</span><span class="tnum muted">${t('level')} ${e.level} · ${t('diffShort')} ${e.lastDifficulty ?? '–'}/5 · ${e.lastPain ?? '–'}/10</span><b class="${e.trend === 'up' ? 'pos' : e.trend === 'down' ? 'neg' : 'muted'}" title="${t('trend_' + e.trend)}">${arrow[e.trend] || '→'}</b></div>`; }).join('')}</details>`;
 }
 
 // Clinicien : tester l'app comme un patient
@@ -75,6 +87,7 @@ export async function viewRxEditor(code) {
     phase: rx?.phase || 1, ids: rx?.ids || [], levels: { ...(rx?.levels || {}) }, auto: rx ? !!rx.auto : true, notes: rx?.notes || '', nextVisit: rx?.nextVisit || '',
     label: rx?.label || '', version: rx?.version || 0, created: rx?.created || null, days: rx?.days || [1, 3, 5],
     lang: rx?.lang || getLang(), localId: rx?.localId || null, equip: rx?.equip || null, side: rx?.side || null,
+    dose: JSON.parse(JSON.stringify(rx?.dose || {})), autoEx: { ...(rx?.autoEx || {}) }, maxLevel: { ...(rx?.maxLevel || {}) }, open: null,
   });
   const path = PATHOLOGIES.find((p) => p.id === f.pathology);
   const regionEx = [...new Set(PATHOLOGIES.filter((p) => p.region === f.region).flatMap((p) => Object.values(p.phases).flat()))];
@@ -86,6 +99,21 @@ export async function viewRxEditor(code) {
     const alts = alternatives(id, f.equip, { exclude: f.ids });
     return `<small class="neg" style="display:block">${t('missingEq')} ${m.map((e) => esc(tr(EQUIP[e]))).join(', ')}${alts.length ? ` · ${alts.map((a) => `<button class="link" data-rep="${id}" data-to="${a}">↔ ${esc(tr(EXERCISES[a].name))}</button>`).join(' ')}` : ` · ${t('sub_' + m[0])}`}</small>`;
   };
+  const lvOf = (id) => f.levels[id] || 2;
+  // Dose affichée : celle du niveau, remplacée par la dose fixée par le clinicien s'il y en a une
+  const shown = (id) => { const d = P.doseFor(id, lvOf(id)); d.rest = P.DEFAULT_REST; const o = f.dose[id]; if (o) { if (o.sets) d.sets = o.sets; if (o.reps && d.type === 'reps') d.reps = o.reps; if (o.hold && d.type === 'hold') d.hold = o.hold; if (o.rest != null) d.rest = o.rest; } return d; };
+  const exEdit = (id) => {
+    const d = shown(id), hold = d.type === 'hold';
+    const st = (k, label, v, unit) => `<div class="toggle"><span>${label}</span><div class="stepper"><button data-dk="${k}" data-id="${id}" data-dir="-1" aria-label="−">−</button><b class="tnum">${v}${unit || ''}</b><button data-dk="${k}" data-id="${id}" data-dir="1" aria-label="+">+</button></div></div>`;
+    return `<div class="sess-edit">
+      ${st('sets', t('setsLbl'), d.sets)}
+      ${hold ? st('hold', t('holdLbl'), d.hold, ' ' + t('sec')) : st('reps', t('repsLbl'), d.reps)}
+      ${st('rest', t('restLbl'), d.rest, ' ' + t('sec'))}
+      <div class="toggle"><span>${t('rxAutoEx')}<br><small class="muted">${t('rxAutoExD')}</small></span><button class="switch ${f.autoEx[id] === false ? '' : 'on'}" data-aex="${id}" role="switch" aria-checked="${f.autoEx[id] !== false}"></button></div>
+      <div class="toggle"><span>${t('rxMaxLevel')}<br><small class="muted">${t('rxMaxLevelD')}</small></span><div class="stepper"><button data-mx="${id}" data-dir="-1" aria-label="−">−</button><b class="tnum">${f.maxLevel[id] || 5}</b><button data-mx="${id}" data-dir="1" aria-label="+">+</button></div></div>
+      ${f.dose[id] ? `<div class="row" style="padding:10px 12px 12px"><button class="btn sm ghost grow" data-dreset="${id}">${t('rxDoseReset')}</button></div>` : ''}
+    </div>`;
+  };
   const scroll = (fn) => { const y = window.scrollY; fn(); draw(); window.scrollTo(0, y); };
 
   $app().innerHTML = `<section class="screen"><div class="topbar"><button class="icon-btn" data-go="#/clinic" aria-label="${t('back')}">${icon('back', 20)}</button><h1>${code ? t('adjustRx') : t('newRx')}</h1></div>
@@ -96,9 +124,11 @@ export async function viewRxEditor(code) {
     ${path ? `
     <h2>${t('phase')}</h2><div class="seg">${[1, 2, 3].map((n) => `<button data-ph="${n}" class="${f.phase === n ? 'on' : ''}">${n} · ${t('phaseName' + n)}</button>`).join('')}</div>
     <h2>${t('exercises')} (${f.ids.length})</h2>
-    <div class="list">${f.ids.map((id) => `<div class="ex-item"><span class="ex-thumb">${figSvg(id, { stat: true })}</span><span class="meta"><b>${esc(tr(EXERCISES[id].name))}</b>${missEq(id)}<small>${EXERCISES[id].track ? t('tracked') : t('guidedShort')}</small></span>
-      <span class="stepper"><button data-lv="${id}" data-d="-1" aria-label="-">−</button><b class="tnum">${f.levels[id] || 2}</b><button data-lv="${id}" data-d="1" aria-label="+">+</button></span>
-      <button class="icon-btn" data-rm="${id}" aria-label="${t('remove')}" style="width:34px;height:34px">${icon('close', 16)}</button></div>`).join('') || `<div class="toggle muted">${t('noExSelected')}</div>`}</div>
+    <div class="list">${f.ids.map((id, i) => `<div class="ex-block"><div class="ex-item"><span class="ex-thumb">${figSvg(id, { stat: true })}</span><span class="meta"><b>${esc(tr(EXERCISES[id].name))}</b>${missEq(id)}<small>${EXERCISES[id].track ? t('tracked') : t('guidedShort')}</small></span>
+      <span class="mv"><button data-mv="${id}" data-dir="-1" aria-label="${t('moveUp')}" ${i === 0 ? 'disabled' : ''}>↑</button><button data-mv="${id}" data-dir="1" aria-label="${t('moveDown')}" ${i === f.ids.length - 1 ? 'disabled' : ''}>↓</button></span>
+      <span class="stepper"><button data-lv="${id}" data-d="-1" aria-label="-">−</button><b class="tnum">${lvOf(id)}</b><button data-lv="${id}" data-d="1" aria-label="+">+</button></span>
+      <button class="icon-btn" data-rm="${id}" aria-label="${t('remove')}" style="width:34px;height:34px">${icon('close', 16)}</button></div>
+      <div class="ex-dose"><button class="link" data-dopen="${id}" aria-expanded="${f.open === id}">${doseText(shown(id))} · ${t('restShort')} ${shown(id).rest}${t('sec')}${f.dose[id] ? ' · ' + t('rxDoseSet') : ''}${f.autoEx[id] === false ? ' · ' + t('rxAutoOff') : ''} ▾</button></div>${f.open === id ? exEdit(id) : ''}</div>`).join('') || `<div class="toggle muted">${t('noExSelected')}</div>`}</div>
     ${others.length ? `<details style="margin-top:10px"><summary class="small" style="cursor:pointer;font-weight:700">${t('addExercise')} (${others.length})</summary><div class="list" style="margin-top:8px">${others.map((id) => `<button class="ex-item" data-add="${id}"><span class="ex-thumb">${figSvg(id, { stat: true })}</span><span class="meta"><b>${esc(tr(EXERCISES[id].name))}</b></span>${icon('plus', 18)}</button>`).join('')}</div></details>` : ''}
     <h2>${t('patientEquip')}</h2><p class="small muted" style="margin:-4px 0 8px">${t('patientEquipD')}</p>
     <div class="pills">${EQUIP_IDS.map((e) => `<button class="pill ${!f.equip || f.equip.includes(e) ? 'on' : ''}" data-peq="${e}">${esc(tr(EQUIP[e]))}</button>`).join('')}</div>
@@ -118,23 +148,39 @@ export async function viewRxEditor(code) {
   qa('[data-r]').forEach((b) => (b.onclick = () => { f.region = b.dataset.r; f.pathology = null; f.ids = []; draw(); }));
   qa('[data-p]').forEach((b) => (b.onclick = () => scroll(() => { f.pathology = b.dataset.p; f.ids = [...PATHOLOGIES.find((p) => p.id === f.pathology).phases[f.phase]]; })));
   qa('[data-ph]').forEach((b) => (b.onclick = () => scroll(() => { f.phase = +b.dataset.ph; f.ids = [...path.phases[f.phase]]; })));
-  qa('[data-lv]').forEach((b) => (b.onclick = () => scroll(() => { const id = b.dataset.lv; f.levels[id] = Math.max(1, Math.min(5, (f.levels[id] || 2) + +b.dataset.d)); })));
+  qa('[data-lv]').forEach((b) => (b.onclick = () => scroll(() => {
+    const id = b.dataset.lv, old = lvOf(id), nv = Math.max(1, Math.min(5, old + +b.dataset.d));
+    f.levels[id] = nv; if (f.dose[id]) f.dose[id] = P.scaleDose(id, f.dose[id], old, nv); // la dose fixée suit le niveau
+    if (f.maxLevel[id] && f.maxLevel[id] < nv) f.maxLevel[id] = nv;
+  })));
+  qa('[data-mv]').forEach((b) => (b.onclick = () => scroll(() => { const i = f.ids.indexOf(b.dataset.mv), j = i + +b.dataset.dir; if (j >= 0 && j < f.ids.length) [f.ids[i], f.ids[j]] = [f.ids[j], f.ids[i]]; })));
+  qa('[data-dopen]').forEach((b) => (b.onclick = () => scroll(() => { f.open = f.open === b.dataset.dopen ? null : b.dataset.dopen; })));
+  const LIM = { sets: [1, 6, 1], reps: [3, 30, 1], hold: [5, 120, 5], rest: [0, 180, 15] };
+  qa('[data-dk]').forEach((b) => (b.onclick = () => scroll(() => {
+    const id = b.dataset.id, k = b.dataset.dk, [lo, hi, step] = LIM[k], d = shown(id);
+    const v = Math.max(lo, Math.min(hi, (d[k] ?? 0) + step * +b.dataset.dir));
+    f.dose[id] = { sets: d.sets, rest: d.rest, ...(d.type === 'hold' ? { hold: d.hold } : { reps: d.reps }), [k]: v };
+  })));
+  qa('[data-dreset]').forEach((b) => (b.onclick = () => scroll(() => { delete f.dose[b.dataset.dreset]; })));
+  qa('[data-aex]').forEach((b) => (b.onclick = () => scroll(() => { const id = b.dataset.aex; if (f.autoEx[id] === false) delete f.autoEx[id]; else f.autoEx[id] = false; })));
+  qa('[data-mx]').forEach((b) => (b.onclick = () => scroll(() => { const id = b.dataset.mx; const v = Math.max(lvOf(id), Math.min(5, (f.maxLevel[id] || 5) + +b.dataset.dir)); if (v >= 5) delete f.maxLevel[id]; else f.maxLevel[id] = v; })));
   qa('[data-rm]').forEach((b) => (b.onclick = () => scroll(() => { f.ids = f.ids.filter((x) => x !== b.dataset.rm); })));
   qa('[data-add]').forEach((b) => (b.onclick = () => scroll(() => { f.ids = [...f.ids, b.dataset.add]; })));
   qa('[data-peq]').forEach((b) => (b.onclick = () => scroll(() => { const cur = f.equip || [...EQUIP_IDS]; const e = b.dataset.peq; f.equip = cur.includes(e) ? cur.filter((x) => x !== e) : [...cur, e]; })));
   qa('[data-pside]').forEach((b) => (b.onclick = () => scroll(() => { f.side = b.dataset.pside; })));
-  qa('[data-rep]').forEach((b) => (b.onclick = (e) => { e.stopPropagation(); scroll(() => { const i = f.ids.indexOf(b.dataset.rep); if (i >= 0) { f.ids[i] = b.dataset.to; f.levels[b.dataset.to] = f.levels[b.dataset.rep] || 2; } }); }));
+  qa('[data-rep]').forEach((b) => (b.onclick = (e) => { e.stopPropagation(); scroll(() => { const i = f.ids.indexOf(b.dataset.rep); if (i >= 0) { f.ids[i] = b.dataset.to; f.levels[b.dataset.to] = f.levels[b.dataset.rep] || 2; delete f.dose[b.dataset.rep]; } }); }));
   qa('[data-pw]').forEach((b) => (b.onclick = () => scroll(() => { f.days = { 2: [1, 4], 3: [1, 3, 5], 4: [1, 2, 4, 5], 5: [1, 2, 3, 4, 5], 6: [1, 2, 3, 4, 5, 6] }[+b.dataset.pw]; })));
   const au = q('#auto'); if (au) au.onclick = () => scroll(() => { f.auto = !f.auto; });
   const nt = q('#nt'); if (nt) nt.oninput = (e) => { f.notes = e.target.value; };
   const nv = q('#nv'); if (nv) nv.onchange = (e) => { f.nextVisit = e.target.value; };
   const pl = q('#pl'); if (pl) pl.onchange = (e) => { f.lang = e.target.value; };
+  const only = (o) => Object.fromEntries(Object.entries(o || {}).filter(([id]) => f.ids.includes(id)));
   const levelsOf = () => Object.fromEntries(f.ids.map((id) => [id, f.levels[id] || 2]));
-  q('#try').onclick = () => startTrial({ ...f, levels: levelsOf(), code: null });
+  q('#try').onclick = () => startTrial({ ...f, levels: levelsOf(), code: null, dose: only(f.dose), autoEx: only(f.autoEx), maxLevel: only(f.maxLevel) });
   q('#save').onclick = async () => {
     q('#save').disabled = true;
     const levels = levelsOf();
-    const data = { code: f.code, clinician: f.clinician.trim(), label: f.label.trim(), region: f.region, pathology: f.pathology, phase: f.phase, ids: f.ids, levels, auto: f.auto, notes: f.notes.trim(), nextVisit: f.nextVisit || null, days: f.days, version: f.version, created: f.created, lang: f.lang || getLang(), equip: f.equip || null, side: f.side || null };
+    const data = { code: f.code, clinician: f.clinician.trim(), label: f.label.trim(), region: f.region, pathology: f.pathology, phase: f.phase, ids: f.ids, levels, auto: f.auto, notes: f.notes.trim(), nextVisit: f.nextVisit || null, days: f.days, version: f.version, created: f.created, lang: f.lang || getLang(), equip: f.equip || null, side: f.side || null, dose: only(f.dose), autoEx: only(f.autoEx), maxLevel: only(f.maxLevel) };
     if (f.localId) data.localId = f.localId;
     try {
       const res = await store.saveRx(data);

@@ -356,21 +356,62 @@ function viewReport() {
 }
 
 // ---------- Ajuster mon programme ----------
+const ADJ_LIM = { sets: [1, 6, 1], reps: [3, 30, 1], hold: [5, 120, 5], rest: [0, 180, 15] };
 function viewAdjust() {
   const prof = profile();
-  const prog = P.todaysProgram(prof);
+  const prog = P.todaysProgram(prof, { withSkipped: true });
+  const open = state.adjOpen || null;
+  const capOf = (id) => (prof.lockPhase ? Math.max(1, prof.maxLevel?.[id] ?? 5) : 5);
+  // Pourquoi le niveau a changé : dernière séance de l'exercice
+  const why = (id) => {
+    const li = P.lastItem(sessions(), id);
+    if (!li || !li.reason) return '';
+    const dir = li.change > 0 ? t('adjLvUp') : li.change < 0 ? t('adjLvDown') : t('adjLvSame');
+    return `<span class="why-chip">${icon('spark', 12)} ${t('adjWhy')} : ${dir} · ${t('rsn_' + li.reason)}</span>`;
+  };
+  const editor = (x) => {
+    const d = x.dose, hold = d.type === 'hold';
+    const st = (k, label, v, unit) => `<div class="toggle"><span>${label}</span><div class="stepper"><button data-dk="${k}" data-id="${x.id}" data-dir="-1" aria-label="−">−</button><b class="tnum">${v}${unit || ''}</b><button data-dk="${k}" data-id="${x.id}" data-dir="1" aria-label="+">+</button></div></div>`;
+    return `<div class="sess-edit">${st('sets', t('setsLbl'), d.sets)}${hold ? st('hold', t('holdLbl'), d.hold, ' ' + t('sec')) : st('reps', t('repsLbl'), d.reps)}${st('rest', t('restLbl'), d.rest, ' ' + t('sec'))}
+      <div class="row" style="padding:10px 12px 12px;gap:8px"><button class="btn sm ghost grow" data-dreset="${x.id}">${t('sessReset')}</button></div></div>`;
+  };
   $app.innerHTML = `<section class="screen"><div class="topbar"><button class="icon-btn" data-go="#/profile" aria-label="${t('back')}">${icon('back', 20)}</button><h1>${t('adjustTitle')}</h1></div>
     <p class="muted small">${prof.lockPhase ? t('adjustLocked') : t('adjustD')}</p>
     <h2>${t('phase')}</h2><div class="seg">${[1, 2, 3].map((n) => `<button data-ph="${n}" class="${(prof.phase || 1) === n ? 'on' : ''}" ${prof.lockPhase ? 'disabled' : ''}>${n} · ${t('phaseName' + n)}</button>`).join('')}</div>
-    <h2>${t('levels')}</h2><div class="list">${prog.map((x) => `<div class="toggle"><span class="small"><b>${esc(tr(EXERCISES[x.id].name))}</b><br><span class="muted">${doseText(x.dose)}</span></span>
-      <span class="stepper"><button data-lv="${x.id}" data-d="-1" aria-label="-">−</button><b>${P.levelOf(prof, x.id)}</b><button data-lv="${x.id}" data-d="1" aria-label="+">+</button></span></div>`).join('')}</div>
+    <h2>${t('adjExercises')}</h2><p class="small muted" style="margin:-4px 0 8px">${t('adjExercisesD')}</p>
+    <div class="list">${prog.map((x) => `<div class="ex-block"><div class="toggle"><span class="small"><b>${esc(tr(EXERCISES[x.id].name))}</b><br><span class="muted">${x.skipped ? t('sessSkipped') : doseText(x.dose) + ' · ' + t('restShort') + ' ' + x.dose.rest + t('sec')}</span>${why(x.id)}
+        ${prof.autoEx?.[x.id] === false ? `<span class="why-chip">${icon('shield', 12)} ${t('adjFixedByClin')}</span>` : ''}</span>
+        <span class="stepper"><button data-lv="${x.id}" data-d="-1" aria-label="-">−</button><b>${P.levelOf(prof, x.id)}</b><button data-lv="${x.id}" data-d="1" aria-label="+" ${P.levelOf(prof, x.id) >= capOf(x.id) ? 'disabled' : ''}>+</button></span></div>
+      <div class="ex-dose row wrap" style="gap:8px"><button class="btn sm ghost" data-dopen="${x.id}" aria-expanded="${open === x.id}">${t(open === x.id ? 'close' : 'sessEdit')}</button><button class="btn sm ghost" data-skip="${x.id}">${t(x.skipped ? 'sessUnskip' : 'sessSkip')}</button>${x.kept ? `<span class="chip sm ink">${t('sessCustomKept')}</span>` : x.rx ? `<span class="chip sm">${t('adjFromClin')}</span>` : ''}</div>
+      ${open === x.id ? editor(x) : ''}</div>`).join('')}</div>
+    ${prof.lockPhase && prog.some((x) => capOf(x.id) < 5) ? `<p class="note">${t('adjMaxNote')}</p>` : ''}
     <div class="list" style="margin-top:14px"><div class="toggle"><span><b>${t('changeProblem')}</b><br><small class="muted">${esc(layName(prof.pathology))}</small></span><button class="btn sm ghost" data-a="redo">${t('change')}</button></div>
       <div class="toggle"><span><b>${t('haveCode')}</b><br><small class="muted">${prof.rxCode ? t('linkedTo') + ' ' + store.fmtCode(prof.rxCode) : t('haveCodeD')}</small></span><button class="btn sm ghost" data-go="#/code">${t('enterCode')}</button></div></div>
   </section>${nav('profile', navRole())}`;
+  const again = () => { const y = scrollY; viewAdjust(); scrollTo(0, y); };
   $app.querySelectorAll('[data-ph]').forEach((b) => (b.onclick = async () => { await updateProfile({ phase: +b.dataset.ph }); toast(t('saved')); syncProgress(); viewAdjust(); }));
   $app.querySelectorAll('[data-lv]').forEach((b) => (b.onclick = async () => {
-    const id = b.dataset.lv; const v = Math.max(1, Math.min(5, P.levelOf(profile(), id) + +b.dataset.d));
-    await updateProfile({ levels: { ...(profile().levels || {}), [id]: v } }); syncProgress(); viewAdjust();
+    const id = b.dataset.lv; const v = Math.max(1, Math.min(capOf(id), P.levelOf(profile(), id) + +b.dataset.d));
+    await updateProfile({ levels: { ...(profile().levels || {}), [id]: v } }); syncProgress(); again();
+  }));
+  $app.querySelectorAll('[data-dopen]').forEach((b) => (b.onclick = () => { state.adjOpen = open === b.dataset.dopen ? null : b.dataset.dopen; again(); }));
+  // Réglages permanents (même modèle que l'aperçu de séance : profil.doseOver)
+  const saveOver = async (id, values, reset) => {
+    const p = profile(), to = P.todayOver(p), doseOver = { ...(p.doseOver || {}) }, items = { ...to.items };
+    if (reset) delete doseOver[id]; else doseOver[id] = values;
+    delete items[id];
+    await updateProfile({ doseOver, todayOver: { date: to.date, items, skip: to.skip } });
+    again();
+  };
+  $app.querySelectorAll('[data-dk]').forEach((b) => (b.onclick = () => {
+    const x = prog.find((i) => i.id === b.dataset.id), k = b.dataset.dk, [lo, hi, step] = ADJ_LIM[k];
+    const v = Math.max(lo, Math.min(hi, (x.dose[k] ?? 0) + step * +b.dataset.dir));
+    if (v !== x.dose[k]) saveOver(x.id, { sets: x.dose.sets, reps: x.dose.reps, hold: x.dose.hold, rest: x.dose.rest, [k]: v });
+  }));
+  $app.querySelectorAll('[data-dreset]').forEach((b) => (b.onclick = () => { saveOver(b.dataset.dreset, null, true); toast(t('sessResetDone')); }));
+  $app.querySelectorAll('[data-skip]').forEach((b) => (b.onclick = async () => {
+    const id = b.dataset.skip, p = profile(), to = P.todayOver(p), has = to.skip.includes(id);
+    await updateProfile({ todayOver: { date: to.date, items: to.items, skip: has ? to.skip.filter((z) => z !== id) : [...to.skip, id] } }); again();
   }));
   $app.querySelector('[data-a="redo"]').onclick = () => { state.ob = null; go('#/onboard'); };
 }
