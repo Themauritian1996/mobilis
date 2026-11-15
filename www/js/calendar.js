@@ -78,7 +78,7 @@ export function viewCalendar() {
     </div>
     <div class="list" style="margin-top:10px"><div class="kpis"><div><b>${monthDone}</b><span>${t('sessionsMonth')}</span></div><div><b>${adh.pct}%</b><span>${t('adherence')}</span></div><div><b>${P.weekNumber(prof)}</b><span>${t('week')}</span></div></div></div>
 
-    <h2 style="text-transform:none;letter-spacing:0;font-size:15px;color:var(--ink)">${selDate.toLocaleDateString(locale(), { weekday: 'long', day: 'numeric', month: 'long' })}</h2>
+    <h2>${selDate.toLocaleDateString(locale(), { weekday: 'long', day: 'numeric', month: 'long' })}</h2>
     <div class="list">
       ${daySessions.map((s) => `<div class="card" style="margin-bottom:8px"><div class="row between"><b>${t('sessionDoneShort')}</b><span class="chip pos">${icon('check', 14)}</span></div>
         ${s.items.map((i) => { const ex = EXERCISES[i.id]; const ch = i.change > 0 ? '<span class="pos" title="+1">↑</span>' : i.change < 0 ? '<span class="neg" title="−1">↓</span>' : '';

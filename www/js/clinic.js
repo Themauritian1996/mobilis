@@ -6,7 +6,7 @@ import { EQUIP_IDS, missing, alternatives } from './equip.js';
 import { CONFIG } from './config.js';
 import * as store from './store.js';
 import { state, go, profile } from './state.js';
-import { esc, icon, IC, toast, nav, mountFigs, figSvg, sheet, copyText, shareText } from './ui.js';
+import { esc, icon, IC, toast, nav, mountFigs, figSvg, sheet, copyText, shareText, ds } from './ui.js';
 import { layName, startTrial } from './onboarding.js';
 import * as P from './program.js';
 import { doseText } from './train.js';
@@ -26,31 +26,37 @@ const linkOf = (rx) => store.rxLink(rx.code || rx.packed, rx.lang);
 
 export async function viewClinic() {
   const prof = profile();
-  $app().innerHTML = `<section class="screen"><div class="topbar"><h1>${t('patients')}</h1><button class="btn sm" data-go="#/clinic/new">${icon('plus', 16)} ${t('newRx')}</button></div>
+  $app().innerHTML = `<section class="screen clin"><div class="topbar"><h1>${t('patients')}</h1><button class="btn sm" data-go="#/clinic/new">${icon('plus', 16)} ${t('newRx')}</button></div>
     ${store.isCloud() ? '' : `<div class="banner" style="margin-bottom:12px">${icon('shield', 20)}<div>${t('clinLocal')}</div></div>`}
     <div id="rxlist"><div class="card muted">${t('loading')}</div></div></section>${nav('clinic', prof.role)}`;
   let list = [];
   try { list = await store.listMyRx(); } catch (e) { console.warn(e); }
   const box = $app().querySelector('#rxlist');
   if (!box) return;
-  if (!list.length) { box.innerHTML = `<div class="card"><h3>${t('noRxYet')}</h3><p class="muted small" style="margin:4px 0 12px">${t('noRxYetD')}</p><button class="btn" data-go="#/clinic/new">${t('newRx')}</button></div>`; return; }
-  box.innerHTML = list.map((rx) => {
+  if (!list.length) { box.innerHTML = `<div class="card empty"><div class="empty-ic">${icon('stetho', 26)}</div><h3>${t('noRxYet')}</h3><p class="small" style="margin:4px 0 0">${t('noRxYetD')}</p><button class="btn" data-go="#/clinic/new">${icon('plus', 18)} ${t('newRx')}</button></div>`; return; }
+  // Bandeau de synthèse : programmes, patients suivis, patients à surveiller (poussée, douleur au-dessus du seuil, assiduité < 50 %)
+  const painMaxOf = (rx) => PATHOLOGIES.find((x) => x.id === rx.pathology)?.painMax ?? 4;
+  const allPts = list.flatMap((rx) => (rx.patients || []).map((p) => ({ p, max: painMaxOf(rx) })));
+  const watch = allPts.filter(({ p, max }) => p.flare || (p.pain7 != null && p.pain7 > max) || (p.planned && p.sessions7 / p.planned < 0.5)).length;
+  const strip = `<div class="statstrip"><div><b>${list.length}</b><span>${ds('dsRx')}</span></div><div><b>${allPts.length}</b><span>${ds('dsFollow')}</span></div><div class="${watch ? 'watch' : ''}"><b>${watch}</b><span>${ds('dsWatch')}</span></div></div>`;
+  box.innerHTML = strip + list.map((rx) => {
     const pts = rx.patients || [];
     const painMax = PATHOLOGIES.find((x) => x.id === rx.pathology)?.painMax ?? 4;
-    return `<div class="card"><div class="row between"><span class="eyebrow tnum">${rx.code ? store.fmtCode(rx.code) + ' · ' : ''}${t('phase')} ${rx.phase}${rx.auto ? '' : ' · ' + t('locked')}${rx.lang && rx.lang !== 'fr' ? ' · ' + esc(langInfo(rx.lang).name) : ''}</span><span class="small muted">${fmtDate(rx.updated)}</span></div>
-      <h3 style="margin-top:6px">${esc(tr(PATHOLOGIES.find((p) => p.id === rx.pathology)?.name))}</h3>
-      <div class="small muted">${rx.ids.length} ${t('exercises').toLowerCase()}${rx.label ? ' · ' + esc(rx.label) : ''}</div>
-      ${pts.length ? pts.map((p) => {
+    const cols = `<div class="pt-cols"><span>${t('patient')}</span><span>${t('sessions7')}</span><span>${t('avgPain')}</span><span>${t('quality')}</span></div>`;
+    return `<article class="card rx-card"><header class="rx-head"><div class="grow"><h3>${esc(tr(PATHOLOGIES.find((p) => p.id === rx.pathology)?.name))}</h3>
+        <div class="rx-meta">${rx.code ? `<b class="tnum">${store.fmtCode(rx.code)}</b> · ` : ''}${t('phase')} ${rx.phase}${rx.auto ? '' : ' · ' + t('locked')} · ${rx.ids.length} ${t('exercises').toLowerCase()}${rx.lang && rx.lang !== 'fr' ? ' · ' + esc(langInfo(rx.lang).name) : ''}${rx.label ? '<br>' + esc(rx.label) : ''}</div></div>
+        <span class="rx-date">${fmtDate(rx.updated)}</span></header>
+      ${pts.length ? `<div class="pt-table">${cols}${pts.map((p) => {
         const adh = p.planned ? Math.round((p.sessions7 / p.planned) * 100) : 0;
-        return `<div class="list" data-pt="${esc(p.uid || p.updated)}" style="margin-top:10px"><div class="toggle"><span><b>${esc(p.name || t('patient'))}</b><br><small class="muted">${t('week')} ${p.week} · ${t('phase')} ${p.phase} · ${t('updated')} ${fmtDate(p.updated)}</small></span>${p.flare ? `<span class="chip neg">${t('flareShort')}</span>` : ''}</div>
-          <div class="kpis"><div><b class="${adh >= 80 ? 'pos' : adh < 50 ? 'neg' : ''}">${p.sessions7}/${p.planned}</b><span>${t('sessions7')}</span></div><div><b class="${p.pain7 != null && p.pain7 > painMax ? 'neg' : ''}">${p.pain7 ?? '–'}</b><span>${t('avgPain')}</span></div><div><b>${p.quality7 != null ? p.quality7 + '%' : '–'}</b><span>${t('quality')}</span></div></div>
-          ${p.protocol ? `<div class="toggle"><span class="small"><b>${esc(t('ig_protoWeek', { n: p.protocol.week, a: p.protocol.phase, b: p.protocol.phases }))}</b>${p.protocol.preop ? '' : p.protocol.blocked ? ` · <span class="neg">${t('pr_blocked')}</span>` : ''}</span></div>` : ''}
+        return `<div class="pt" data-pt="${esc(p.uid || p.updated)}"><div class="pt-row"><div class="who"><b>${esc(p.name || t('patient'))}${p.flare ? ` <span class="chip sm neg">${t('flareShort')}</span>` : ''}</b><small>${t('week')} ${p.week} · ${t('phase')} ${p.phase} · ${t('updated')} ${fmtDate(p.updated)}</small></div>
+            <span class="v ${adh >= 80 ? 'pos' : adh < 50 ? 'neg' : ''}">${p.sessions7}/${p.planned}</span><span class="v ${p.pain7 != null && p.pain7 > painMax ? 'neg' : ''}">${p.pain7 ?? '–'}</span><span class="v">${p.quality7 != null ? p.quality7 + '%' : '–'}</span></div>
+          <div class="pt-x">${p.protocol ? `<div class="toggle"><span class="small"><b>${esc(t('ig_protoWeek', { n: p.protocol.week, a: p.protocol.phase, b: p.protocol.phases }))}</b>${p.protocol.preop ? '' : p.protocol.blocked ? ` · <span class="neg">${t('pr_blocked')}</span>` : ''}</span></div>` : ''}
           ${exProgress(p, rx)}
           ${(p.prom?.length || p.rom?.length) ? `<details class="clin-more"><summary class="small">${t('ig_clinMore')}</summary>${clinicPanelProm(p)}${p.rom?.length ? `<h2>${t('rom_secTitle')}</h2>${clinicPanelRom(p)}` : ''}</details>` : ''}
           <div data-pdf="${esc(p.uid || p.updated)}"></div>
-          ${p.notes?.length ? `<div class="toggle" style="display:block"><b class="small">${t('patientComments')}</b>${p.notes.slice(0, 3).map((n) => `<div class="small" style="margin-top:6px"><span class="muted">${fmtDate(n.date)} · ${esc(tr(EXERCISES[n.ex]?.name))}${n.pain != null ? ' · ' + n.pain + '/10' : ''}</span><br>« ${esc(n.text)} »</div>`).join('')}</div>` : ''}</div>`;
-      }).join('') : (rx.code ? `<p class="small muted" style="margin:10px 0 0">${t('waitingPatient')}</p>` : '')}
-      <div class="row" style="margin-top:12px"><button class="btn sm ghost grow" data-share="${rxRef(rx)}">${icon('share', 16)} ${t('sendCode')}</button><button class="btn sm ghost grow" data-test="${rxRef(rx)}">${icon('play', 14)} ${t('testRx')}</button><button class="btn sm grow" data-go="#/clinic/rx/${rxRef(rx)}">${t('adjust')}</button></div></div>`;
+          ${p.notes?.length ? `<div class="pt-notes"><b class="small">${t('patientComments')}</b>${p.notes.slice(0, 3).map((n) => `<div class="small"><span class="muted">${fmtDate(n.date)} · ${esc(tr(EXERCISES[n.ex]?.name))}${n.pain != null ? ' · ' + n.pain + '/10' : ''}</span><br>« ${esc(n.text)} »</div>`).join('')}</div>` : ''}</div></div>`;
+      }).join('')}</div>` : (rx.code ? `<p class="rx-wait">${t('waitingPatient')}</p>` : '')}
+      <div class="rx-actions"><button class="btn sm ghost grow" data-share="${rxRef(rx)}">${icon('share', 16)} ${t('sendCode')}</button><button class="btn sm ghost grow" data-test="${rxRef(rx)}">${icon('play', 14)} ${t('testRx')}</button><button class="btn sm grow" data-go="#/clinic/rx/${rxRef(rx)}">${t('adjust')}</button></div></article>`;
   }).join('');
   // Bouton PDF du rapport (report.js) sur chaque fiche patient
   loadReport().then((R) => {
@@ -150,7 +156,7 @@ export async function viewRxEditor(code) {
   };
   const scroll = (fn) => { const y = window.scrollY; fn(); draw(); window.scrollTo(0, y); };
 
-  $app().innerHTML = `<section class="screen"><div class="topbar"><button class="icon-btn" data-go="#/clinic" aria-label="${t('back')}">${icon('back', 20)}</button><h1>${code ? t('adjustRx') : t('newRx')}</h1></div>
+  $app().innerHTML = `<section class="screen clin"><div class="topbar"><button class="icon-btn" data-go="#/clinic" aria-label="${t('back')}">${icon('back', 20)}</button><h1>${code ? t('adjustRx') : t('newRx')}</h1></div>
     <label class="field"><span>${t('yourName')}</span><input class="input" id="cn" value="${esc(f.clinician)}" placeholder="${t('clinNamePh')}"></label>
     <label class="field"><span>${t('rxLabel')}</span><input class="input" id="lb" value="${esc(f.label)}" placeholder="${t('rxLabelPh')}"></label>
     <h2>${t('region')}</h2><div class="pills">${REGIONS.map((r) => `<button class="pill ${f.region === r.id ? 'on' : ''}" data-r="${r.id}">${esc(tr(r.name))}</button>`).join('')}</div>
@@ -160,10 +166,10 @@ export async function viewRxEditor(code) {
     <h2>${t('exercises')} (${f.ids.length})</h2>
     <div class="list">${f.ids.map((id, i) => `<div class="ex-block"><div class="ex-item"><span class="ex-thumb">${figSvg(id, { stat: true })}</span><span class="meta"><b>${esc(tr(EXERCISES[id].name))}</b>${missEq(id)}<small>${EXERCISES[id].track ? t('tracked') : t('guidedShort')}</small></span>
       <span class="mv"><button data-mv="${id}" data-dir="-1" aria-label="${t('moveUp')}" ${i === 0 ? 'disabled' : ''}>↑</button><button data-mv="${id}" data-dir="1" aria-label="${t('moveDown')}" ${i === f.ids.length - 1 ? 'disabled' : ''}>↓</button></span>
-      <span class="stepper"><button data-lv="${id}" data-d="-1" aria-label="-">−</button><b class="tnum">${lvOf(id)}</b><button data-lv="${id}" data-d="1" aria-label="+">+</button></span>
-      <button class="icon-btn" data-rm="${id}" aria-label="${t('remove')}" style="width:34px;height:34px">${icon('close', 16)}</button></div>
+      <span class="stepper"><small>${t('level')}</small><button data-lv="${id}" data-d="-1" aria-label="-">−</button><b class="tnum">${lvOf(id)}</b><button data-lv="${id}" data-d="1" aria-label="+">+</button></span>
+      <button class="icon-btn" data-rm="${id}" aria-label="${t('remove')}">${icon('close', 16)}</button></div>
       <div class="ex-dose"><button class="link" data-dopen="${id}" aria-expanded="${f.open === id}">${doseText(shown(id))} · ${t('restShort')} ${shown(id).rest}${t('sec')}${f.dose[id] ? ' · ' + t('rxDoseSet') : ''}${f.autoEx[id] === false ? ' · ' + t('rxAutoOff') : ''} ▾</button></div>${f.open === id ? exEdit(id) : ''}</div>`).join('') || `<div class="toggle muted">${t('noExSelected')}</div>`}</div>
-    ${others.length ? `<details style="margin-top:10px"><summary class="small" style="cursor:pointer;font-weight:700">${t('addExercise')} (${others.length})</summary><div class="list" style="margin-top:8px">${others.map((id) => `<button class="ex-item" data-add="${id}"><span class="ex-thumb">${figSvg(id, { stat: true })}</span><span class="meta"><b>${esc(tr(EXERCISES[id].name))}</b></span>${icon('plus', 18)}</button>`).join('')}</div></details>` : ''}
+    ${others.length ? `<details class="add-ex" style="margin-top:6px"><summary>${t('addExercise')} (${others.length})</summary><div class="list" style="margin-top:8px">${others.map((id) => `<button class="ex-item" data-add="${id}"><span class="ex-thumb">${figSvg(id, { stat: true })}</span><span class="meta"><b>${esc(tr(EXERCISES[id].name))}</b></span>${icon('plus', 18)}</button>`).join('')}</div></details>` : ''}
     <h2>${t('patientEquip')}</h2><p class="small muted" style="margin:-4px 0 8px">${t('patientEquipD')}</p>
     <div class="pills">${EQUIP_IDS.map((e) => `<button class="pill ${!f.equip || f.equip.includes(e) ? 'on' : ''}" data-peq="${e}">${esc(tr(EQUIP[e]))}</button>`).join('')}</div>
     <h2>${t('patientSide')}</h2><div class="seg">${['L', 'R', 'both'].map((v) => `<button data-pside="${v}" class="${(f.side || 'both') === v ? 'on' : ''}">${t(v === 'L' ? 'sideLeft' : v === 'R' ? 'sideRight' : 'sideBoth')}</button>`).join('')}</div>

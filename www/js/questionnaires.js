@@ -51,8 +51,8 @@ function lineSvg(series, def, { w = 300, h = 90, full = true, label = '' } = {})
   const pts = series.map((p, i) => [xs(i), ys(p[1])]);
   const d = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join('');
   return `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(label)}" class="prom-svg">${full ? `<line class="ax" x1="${pad}" x2="${w - pad}" y1="${h - pad}" y2="${h - pad}"/><text x="${pad}" y="${h - 1}">${num(def.range[0])}</text><text x="${w - pad}" y="${h - 1}" text-anchor="end">${num(def.range[1])}</text>` : ''}
-    <path d="${d}" fill="none" stroke="var(--ink)" stroke-width="${full ? 2 : 1.6}" stroke-linecap="round" stroke-linejoin="round"/>
-    ${pts.map((p, i) => `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="${full ? 3.2 : i === pts.length - 1 ? 2.6 : 0}" fill="${i === pts.length - 1 ? 'var(--ink)' : 'var(--surface)'}" stroke="var(--ink)" stroke-width="1.4"/>`).join('')}</svg>`;
+    <path d="${d}" fill="none" stroke="var(--brand)" stroke-width="${full ? 2 : 1.6}" stroke-linecap="round" stroke-linejoin="round"/>
+    ${pts.map((p, i) => `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="${full ? 3.2 : i === pts.length - 1 ? 2.6 : 0}" fill="${i === pts.length - 1 ? 'var(--brand)' : 'var(--surface)'}" stroke="var(--brand)" stroke-width="1.4"/>`).join('')}</svg>`;
 }
 
 // Phrase simple sur l'évolution

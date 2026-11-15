@@ -1,25 +1,26 @@
 /* Badges : grille, cartes, pastille d'accueil, célébration. Utilise les variables de app.css (repli fourni). */
 .badges-screen .muted { color: var(--muted, #6b6b6b); margin: 4px 0 12px; }
 .badge-count { font-size: 15px; color: var(--muted, #6b6b6b); margin: 0 0 14px; }
-.badge-count strong { color: var(--ink, #111); font-size: 20px; }
+.badge-count strong { color: var(--ink, #111); font-size: 1.75rem; font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
 .badge-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
 .badge-card {
   background: var(--surface, #fff); border: 1px solid var(--line, #e3e3e1); border-radius: var(--radius, 16px);
-  padding: 14px; display: flex; flex-direction: column; gap: 6px; min-height: 44px; color: var(--ink, #111);
+  padding: 14px; display: flex; flex-direction: column; gap: 6px; min-height: 44px; color: var(--ink, #111); box-shadow: var(--sh-1, none);
 }
-.badge-card h2 { font-size: 15px; margin: 6px 0 0; line-height: 1.25; }
+.badge-card h2 { font-size: var(--fs-md, 15px); margin: 6px 0 0; line-height: 1.25; letter-spacing: 0; }
 .badge-card p { font-size: 13px; margin: 0; color: var(--muted, #6b6b6b); line-height: 1.4; }
 .badge-card .bc-meta { font-size: 12px; color: var(--muted, #6b6b6b); }
 .badge-card .bc-ic {
-  width: 40px; height: 40px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
   background: var(--line, #e3e3e1); color: var(--muted, #6b6b6b);
 }
-.badge-card.earned { border-color: var(--ink, #111); }
-.badge-card.earned .bc-ic { background: var(--ink, #111); color: var(--on-ink, #fff); }
-.badge-card.locked .bc-ic { opacity: .6; }
+.badge-card.earned { border-color: color-mix(in srgb, var(--brand, #111) 45%, var(--line, #e3e3e1)); background: linear-gradient(180deg, var(--brand-soft, #fff), var(--surface, #fff) 56%); }
+.badge-card.earned .bc-ic { background: var(--brand, #111); color: var(--on-brand, #fff); box-shadow: 0 0 0 4px var(--surface, #fff), 0 0 0 5px color-mix(in srgb, var(--brand, #111) 35%, transparent); }
+.badge-card.locked { box-shadow: none; background: transparent; }
+.badge-card.locked .bc-ic { opacity: .8; background: var(--surface-2, #eee); }
 .badge-card.locked h2 { color: var(--ink, #111); }
 .bc-bar { height: 6px; border-radius: 3px; background: var(--line, #e3e3e1); overflow: hidden; margin-top: 4px; }
-.bc-bar i { display: block; height: 100%; background: var(--ink, #111); border-radius: 3px; }
+.bc-bar i { display: block; height: 100%; background: var(--brand, #111); border-radius: 3px; }
 
 .badge-chip { gap: 6px; }
 
@@ -28,15 +29,16 @@
   opacity: 0; transition: opacity .25s ease, transform .25s ease; z-index: 1000;
   display: flex; align-items: center; gap: 12px; max-width: min(92vw, 420px); width: max-content;
   background: var(--surface, #fff); color: var(--ink, #111); border: 1px solid var(--line, #e3e3e1);
-  border-radius: var(--radius, 16px); padding: 12px 16px; box-shadow: 0 8px 24px rgba(0, 0, 0, .14); cursor: pointer;
+  border-radius: var(--radius, 16px); padding: 12px 16px; box-shadow: var(--sh-3, 0 8px 24px rgba(0, 0, 0, .14)); cursor: pointer;
 }
 .badge-toast.in { opacity: 1; transform: translate(-50%, 0); }
 .badge-toast .bt-ic {
   width: 36px; height: 36px; border-radius: 50%; flex: none; display: inline-flex; align-items: center; justify-content: center;
-  background: var(--ink, #111); color: var(--on-ink, #fff);
+  background: var(--brand, #111); color: var(--on-brand, #fff);
 }
 .badge-toast .bt-txt { display: flex; flex-direction: column; min-width: 0; }
-.badge-toast small { font-size: 11px; color: var(--muted, #6b6b6b); text-transform: uppercase; letter-spacing: .04em; }
+.badge-toast small { font-size: 12px; font-weight: 700; color: var(--brand-ink, #6b6b6b); }
 .badge-toast strong { font-size: 15px; }
 .badge-toast span { font-size: 13px; color: var(--muted, #6b6b6b); }
 @media (prefers-reduced-motion: reduce) { .badge-toast { transition: none; } }
+.badge-chip { min-height: 32px; cursor: pointer; }

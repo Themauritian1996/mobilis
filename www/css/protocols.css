@@ -1,21 +1,21 @@
 /* Protocoles post-opératoires : frise des phases, cartes, précautions */
 .proto-hero { margin-bottom: 12px; }
-.proto-hero h2 { margin: 6px 0 2px; font-size: 20px; letter-spacing: -0.02em; }
+.proto-hero h2 { margin: 6px 0 2px; font-size: var(--fs-xl); letter-spacing: -0.02em; line-height: 1.2; }
 .proto-meter { display: flex; gap: 4px; margin: 12px 0 6px; }
-.proto-meter i { flex: 1; height: 6px; border-radius: 4px; background: var(--surface-2); }
+.proto-meter i { flex: 1; height: 8px; border-radius: 4px; background: var(--surface-3); }
 .proto-meter i.done { background: var(--pos); }
-.proto-meter i.cur { background: var(--ink); }
+.proto-meter i.cur { background: var(--brand); }
 .proto-meter i.blocked { background: var(--warn); }
 .proto-tl { list-style: none; margin: 8px 0 14px; padding: 0; display: grid; gap: 10px; }
 .proto-phase { border: 1px solid var(--line); border-radius: 16px; background: var(--surface); padding: 12px 14px; }
-.proto-phase.cur { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink) inset; }
+.proto-phase.cur { border-color: var(--brand); box-shadow: 0 0 0 1px var(--brand) inset; }
 .proto-phase.done { opacity: .78; }
 .proto-phase > summary { display: flex; align-items: center; gap: 10px; cursor: pointer; list-style: none; min-height: 44px; font-weight: 700; }
 .proto-phase > summary::-webkit-details-marker { display: none; }
-.proto-phase h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 14px 0 4px; }
+.proto-phase h3 { font-size: var(--fs-sm); font-weight: 700; color: var(--muted); margin: 14px 0 4px; letter-spacing: 0; }
 .proto-phase ul { margin: 4px 0; padding-inline-start: 18px; }
 .proto-phase li { margin: 4px 0; }
-.proto-warn { border-inline-start: 4px solid var(--warn); padding: 8px 12px; background: var(--surface-2); border-radius: 10px; margin: 8px 0; }
+.proto-warn { border-inline-start: 4px solid var(--warn); padding: 8px 12px; background: var(--warn-soft); border-radius: 10px; margin: 8px 0; }
 .proto-flags { border: 1px solid color-mix(in srgb, var(--neg) 35%, var(--line)); background: var(--neg-soft); border-radius: 16px; padding: 12px 14px; margin: 14px 0; }
 .proto-flags ul { margin: 6px 0 0; padding-inline-start: 18px; }
 .proto-card .row { gap: 10px; }

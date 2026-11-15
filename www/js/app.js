@@ -7,7 +7,7 @@ import * as P from './program.js';
 import { setPartialPolicy } from './pose.js';
 import { coachComment, speakRich, cueText } from './coach.js';
 import { state, setRender, render, go, profile, sessions, todaySession, nextExercise, updateProfile, syncProgress, inTrial, navRole } from './state.js';
-import { esc, icon, IC, toast, stopFigs, mountFigs, figSvg, figureBlock, nav, applyTheme, lvlBar, sheet, shareText, copyText, langPicker } from './ui.js';
+import { esc, icon, IC, toast, stopFigs, mountFigs, figSvg, figureBlock, nav, applyTheme, lvlBar, sheet, shareText, copyText, langPicker, ds, ring } from './ui.js';
 import { viewOnboard, viewCodeEntry, viewRxImport, checkRxUpdate, layName, medName } from './onboarding.js';
 import { viewTrain, doseText } from './train.js';
 import { viewSession } from './session.js';
@@ -114,10 +114,11 @@ function viewAuth() {
   const fbOn = firebaseEnabled();
   let pending = null; try { pending = localStorage.getItem('mobilis.pendingRx'); } catch (_) {}
   $app.innerHTML = `<section class="screen auth">
-    <div class="row between"><div class="brand-lg">${icon('logo', 30, 'style="color:var(--ink)"')} Mobilis</div>
+    <div class="row between"><div class="brand-lg">${icon('logo', 34)} Mobilis</div>
       ${langPicker()}</div>
-    <h1>${t('heroTitle')}</h1><p class="muted" style="margin:0">${t('tagline')}</p>
-    <svg class="hero-fig" data-fig="squat" data-static="0" data-keys="0" data-anat="0"></svg>
+    <div class="auth-stage"><svg class="hero-fig" data-fig="squat" data-static="0" data-keys="0" data-anat="0"></svg></div>
+    <h1>${t('heroTitle')}</h1><p class="tagline">${t('tagline')}</p>
+    <ul class="vprops"><li><span class="vp-ic">${icon('cam', 20)}</span><span>${ds('vpCam')}</span></li><li><span class="vp-ic">${icon('trend', 20)}</span><span>${ds('vpPlan')}</span></li><li><span class="vp-ic">${icon('stetho', 20)}</span><span>${ds('vpClin')}</span></li></ul>
     ${pending ? `<div class="banner pos" style="margin-bottom:12px">${icon('stetho', 20)}<div>${t('pendingRx')}</div></div>` : ''}
     <div class="stack">
       ${fbOn ? `<button class="btn" data-a="google"><svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.8 1.1 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3 0 5.8 1.1 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>${t('googleBtn')}</button>
@@ -189,31 +190,30 @@ function viewHome() {
   const isPatientView = prof.role !== 'clinician';
 
   $app.innerHTML = `<section class="screen">${trialBar()}
-    <div class="hello"><div class="avatar">${esc((prof.name || '?')[0].toUpperCase())}</div><div class="grow"><span class="eyebrow">${new Date().toLocaleDateString(locale(), { weekday: 'long', day: 'numeric', month: 'long' })}</span><div style="font-size:19px;font-weight:700">${t('hello')} ${esc(prof.name)}</div></div>
-      <span class="chip" title="${t('streak')}">${icon('flame', 14)} ${P.streak(prof, sessions())}</span></div>
-    ${isPatientView ? `<div class="row" style="margin:-6px 0 12px;gap:8px">${homeChipBadges(prof)}</div>` : ''}
+    <div class="hello"><div class="avatar">${esc((prof.name || '?')[0].toUpperCase())}</div><div class="grow"><span class="eyebrow">${new Date().toLocaleDateString(locale(), { weekday: 'long', day: 'numeric', month: 'long' })}</span><div class="hello-name">${t('hello')} ${esc(prof.name)}</div></div>
+      <span class="chip streak" title="${t('streak')}" aria-label="${t('streak')} ${P.streak(prof, sessions())}">${icon('flame', 16)} ${P.streak(prof, sessions())}</span></div>
 
-    <div class="card today">
-      <div class="row between"><div class="grow"><span class="eyebrow">${t('week')} ${week} · ${t('phase')} ${phase} · ${t('phaseName' + phase)}</span><h3 style="margin-top:6px">${esc(layName(prof.pathology))}</h3></div><div class="big">${pct}<span style="font-size:18px">%</span></div></div>
-      <div class="bar pos" style="margin:14px 0"><i style="width:${pct}%"></i></div>
-      ${flare ? `<div class="banner neg" style="margin-bottom:12px">${icon('flame', 20)}<div><b>${t('flareOn')}</b><br>${t('flareOnD')} <button class="link" data-a="flareOff">${t('flareEnd')}</button></div></div>` : ''}
+    <div class="card today hero">
+      <div class="hero-top"><div class="grow"><span class="hero-kicker">${t('week')} ${week} · ${t('phase')} ${phase} · ${t('phaseName' + phase)}</span><h3>${esc(layName(prof.pathology))}</h3><span class="hero-sub">${ds('dsDone', { a: nDone, b: prog.length })}</span></div>${ring(pct, `${t('today')} ${pct} %`)}</div>
+      ${flare ? `<div class="banner neg">${icon('flame', 20)}<div><b>${t('flareOn')}</b><br>${t('flareOnD')} <button class="link" data-a="flareOff">${t('flareEnd')}</button></div></div>` : ''}
       ${next ? `<button class="btn" data-go="#/session">${IC.play.replace('<svg', '<svg width="16" height="16"')} ${nDone ? t('continueSession') : isTrainDay ? t('startSession') : t('startExtra')}</button>` : `<button class="btn soft" data-go="#/session">${icon('check', 16)} ${t('sessionDone')} · ${t('redoSession')}</button>`}
     </div>
 
-    ${journal ? '' : `<div class="card" style="margin-top:10px"><div class="row between"><b>${t('dailyQ')}</b><span class="small muted">0–10</span></div>
-      <div class="seg" style="margin-top:10px">${[0, 2, 4, 6, 8, 10].map((n) => `<button data-jp="${n}">${n}</button>`).join('')}</div></div>`}
-
-    <div class="list" style="margin-top:10px"><div class="kpis">
-      <div><b>${ws.sessions ?? 0}<small style="font-size:13px;color:var(--muted)">/${P.plannedPerWeek(prof)}</small></b><span>${t('sessions')}</span></div>
+    <div class="list" style="margin-top:12px"><div class="kpis">
+      <div><b>${ws.sessions ?? 0}<small>/${P.plannedPerWeek(prof)}</small></b><span>${t('sessions')}</span></div>
       <div><b>${ws.pain != null ? ws.pain.toFixed(1) : '–'}</b><span>${t('avgPain')}</span></div>
       <div><b>${ws.quality != null ? Math.round(ws.quality * 100) + '%' : '–'}</b><span>${t('quality')}</span></div></div></div>
+    ${isPatientView && homeChipBadges(prof) ? `<div class="row wrap" style="margin-top:12px;gap:8px">${homeChipBadges(prof)}</div>` : ''}
+
+    ${journal ? '' : `<div class="card" style="margin-top:12px"><div class="row between"><b>${t('dailyQ')}</b><span class="small muted tnum">0–10</span></div>
+      <div class="seg" style="margin-top:10px">${[0, 2, 4, 6, 8, 10].map((n) => `<button data-jp="${n}">${n}</button>`).join('')}</div></div>`}
 
     ${todo.length ? `<h2>${t('ig_todo')}</h2><div class="stack todo">${todo.join('')}</div>` : ''}
 
     ${prof.rxNotes ? `<h2>${t('fromClinician')}</h2><div class="card"><span class="eyebrow">${esc(prof.clinician || t('yourClinician'))}</span><p style="margin:6px 0 0;white-space:pre-line">${esc(prof.rxNotes)}</p></div>` : ''}
-    ${appt ? `<div class="card row" style="margin-top:10px">${icon('cal', 22)}<div class="grow"><b>${t('calAppt')}</b><div class="small muted">${new Date(appt.date + 'T12:00').toLocaleDateString(locale(), { weekday: 'long', day: 'numeric', month: 'long' })}${appt.time ? ' · ' + esc(appt.time) : ''}${appt.note ? ' · ' + esc(appt.note) : ''}</div></div></div>` : ''}
+    ${appt ? `<div class="card row" style="margin-top:12px">${icon('cal', 22)}<div class="grow"><b>${t('calAppt')}</b><div class="small muted">${new Date(appt.date + 'T12:00').toLocaleDateString(locale(), { weekday: 'long', day: 'numeric', month: 'long' })}${appt.time ? ' · ' + esc(appt.time) : ''}${appt.note ? ' · ' + esc(appt.note) : ''}</div></div></div>` : ''}
 
-    <h2>${t('today')}</h2>
+    <div class="sec-head"><h2>${t('today')}</h2><span class="small muted">${nDone}/${prog.length}</span></div>
     <div class="list">${prog.map((x) => exItem(x, done.has(x.id))).join('')}</div>
     ${!flare ? `<button class="btn ghost" data-a="flare" style="margin-top:10px">${icon('flame', 18)} ${t('flareBtn')}</button>` : ''}
 
@@ -301,12 +301,12 @@ function lineChart(rows, series, { max = 10, h = 150, label = (r) => 'S' + r.wee
   const x = (i) => pad + (n <= 1 ? (W - pad * 2) / 2 : (i * (W - pad - 12)) / (n - 1));
   const y = (v) => H - 20 - (v / max) * (H - 36);
   let s = `<svg viewBox="0 0 ${W} ${H}" role="img">`;
-  for (const gv of [0, max / 2, max]) s += `<line class="ax" x1="${pad}" x2="${W - 8}" y1="${y(gv)}" y2="${y(gv)}"/><text x="4" y="${y(gv) + 3}">${gv}</text>`;
+  for (const gv of [0, max / 2, max]) s += `<line class="ax${gv === 0 ? ' base' : ''}" x1="${pad}" x2="${W - 8}" y1="${y(gv)}" y2="${y(gv)}"/><text x="4" y="${y(gv) + 3}">${gv}</text>`;
   const every = Math.ceil(n / 8);
   rows.forEach((r, i) => { if (i % every === 0 || i === n - 1) s += `<text x="${x(i)}" y="${H - 4}" text-anchor="middle">${label(r)}</text>`; });
   for (const se of series) {
     const pts = rows.map((r, i) => [x(i), se.get(r)]).filter((p) => p[1] != null);
-    if (pts.length > 1) s += `<polyline points="${pts.map((p) => `${p[0]},${y(p[1])}`).join(' ')}" fill="none" stroke="${se.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+    if (pts.length > 1) s += `<polyline points="${pts.map((p) => `${p[0]},${y(p[1])}`).join(' ')}" fill="none" stroke="${se.color}" stroke-width="2.25" stroke-linejoin="round" stroke-linecap="round"/>`;
     pts.forEach((p, i) => (s += `<circle cx="${p[0]}" cy="${y(p[1])}" r="${i === pts.length - 1 ? 4.5 : 3}" fill="${i === pts.length - 1 ? se.color : 'var(--surface)'}" stroke="${se.color}" stroke-width="2"/>`));
   }
   return s + '</svg>';
@@ -315,11 +315,11 @@ function barChart(rows) {
   const W = 320, H = 120, pad = 18, n = Math.max(1, rows.length), bw = Math.min(26, (W - pad * 2) / n - 8);
   const max = Math.max(...rows.map((r) => Math.max(r.sessions, r.planned)), 1);
   const y = (v) => H - 20 - (v / max) * (H - 32);
-  let s = `<svg viewBox="0 0 ${W} ${H}" role="img"><line class="ax" x1="${pad}" x2="${W - 8}" y1="${y(0)}" y2="${y(0)}"/>`;
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img"><line class="ax base" x1="${pad}" x2="${W - 8}" y1="${y(0)}" y2="${y(0)}"/>`;
   rows.forEach((r, i) => {
     const cx = pad + ((i + 0.5) * (W - pad * 2)) / n;
     s += `<rect x="${cx - bw / 2}" y="${y(r.planned)}" width="${bw}" height="${y(0) - y(r.planned)}" rx="5" fill="var(--surface-2)"/>`;
-    if (r.sessions) s += `<rect x="${cx - bw / 2}" y="${y(Math.min(r.sessions, max))}" width="${bw}" height="${y(0) - y(Math.min(r.sessions, max))}" rx="5" fill="${r.sessions >= r.planned ? 'var(--pos)' : 'var(--ink)'}"/>`;
+    if (r.sessions) s += `<rect x="${cx - bw / 2}" y="${y(Math.min(r.sessions, max))}" width="${bw}" height="${y(0) - y(Math.min(r.sessions, max))}" rx="5" fill="${r.sessions >= r.planned ? 'var(--pos)' : 'var(--brand)'}"/>`;
     s += `<text x="${cx}" y="${H - 4}" text-anchor="middle">S${r.week}</text>`;
   });
   return s + '</svg>';
@@ -334,9 +334,9 @@ function viewProgress() {
   const j = (state.data.journal || []).slice(-14);
   $app.innerHTML = `<section class="screen"><div class="topbar"><h1>${t('progress')}</h1><span class="chip">${t('week')} ${P.weekNumber(prof)} · ${t('phase')} ${prof.phase || 1}</span></div>
     <button class="btn ghost" data-go="#/report">${icon('doc', 18)} ${t('reportBtn')}</button>
-    <div class="list" style="margin-top:10px">${[['#/proms', t('pmTitle')], ['#/amplitude', t('ig_amplitude')], ['#/badges', t('bdgTitle')], ...(prof.protocol ? [['#/protocole', t('pr_title')]] : []), ...(RPT?.viewPatientReport ? [['#/rapport', t('reportTitle')]] : [])]
-      .map(([h, l]) => `<button class="toggle" data-go="${h}" style="width:100%;text-align:start;border:0;background:transparent;color:inherit;font:inherit;cursor:pointer;min-height:44px"><span><b>${esc(l)}</b></span><span class="muted" aria-hidden="true">›</span></button>`).join('')}</div>
-    ${!has ? `<div class="card muted" style="margin-top:12px">${t('noData')}</div>` : `
+    <div class="list linklist" style="margin-top:12px">${[['#/proms', t('pmTitle'), 'clip'], ['#/amplitude', t('ig_amplitude'), 'ruler'], ['#/badges', t('bdgTitle'), 'medal'], ...(prof.protocol ? [['#/protocole', t('pr_title'), 'shield']] : []), ...(RPT?.viewPatientReport ? [['#/rapport', t('reportTitle'), 'doc']] : [])]
+      .map(([h, l, ic]) => `<button class="toggle" data-go="${h}"><span class="li-ic">${icon(ic, 18)}</span><span class="grow"><b>${esc(l)}</b></span><span class="chev" aria-hidden="true">${icon('chev', 18)}</span></button>`).join('')}</div>
+    ${!has ? `<div class="card empty" style="margin-top:12px"><div class="empty-ic">${icon('chart', 24)}</div>${t('noData')}</div>` : `
     <h2>${t('weekly')}</h2><div class="card chart">${lineChart(rows, [
       { get: (r) => r.pain, color: 'var(--neg)' },
       { get: (r) => (r.quality != null ? r.quality * 10 : null), color: 'var(--pos)' },
@@ -465,12 +465,12 @@ function viewProfile() {
   const prof = profile(); const st = store.settings(); const u = state.user;
   const sw = (k, on) => `<button class="switch ${on ? 'on' : ''}" data-sw="${k}" role="switch" aria-checked="${on}"></button>`;
   $app.innerHTML = `<section class="screen">${trialBar()}<div class="topbar"><h1>${t('profile')}</h1></div>
-    <div class="card row"><div class="avatar">${esc((prof.name || '?')[0].toUpperCase())}</div><div class="grow"><b>${esc(prof.name)}</b><div class="small muted">${u.local ? t('localMode') : esc(u.email || '')}</div></div>
+    <div class="card row profile-card"><div class="avatar">${esc((prof.name || '?')[0].toUpperCase())}</div><div class="grow"><b>${esc(prof.name)}</b><div class="small muted">${u.local ? t('localMode') : esc(u.email || '')}</div></div>
       <span class="chip">${prof.role === 'clinician' ? t('roleClinician') : t('rolePatient')}</span></div>
-    ${prof.pathology ? `<div class="list" style="margin-top:10px"><button class="toggle" data-go="#/adjust" style="width:100%;border:0;background:transparent;text-align:left;color:inherit"><span><b>${t('adjustTitle')}</b><br><small class="muted">${esc(layName(prof.pathology))} · ${t('phase')} ${prof.phase || 1}</small></span>${icon('back', 18, 'style="transform:scaleX(-1)"')}</button></div>` : ''}
+    ${prof.pathology ? `<div class="list linklist" style="margin-top:12px"><button class="toggle" data-go="#/adjust"><span class="li-ic">${icon('target', 18)}</span><span class="grow"><b>${t('adjustTitle')}</b><br><small class="muted">${esc(layName(prof.pathology))} · ${t('phase')} ${prof.phase || 1}</small></span><span class="chev" aria-hidden="true">${icon('chev', 18)}</span></button></div>` : ''}
     <h2>${t('settings')}</h2><div class="list">
       <div class="toggle"><span>${t('language')}${['fr', 'en'].includes(getLang()) ? '' : `<br><small class="muted">${t('langBeta')}</small>`}</span>${langPicker()}</div>
-      <div class="toggle"><span>${t('theme')}</span><div class="seg" style="width:210px">${['auto', 'light', 'dark'].map((v) => `<button data-theme-set="${v}" class="${st.theme === v ? 'on' : ''}">${t('theme_' + v)}</button>`).join('')}</div></div>
+      <div class="toggle" style="display:block"><span>${t('theme')}</span><div class="seg" style="margin-top:8px">${['auto', 'light', 'dark'].map((v) => `<button data-theme-set="${v}" class="${st.theme === v ? 'on' : ''}">${t('theme_' + v)}</button>`).join('')}</div></div>
       <div class="toggle" style="display:block"><span>${t('voice')}</span><div class="seg" style="margin-top:8px">${['local', 'gemini', 'off'].map((v) => `<button data-voice="${v}" class="${st.voice === v ? 'on' : ''}">${t(v === 'local' ? 'voiceLocal' : v === 'gemini' ? 'voiceGemini' : 'voiceOff')}</button>`).join('')}</div></div>
       <div class="toggle"><span>${t('countAloud')}</span>${sw('countAloud', st.countAloud)}</div>
       ${'vibrate' in navigator ? `<div class="toggle"><span>${t('vibrateSetting')}</span>${sw('vibrate', st.vibrate !== false)}</div>` : ''}

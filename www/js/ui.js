@@ -41,7 +41,14 @@ export const IC = {
   hand: I('<path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V11M11 10.5V4a1.5 1.5 0 0 1 3 0v6.5M14 10.5V5.5a1.5 1.5 0 0 1 3 0V13c0 4.4-2.6 8-7 8-2.5 0-4.2-1.3-5.4-3.3L2.8 14.6a1.5 1.5 0 0 1 2.5-1.6L8 16"/>'),
   volume: I('<path d="M4 9v6h4l5 4V5L8 9zM16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/>'),
   layers: I('<path d="M12 3 2 8l10 5 10-5-10-5zM2 13l10 5 10-5M2 18l10 5 10-5"/>'),
-  logo: '<svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="currentColor"/><circle cx="17.5" cy="8.5" r="2.8" fill="var(--on-ink)"/><path d="M17.5 12.5l-3 7 4.8 2-1.8 5.5M14.5 19.5l-4.8 2M17.5 13.5l4.8 3" stroke="var(--on-ink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>',
+  // Logo « goniomètre » : un membre articulé qui balaie un arc d'amplitude
+  logo: '<svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#2747d4"/><path d="M19.6 21.5a8.6 8.6 0 0 0-3.9-7.2" stroke="#8cf0b8" stroke-width="2.2" stroke-linecap="round" fill="none"/><path d="M25 21.5H11l8.2-12.6" stroke="#fff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="11" cy="21.5" r="2.9" fill="#fff"/><circle cx="19.2" cy="8.9" r="2.5" fill="#8cf0b8"/></svg>',
+  chev: I('<path d="m9 6 6 6-6 6"/>'),
+  target: I('<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/>'),
+  trend: I('<path d="M3 17l6-6 4 4 8-8M15 7h6v6"/>'),
+  medal: I('<circle cx="12" cy="9" r="6"/><path d="M8.5 14 7 22l5-3 5 3-1.5-8"/>'),
+  ruler: I('<path d="M3 17 17 3l4 4L7 21z"/><path d="m7 13 2 2M10 10l2 2M13 7l2 2"/>'),
+  clip: I('<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9zM9 12h6M9 16h4"/>'),
 };
 export const icon = (name, size = 18, extra = '') => IC[name].replace('<svg', `<svg width="${size}" height="${size}" ${extra}`);
 
@@ -129,7 +136,7 @@ export async function shareText(title, text, url) {
 // ---------- Navigation ----------
 export function nav(active, role) {
   const b = (id, ic, label) => `<button data-go="#/${id}" class="${active === id ? 'on' : ''}" aria-current="${active === id ? 'page' : 'false'}">${icon(ic, 22)}<span>${label}</span></button>`;
-  const brand = `<div class="brand">${icon('logo', 28, 'style="color:var(--ink)"')} Mobilis</div>`;
+  const brand = `<div class="brand">${icon('logo', 30)} Mobilis</div>`;
   if (role === 'clinician') {
     return `<nav class="nav" aria-label="Navigation"><div class="inner">${brand}${b('clinic', 'stetho', t('patients'))}${b('library', 'book', t('library'))}
       <button class="fab" data-go="#/clinic/new" aria-label="${t('newRx')}">${icon('plus', 22)}<span hidden>${t('newRx')}</span></button>${b('home', 'play', t('testNav'))}${b('profile', 'user', t('profile'))}</div></nav>`;
@@ -143,8 +150,22 @@ export function applyTheme() {
   if (th === 'light' || th === 'dark') document.documentElement.setAttribute('data-theme', th);
   else document.documentElement.removeAttribute('data-theme');
   const dark = th === 'dark' || (th !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#0a0a0b' : '#f3f3f2');
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#0b111b' : '#f3f5f8');
 }
+
+// Textes du design 1.14 : repli local tant que les clés ne sont pas fusionnées dans i18n.js (voir i18n-new/design.json)
+const DS = {
+  vpCam: { fr: 'La caméra compte tes répétitions et corrige ta posture', en: 'The camera counts your reps and corrects your form', es: 'La cámara cuenta tus repeticiones y corrige tu postura', pt: 'A câmara conta as tuas repetições e corrige a tua postura', ar: 'الكاميرا تعدّ تكراراتك وتصحّح وضعيتك', zh: '摄像头为你计数并纠正动作' },
+  vpPlan: { fr: 'Un programme qui s’ajuste à ta douleur, semaine après semaine', en: 'A program that adapts to your pain, week after week', es: 'Un programa que se ajusta a tu dolor, semana tras semana', pt: 'Um programa que se ajusta à tua dor, semana após semana', ar: 'برنامج يتكيّف مع ألمك أسبوعًا بعد أسبوع', zh: '计划会根据你的疼痛逐周调整' },
+  vpClin: { fr: 'Ton clinicien peut suivre tes progrès, si tu le veux', en: 'Your clinician can follow your progress, if you choose', es: 'Tu clínico puede seguir tu progreso, si tú quieres', pt: 'O teu clínico pode acompanhar o teu progresso, se quiseres', ar: 'يمكن لمعالجك متابعة تقدّمك إن أردت', zh: '如果你愿意，治疗师可以跟进你的进展' },
+  dsRx: { fr: 'Programmes', en: 'Programs', es: 'Programas', pt: 'Programas', ar: 'البرامج', zh: '计划' },
+  dsFollow: { fr: 'Patients suivis', en: 'Patients followed', es: 'Pacientes en seguimiento', pt: 'Pacientes seguidos', ar: 'مرضى متابَعون', zh: '跟进中的患者' },
+  dsWatch: { fr: 'À surveiller', en: 'Need attention', es: 'A vigilar', pt: 'A vigiar', ar: 'بحاجة إلى متابعة', zh: '需要关注' },
+  dsDone: { fr: '{a} sur {b} exercices faits', en: '{a} of {b} exercises done', es: '{a} de {b} ejercicios hechos', pt: '{a} de {b} exercícios feitos', ar: '{a} من {b} تمارين منجزة', zh: '已完成 {a}/{b} 个练习' },
+};
+export const ds = (k, vars) => { let s = t(k); if (s === k) s = tr(DS[k]) || k; if (vars) for (const v in vars) s = s.replaceAll(`{${v}}`, vars[v]); return s; };
+// Anneau de progression (motif « goniomètre ») : pct 0–100
+export const ring = (pct, label = '') => { const C = 2 * Math.PI * 40, p = Math.max(0, Math.min(100, pct)); return `<div class="ring" role="img" aria-label="${esc(label || p + ' %')}"><svg viewBox="0 0 96 96" aria-hidden="true"><circle class="ring-track" cx="48" cy="48" r="40"/><circle class="ring-val" cx="48" cy="48" r="40" stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${(C * (1 - p / 100)).toFixed(1)}"/></svg><b>${p}<small>%</small></b></div>`; };
 
 export const lvlBar = (n) => `<span class="lvl" aria-label="${t('level')} ${n}/5">${[1, 2, 3, 4, 5].map((i) => `<i class="${i <= n ? 'on' : ''}"></i>`).join('')}</span>`;
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
