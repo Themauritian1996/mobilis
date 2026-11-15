@@ -898,5 +898,22 @@
 "dsRx": "计划",
 "dsFollow": "跟进中的患者",
 "dsWatch": "需要关注",
-"dsDone": "已完成 {a}/{b} 个练习"
+"dsDone": "已完成 {a}/{b} 个练习",
+"pmEvery1": "每周",
+"rom_every1": "先测基线，之后每周",
+"rp_every1": "每周",
+"nEx_one": "{n} 个练习",
+"nEx_other": "{n} 个练习",
+"dsDone_one": "已完成 {a}/{b} 个练习",
+"dsDone_other": "已完成 {a}/{b} 个练习",
+"sessionsNeeded_one": "本周还需 {n} 次训练",
+"sessionsNeeded_other": "本周还需 {n} 次训练",
+"weeksLeft_one": "还需 {n} 周的计划",
+"weeksLeft_other": "还需 {n} 周的计划",
+"pr_preop_one": "{n}天后手术",
+"pr_preop_other": "{n}天后手术",
+"rom_cardMore_one": "另有 {n} 项",
+"rom_cardMore_other": "另有 {n} 项",
+"lwLine_one": "第 {w} 周：完成 {s}/{p} 次训练，{trend}。",
+"lwLine_other": "第 {w} 周：完成 {s}/{p} 次训练，{trend}。"
 }

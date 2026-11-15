@@ -898,5 +898,22 @@
 "dsRx": "Programas",
 "dsFollow": "Pacientes seguidos",
 "dsWatch": "A vigiar",
-"dsDone": "{a} de {b} exercícios feitos"
+"dsDone": "{a} de {b} exercícios feitos",
+"pmEvery1": "Toda semana",
+"rom_every1": "Inicial e depois toda semana",
+"rp_every1": "Toda semana",
+"nEx_one": "{n} exercício",
+"nEx_other": "{n} exercícios",
+"dsDone_one": "{a} de {b} exercício feito",
+"dsDone_other": "{a} de {b} exercícios feitos",
+"sessionsNeeded_one": "Mais {n} sessão nesta semana",
+"sessionsNeeded_other": "Mais {n} sessões nesta semana",
+"weeksLeft_one": "Mais {n} semana de programa",
+"weeksLeft_other": "Mais {n} semanas de programa",
+"pr_preop_one": "Cirurgia em {n} dia",
+"pr_preop_other": "Cirurgia em {n} dias",
+"rom_cardMore_one": "+ {n} outra",
+"rom_cardMore_other": "+ {n} outras",
+"lwLine_one": "Semana {w}: {s} sessão de {p}, {trend}.",
+"lwLine_other": "Semana {w}: {s} sessões de {p}, {trend}."
 }

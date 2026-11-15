@@ -1,5 +1,5 @@
 import { firebaseEnabled } from './config.js';
-import { t, tr, getLang, setLang, locale, langInfo, LANGS, setAiLang } from './i18n.js';
+import { t, tp, tr, getLang, setLang, locale, langInfo, LANGS, setAiLang } from './i18n.js';
 import { EXERCISES, EQUIP } from './data/exercises.js';
 import { REGIONS, PATHOLOGIES } from './data/pathologies.js';
 import * as store from './store.js';
@@ -194,7 +194,7 @@ function viewHome() {
       <span class="chip streak" title="${t('streak')}" aria-label="${t('streak')} ${P.streak(prof, sessions())}">${icon('flame', 16)} ${P.streak(prof, sessions())}</span></div>
 
     <div class="card today hero">
-      <div class="hero-top"><div class="grow"><span class="hero-kicker">${t('week')} ${week} · ${t('phase')} ${phase} · ${t('phaseName' + phase)}</span><h3>${esc(layName(prof.pathology))}</h3><span class="hero-sub">${ds('dsDone', { a: nDone, b: prog.length })}</span></div>${ring(pct, `${t('today')} ${pct} %`)}</div>
+      <div class="hero-top"><div class="grow"><span class="hero-kicker">${t('week')} ${week} · ${t('phase')} ${phase} · ${t('phaseName' + phase)}</span><h3>${esc(layName(prof.pathology))}</h3><span class="hero-sub">${tp('dsDone', prog.length, { a: nDone, b: prog.length })}</span></div>${ring(pct, `${t('today')} ${pct} %`)}</div>
       ${flare ? `<div class="banner neg">${icon('flame', 20)}<div><b>${t('flareOn')}</b><br>${t('flareOnD')} <button class="link" data-a="flareOff">${t('flareEnd')}</button></div></div>` : ''}
       ${next ? `<button class="btn" data-go="#/session">${IC.play.replace('<svg', '<svg width="16" height="16"')} ${nDone ? t('continueSession') : isTrainDay ? t('startSession') : t('startExtra')}</button>` : `<button class="btn soft" data-go="#/session">${icon('check', 16)} ${t('sessionDone')} · ${t('redoSession')}</button>`}
     </div>
@@ -220,8 +220,8 @@ function viewHome() {
     <h2>${t('nextStep')}</h2><div class="card">${npi.done ? `<span class="small">${t('lastPhase')}</span>` : npi.locked ? `<span class="small">${t('phaseLocked')}</span>` : `
       <div class="small"><b>${t('toReachPhase')} ${npi.phase + 1} · ${t('phaseName' + (npi.phase + 1))}</b></div>
       <ul class="list-plain small">
-        <li class="${npi.weeksLeft ? '' : 'pos'}">${npi.weeksLeft ? t('weeksLeft').replace('{n}', npi.weeksLeft) : t('weeksOk')}</li>
-        <li class="${npi.sessionsNeeded ? '' : 'pos'}">${npi.sessionsNeeded ? t('sessionsNeeded').replace('{n}', npi.sessionsNeeded) : t('sessionsOk')}</li>
+        <li class="${npi.weeksLeft ? '' : 'pos'}">${npi.weeksLeft ? tp('weeksLeft', npi.weeksLeft) : t('weeksOk')}</li>
+        <li class="${npi.sessionsNeeded ? '' : 'pos'}">${npi.sessionsNeeded ? tp('sessionsNeeded', npi.sessionsNeeded) : t('sessionsOk')}</li>
         <li class="${npi.painOk ? 'pos' : 'neg'}">${(npi.painOk ? t('painOk') : t('painHigh')).replace('{m}', npi.painMax)}</li></ul>`}</div>
 
     ${path?.edu ? `<h2>${t('education')}</h2><div class="card"><ul class="list-plain">${tr(path.edu).map((e) => `<li>${esc(e)}</li>`).join('')}</ul>

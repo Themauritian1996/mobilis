@@ -1,6 +1,6 @@
 // Coach vocal : consignes instantanées (voix de l'appareil) + commentaires de fin de série par Gemini.
 import { CONFIG, coachUrl } from './config.js';
-import { CUES, getLang, getAiLang, aiLangInfo, tr, t, langInfo } from './i18n.js';
+import { CUES, getLang, getAiLang, aiLangInfo, tr, t, tp, langInfo } from './i18n.js';
 import { settings } from './store.js';
 import { primeAudio, stopAll, playRich } from './audio.js';
 
@@ -170,7 +170,7 @@ export function localComment(d) {
 }
 function localWeek(d) {
   const trend = d.painDelta < -0.5 ? t('lwDown') : d.painDelta > 0.5 ? t('lwUp') : t('lwSame');
-  return `${t('lwLine', { w: d.week, s: d.sessions, p: d.planned, trend })} ${d.sessions >= d.planned ? t('lwGood') : t('lwMore')}`;
+  return `${tp('lwLine', d.sessions, { w: d.week, s: d.sessions, p: d.planned, trend })} ${d.sessions >= d.planned ? t('lwGood') : t('lwMore')}`;
 }
 
 export async function coachComment(d, imageB64) {

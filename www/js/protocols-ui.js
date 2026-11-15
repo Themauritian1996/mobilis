@@ -1,6 +1,6 @@
 // Protocoles post-opératoires : sélection par le clinicien, carte d'accueil, écran « Protocole », résumé.
 // Sans dépendance au DOM global au chargement (testable en Node) : les helpers d'interface sont locaux.
-import { t, tr } from './i18n.js';
+import { t, tp, tr } from './i18n.js';
 import { PROTOCOLS, protocolById, protocolPhases, variantOf, exerciseEntry, DISCLAIMER } from './data/protocols.js';
 import { EXERCISES } from './data/exercises.js';
 import * as P from './program.js';
@@ -27,7 +27,7 @@ export function confirmedBefore(protocolId, variant, surgeryDate, now = Date.now
 export function rxSectionProtocol(rx) {
   const cur = rx?.protocol || null;
   const html = `<div class="proto-rx" id="pr-root"><h2 style="margin-top:0">${esc(t('pr_choose'))}</h2>
-    <label class="field"><span>${esc(t('pr_choose'))}</span><select class="input" id="pr-id"><option value="">${esc(t('pr_none'))}</option>
+    <label class="field"><select class="input" id="pr-id" aria-label="${esc(t('pr_choose'))}"><option value="">${esc(t('pr_none'))}</option>
       ${PROTOCOLS.map((p) => `<option value="${p.id}" ${cur?.id === p.id ? 'selected' : ''}>${esc(tr(p.name))}</option>`).join('')}</select></label>
     <div id="pr-var-wrap" ${cur ? '' : 'hidden'}></div>
     <div id="pr-detail" ${cur ? '' : 'hidden'}>
@@ -77,7 +77,7 @@ export function homeCardProtocol(prof, now = Date.now()) {
   const proto = st.protocol;
   const v = variantName(proto, st.variant);
   const prec = st.precautions.slice(0, 2);
-  const mile = st.preop ? t('pr_preop', { n: st.daysToSurgery }) : st.last ? t('pr_lastPhase') : st.blocked ? t('pr_nextBlocked') : t('pr_nextIn', { n: st.nextPhaseInWeeks });
+  const mile = st.preop ? tp('pr_preop', st.daysToSurgery) : st.last ? t('pr_lastPhase') : st.blocked ? t('pr_nextBlocked') : t('pr_nextIn', { n: st.nextPhaseInWeeks });
   return `<div class="card proto-card"><span class="eyebrow">${esc(t('pr_homeTitle'))}</span>
     <h3 style="margin:6px 0 2px">${esc(tr(proto.name))}${v ? ` · <span class="muted">${esc(v)}</span>` : ''}</h3>
     <div class="row"><b>${esc(t('pr_week', { n: st.week }))}</b><span class="chip ${st.blocked ? 'neg' : 'ink'}">${esc(t('pr_phase', { n: st.phaseIndex + 1, m: st.phaseCount }))}</span></div>
@@ -112,8 +112,7 @@ export function protocolViewHtml(prof, now = Date.now()) {
     <div class="card proto-hero"><span class="eyebrow">${esc(t('pr_week', { n: st.week }))} · ${esc(t('pr_phase', { n: st.phaseIndex + 1, m: st.phaseCount }))}</span>
       <h2>${esc(tr(proto.name))}</h2><div class="small muted">${esc(tr(proto.surgery))}${v ? ' · ' + esc(v) : ''}</div>
       <div class="proto-meter" role="img" aria-label="${esc(t('pr_phase', { n: st.phaseIndex + 1, m: st.phaseCount }))}">${meter}</div>
-      <div class="small ${st.blocked ? 'neg' : 'muted'}">${esc(st.preop ? t('pr_preop', { n: st.daysToSurgery }) : st.last ? t('pr_lastPhase') : st.blocked ? t('pr_blocked') : t('pr_nextIn', { n: st.nextPhaseInWeeks }))}</div></div>
-    <div class="banner" style="margin-bottom:10px">${ICON_SHIELD}<div><b>${esc(t('pr_precautions'))}</b>${list(st.precautions)}</div></div>
+      <div class="small ${st.blocked ? 'neg' : 'muted'}">${esc(st.preop ? tp('pr_preop', st.daysToSurgery) : st.last ? t('pr_lastPhase') : st.blocked ? t('pr_blocked') : t('pr_nextIn', { n: st.nextPhaseInWeeks }))}</div></div>
     <ol class="proto-tl">${st.phases.map(phase).join('')}</ol>
     <div class="proto-flags"><b>${esc(t('pr_redflags'))}</b><p class="small" style="margin:4px 0 0">${esc(t('pr_flagsIntro'))}</p>${list(proto.redFlags)}</div>
     <p class="small muted">${esc(tr(DISCLAIMER))}</p></section>`;

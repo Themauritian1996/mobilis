@@ -12,8 +12,8 @@
 .prom-big { font-size: 2.75rem; font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: -0.03em; line-height: 1.1; margin: 6px 0; }
 .prom-big small { font-size: 18px; font-weight: 600; color: var(--muted); }
 .prom-mid { font-size: 22px; font-weight: 700; }
-.prom-nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 22px; }
-.prom-nav .btn { width: auto; flex: 1; max-width: 260px; margin-inline-start: auto; }
+.prom-nav { display: flex; align-items: stretch; justify-content: space-between; gap: 12px; margin-top: 22px; }
+.prom-nav .btn { display: inline-flex; align-items: center; justify-content: center; text-align: center; width: auto; flex: 1; max-width: 260px; margin-inline-start: auto; }
 .prom-band { font-weight: 700; margin: 4px 0 0; }
 .prom-band.b0, .prom-band.b1 { color: var(--pos); }
 .prom-band.b3 { color: var(--neg); }
@@ -29,6 +29,7 @@
 .prom-nav .link { min-height: 44px; }
 .prom-screen h2 { text-transform: none; }
 .prom-row .input.sm { padding: 8px 10px; font-size: 14px; width: auto; min-height: 40px; }
+.prom-row select.input.sm { padding-inline-end: 36px; min-width: min(13rem, 100%); max-width: 100%; text-overflow: clip; }
 .prom-delta, .prom-mid.pos { color: var(--pos); font-weight: 700; }
 .prom-delta.neg, .prom-mid.neg { color: var(--neg); }
 .prom-mid.pos { color: var(--pos); }

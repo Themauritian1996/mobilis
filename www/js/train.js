@@ -488,6 +488,7 @@ export function viewTrain(id, cleanup) {
   function setup() {
     $('.bottom').hidden = false;
     setLabel(); showCue(''); center('');
+    { const c = $('#cnt'), r = $('#ring'); if (c) c.textContent = '0'; if (r) r.style.strokeDashoffset = RING; } // affichage seulement : repart à 0 à chaque série
     $('[data-t="end"]').hidden = true; $('[data-t="pause"]').hidden = true; $('.counter').hidden = true; $('.depth').hidden = true; $('.mini-fig').hidden = true;
     const s = $('.setup'); s.hidden = false;
     if (T.mode === 'camera') {
@@ -601,6 +602,7 @@ export function viewTrain(id, cleanup) {
     $('.counter').hidden = false; $('.depth').hidden = dose.type === 'hold'; $('.mini-fig').hidden = false; paintVideoBtn();
     $('[data-t="end"]').hidden = false; $('[data-t="guided"]').hidden = true; $('[data-t="pause"]').hidden = false; $('[data-t="replace"]').hidden = false;
     $('#cntlbl').textContent = dose.type === 'hold' ? `/ ${holdTarget} ${t('sec')}` : `/ ${dose.reps}`;
+    $('#cnt').textContent = '0'; $('#ring').style.strokeDashoffset = RING;
     T.active = true; T.paused = false; startLive();
     let lastWarn = 0;
     // Compteur, anneau, barre d'amplitude ; retourne true si la série est terminée
@@ -741,6 +743,7 @@ export function viewTrain(id, cleanup) {
     const repSec = Math.max(3, tempo.reduce((a, b) => a + b, 0) + (dose.holdTop || 0));
     let el = 0, reps = 0;
     $('#cntlbl').textContent = dose.type === 'hold' ? `/ ${holdTarget} ${t('sec')}` : `/ ${dose.reps}`;
+    $('#cnt').textContent = '0'; $('#ring').style.strokeDashoffset = RING;
     speak(cueText('go'));
     T.guidedTimer = setInterval(() => {
       if (T.paused) return;

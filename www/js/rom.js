@@ -4,7 +4,7 @@
 //
 // Précision : voir la `note` de chaque test. Ordre de grandeur : ± 5° (coude, genou), ± 8–10° (hanche, poignet), ± 10–15° (rotation externe
 // d'épaule, rotation cervicale). Ce n'est pas un goniomètre : sert à suivre l'évolution d'un même patient, avec la même installation.
-import { t, tr, locale } from './i18n.js';
+import { t, tp, tr, locale } from './i18n.js';
 import { TESTS, TEST_IDS, getTest, sidesOf, measure, planeRatio, SUGGESTED, SUGGESTED_REGION } from './data/romtests.js';
 import { state, go, profile, updateProfile, syncProgress } from './state.js';
 import * as store from './store.js';
@@ -181,7 +181,7 @@ const dateS = (ts) => new Date(ts).toLocaleDateString(locale(), { day: 'numeric'
 const testName = (id) => (TESTS[id] ? tr(TESTS[id].name) : id);
 const sideName = (s) => (s === 'L' ? t('sideLeft') : s === 'R' ? t('sideRight') : '');
 const label = (test, side) => `${testName(test)}${side ? ' · ' + sideName(side) : ''}`;
-const everyLabel = (n) => (n ? t('rom_everyN', { n }) : t('rom_baselineOnly'));
+const everyLabel = (n) => (n === 1 ? t('rom_every1') : n ? t('rom_everyN', { n }) : t('rom_baselineOnly'));
 
 // ---------- Graphiques (SVG en ligne) ----------
 /** Courbe d'un test, les deux côtés (G : trait plein + cercles ; D : pointillés + carrés), bande de normalité. */
@@ -278,7 +278,7 @@ export function homeCardRom(prof, now = Date.now()) {
   const items = dueForProfile(prof, now);
   if (!items.length) return '';
   const it = items[0], more = items.length - 1;
-  return `<div class="card rom-card"><div class="row between" style="gap:12px"><div class="row" style="gap:12px;min-width:0"><span class="rom-ic">${RULER}</span><div style="min-width:0"><b>${esc(t('rom_cardTitle'))}</b><br><small class="muted">${esc(label(it.test, it.side))}${more > 0 ? ' · ' + esc(t('rom_cardMore', { n: more })) : ''}</small></div></div>
+  return `<div class="card rom-card"><div class="row between" style="gap:12px"><div class="row" style="gap:12px;min-width:0"><span class="rom-ic">${RULER}</span><div style="min-width:0"><b>${esc(t('rom_cardTitle'))}</b><br><small class="muted">${esc(label(it.test, it.side))}${more > 0 ? ' · ' + esc(tp('rom_cardMore', more)) : ''}</small></div></div>
     <button class="btn sm" data-rom-go="${romHash(it.test, it.side)}">${esc(t('rom_start'))}</button></div></div>`;
 }
 export function bindHomeCardRom(root, goFn = go) {

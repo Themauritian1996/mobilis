@@ -2,7 +2,7 @@
 // Logique pure (testée dans tests/report.test.mjs) : reportDue, reportPeriod, buildReportData, dataFromSummary, summaryPart, rxExtrasReport.
 // Affichage : carte d'accueil, vue #/rapport, section de l'éditeur de programme, bouton PDF de la fiche patient.
 // Le PDF est dessiné par reportpdf.js (jsPDF vendu en local, chargé à la demande).
-import { t, tr, getLang } from './i18n.js';
+import { t, tr, getLang, locale } from './i18n.js';
 import { state, profile, sessions as stateSessions, updateProfile, go as stateGo } from './state.js';
 import * as P from './program.js';
 import { EXERCISES } from './data/exercises.js';
@@ -218,7 +218,7 @@ export function rxSectionReport(rx = {}) {
   const cur = +rx?.report?.every > 0 ? +rx.report.every : 0;
   const html = `<h2>${esc(t('rp_secTitle'))}</h2><div class="card" data-rp-sec>
     <p class="muted small" style="margin:0 0 10px">${esc(t('rp_secD'))}</p>
-    <label class="field" style="margin:0"><span>${esc(t('rp_freq'))}</span><select class="input" data-rp-every>${REPORT_EVERY.map((n) => `<option value="${n}" ${n === cur ? 'selected' : ''}>${esc(n ? t('rp_everyN', { n }) : t('rp_none'))}</option>`).join('')}</select></label></div>`;
+    <label class="field" style="margin:0"><span>${esc(t('rp_freq'))}</span><select class="input" data-rp-every>${REPORT_EVERY.map((n) => `<option value="${n}" ${n === cur ? 'selected' : ''}>${esc(n === 1 ? t('rp_every1') : n ? t('rp_everyN', { n }) : t('rp_none'))}</option>`).join('')}</select></label></div>`;
   return {
     html,
     bind() {},
@@ -247,7 +247,7 @@ export function bindHomeCardReport(root, go = stateGo) {
 // =====================================================================================================================
 // Vue patient : #/rapport
 // =====================================================================================================================
-const dateLong = (ts) => new Date(ts).toLocaleDateString(getLang() === 'fr' ? 'fr-CA' : undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+const dateLong = (ts) => new Date(ts).toLocaleDateString(locale(), { day: 'numeric', month: 'short', year: 'numeric' });
 const pdfFileName = (now = Date.now()) => `Mobilis-rapport-${P.todayKey(now)}.pdf`;
 const GLOBAL = [-2, -1, 0, 1, 2];
 
@@ -279,13 +279,13 @@ export function viewPatientReport($app) {
   function draw() {
     root.innerHTML = `<section class="screen rp-screen"><div class="topbar"><button class="icon-btn" data-go="#/progress" aria-label="${esc(t('back'))}">${icon('back', 20)}</button><h1>${esc(t('rp_title'))}</h1></div>
       <p class="muted small">${esc(t('rp_intro'))}</p>
-      <div class="card rp-meta"><div class="row between"><span class="small muted">${esc(t('rp_period'))}</span><b class="small">${esc(dateLong(per.from))} – ${esc(dateLong(per.to))}</b></div>
-        <div class="row between" style="margin-top:6px"><span class="small muted">${esc(t('rp_lastReport'))}</span><b class="small">${last ? esc(dateLong(last)) : esc(t('rp_never'))}</b></div></div>
+      <div class="card rp-meta"><div class="row between"><span class="small muted">${esc(t('rp_period'))}</span><b class="small"><bdi>${esc(dateLong(per.from))}</bdi> – <bdi>${esc(dateLong(per.to))}</bdi></b></div>
+        <div class="row between" style="margin-top:6px"><span class="small muted">${esc(t('rp_lastReport'))}</span><b class="small">${last ? `<bdi>${esc(dateLong(last))}</bdi>` : esc(t('rp_never'))}</b></div></div>
       ${done ? `<div class="card rp-done" role="status"><b>${icon('check', 18)} ${esc(t('rp_done'))}</b><p class="small muted" style="margin:6px 0 12px">${esc(t('rp_doneD'))}</p>
         <div class="row wrap"><button class="btn" data-rp-again>${icon('share', 18)} ${esc(t('rp_shareAgain'))}</button><button class="btn ghost" data-go="#/home">${esc(t('done'))}</button></div></div>` : `
       <h2>${esc(t('rp_global'))}</h2>${seg('g', GLOBAL, f.global, (v) => esc(t('rp_g' + (v < 0 ? 'm' + -v : v))))}
       <h2>${esc(t('rp_painNow'))}</h2><p class="small muted" style="margin:-4px 0 8px">${esc(t('rp_painD'))}</p>
-      <div class="rp-scale" role="radiogroup" aria-label="${esc(t('rp_painNow'))}">${Array.from({ length: 11 }, (_, i) => `<button type="button" role="radio" aria-checked="${f.pain === i}" class="${f.pain === i ? 'on' : ''}" data-rp-p="${i}">${i}</button>`).join('')}</div>
+      <div class="rp-scale" dir="ltr" role="radiogroup" aria-label="${esc(t('rp_painNow'))}">${Array.from({ length: 11 }, (_, i) => `<button type="button" role="radio" aria-checked="${f.pain === i}" class="${f.pain === i ? 'on' : ''}" data-rp-p="${i}">${i}</button>`).join('')}</div>
       <h2>${esc(t('rp_goalsProg'))}</h2>${seg('gp', [0, 1, 2, 3], f.goalsProgress, (v) => esc(t('rp_gp' + v)))}
       <label class="field" style="margin-top:10px"><span>${esc(t('rp_goals'))}</span><textarea class="input" rows="2" data-rp-f="goals" placeholder="${esc(t('rp_goalsPh'))}">${esc(f.goals)}</textarea></label>
       ${progIds.length ? `<h2>${esc(t('rp_hardEx'))}</h2><div class="pills wrapped">${progIds.map((id) => `<button type="button" class="pill ${f.hardEx.includes(id) ? 'on' : ''}" aria-pressed="${f.hardEx.includes(id)}" data-rp-ex="${id}">${esc(tr(EXERCISES[id].name))}</button>`).join('')}</div>` : ''}

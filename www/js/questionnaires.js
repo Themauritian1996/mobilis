@@ -129,8 +129,8 @@ export function viewProm($app, id) {
       ctl = `<div class="prom-opts" role="radiogroup" aria-label="${esc(qtext)}">${ol.map((x) => `<button class="prom-opt ${cur === x.v ? 'on' : ''}" role="radio" aria-checked="${cur === x.v}" data-v="${x.v}">${esc(x.text)}</button>`).join('')}</div>`;
     } else {
       const vals = Array.from({ length: o.max - o.min + 1 }, (_, k) => o.min + k);
-      ctl = `<div class="prom-grid" role="radiogroup" aria-label="${esc(qtext)}">${vals.map((v) => `<button class="prom-num ${cur === v ? 'on' : ''}" role="radio" aria-checked="${cur === v}" data-v="${v}">${v}</button>`).join('')}</div>
-        ${o.ends ? `<div class="row between small muted" style="margin-top:8px"><span>${o.min} : ${esc(tr(o.ends[0]))}</span><span style="text-align:end">${o.max} : ${esc(tr(o.ends[1]))}</span></div>` : ''}`;
+      ctl = `<div class="prom-grid" dir="ltr" role="radiogroup" aria-label="${esc(qtext)}">${vals.map((v) => `<button class="prom-num ${cur === v ? 'on' : ''}" role="radio" aria-checked="${cur === v}" data-v="${v}">${v}</button>`).join('')}</div>
+        ${o.ends ? `<div class="row between small muted" dir="ltr" style="margin-top:8px;gap:12px"><span dir="auto" style="text-align:left"><bdi>${o.min}</bdi> : ${esc(tr(o.ends[0]))}</span><span dir="auto" style="text-align:right"><bdi>${o.max}</bdi> : ${esc(tr(o.ends[1]))}</span></div>` : ''}`;
     }
     const canSkip = n > 1 && def.id !== 'activities';
     mk(() => `<section class="screen prom-screen" tabindex="-1"><div class="topbar"><button class="icon-btn" data-prev aria-label="${t('back')}">${icon('back', 20)}</button><h1>${esc(nameOf(def))}</h1></div>
@@ -217,7 +217,7 @@ export function viewPromHistory($app) {
       <div class="row" style="gap:18px;margin:8px 0"><div><div class="small muted">${t('pmLast')}</div><div class="prom-mid tnum">${num(tn.last)}</div></div>
         ${tn.delta != null ? `<div><div class="small muted">${t('pmVsStart')}</div><div class="prom-mid tnum ${tn.improvement > 0 ? 'pos' : tn.improvement < 0 ? 'neg' : ''}">${tn.delta > 0 ? '+' : ''}${num(tn.delta)}</div></div>` : ''}</div>
       <div class="chart">${lineSvg(series, def, { label: nameOf(def) })}</div>
-      <div class="small muted">${series.map((p) => new Date(p[0]).toLocaleDateString(locale(), { day: 'numeric', month: 'short' }) + ' : ' + num(p[1])).slice(-6).join(' · ')}</div></div>`;
+      <div class="small muted">${series.map((p) => '<bdi>' + new Date(p[0]).toLocaleDateString(locale(), { day: 'numeric', month: 'short' }) + ' : ' + num(p[1]) + '</bdi>').slice(-6).join(' · ')}</div></div>`;
   }).join('');
   root.innerHTML = `<section class="screen"><div class="topbar"><button class="icon-btn" data-go="#/progress" aria-label="${t('back')}">${icon('back', 20)}</button><h1>${t('pmHistory')}</h1></div>
     <h2>${t('pmFillNow')}</h2><div class="stack">${todo.map((id) => `<button class="prom-due" data-prom-go="${esc(id)}"><span class="grow"><b>${esc(nameOf(M.instrumentDef(id, ctx.custom)))}</b></span>${icon('play', 18)}</button>`).join('')}</div>
@@ -254,7 +254,7 @@ export function rxSectionProm(rx = {}) {
       const def = M.instrumentDef(id, custom); const ok = def.kind !== 'licensed' || M.isAvailable(id, ctx);
       return `<button class="pill ${ok ? '' : 'lock'}" data-padd="${id}" ${ok ? '' : 'aria-disabled="true"'}>${esc(tr(def.name))}${ok ? '' : ' · ' + t('pmLicReq')}</button>`;
     };
-    const sel = (v) => `<select class="input sm" data-every aria-label="${t('pmEvery')}">${EVERY.map((e) => `<option value="${e}" ${e === v ? 'selected' : ''}>${e === 0 ? t('pmOnce') : t('pmEveryN', { n: e })}</option>`).join('')}</select>`;
+    const sel = (v) => `<select class="input sm" data-every aria-label="${t('pmEvery')}">${EVERY.map((e) => `<option value="${e}" ${e === v ? 'selected' : ''}>${e === 0 ? t('pmOnce') : (e === 1 ? t('pmEvery1') : t('pmEveryN', { n: e }))}</option>`).join('')}</select>`;
     const rows = plan.map((p) => {
       const def = M.instrumentDef(p.id, custom);
       if (!def) return '';

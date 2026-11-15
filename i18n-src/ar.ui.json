@@ -898,5 +898,22 @@
 "dsRx": "البرامج",
 "dsFollow": "مرضى متابَعون",
 "dsWatch": "بحاجة إلى متابعة",
-"dsDone": "{a} من {b} تمارين منجزة"
+"dsDone": "{a} من {b} تمارين منجزة",
+"pmEvery1": "كل أسبوع",
+"rom_every1": "البداية ثم كل أسبوع",
+"rp_every1": "كل أسبوع",
+"nEx_one": "تمرين واحد",
+"nEx_other": "{n} تمارين",
+"dsDone_one": "{a} من {b} تمرين منجز",
+"dsDone_other": "{a} من {b} تمارين منجزة",
+"sessionsNeeded_one": "جلسة إضافية واحدة هذا الأسبوع",
+"sessionsNeeded_other": "{n} جلسات إضافية هذا الأسبوع",
+"weeksLeft_one": "أسبوع واحد إضافي من البرنامج",
+"weeksLeft_other": "{n} أسابيع إضافية من البرنامج",
+"pr_preop_one": "الجراحة بعد يوم واحد",
+"pr_preop_other": "الجراحة بعد {n} أيام",
+"rom_cardMore_one": "+ واحدة أخرى",
+"rom_cardMore_other": "+ {n} أخرى",
+"lwLine_one": "الأسبوع {w}: {s} جلسة من أصل {p}، {trend}.",
+"lwLine_other": "الأسبوع {w}: {s} جلسات من أصل {p}، {trend}."
 }

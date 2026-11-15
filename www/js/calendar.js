@@ -1,5 +1,5 @@
 // Calendrier de suivi : séances faites / prévues / manquées, rendez-vous, rappels (APK) et export agenda (web).
-import { t, tr, getLang, locale, dowNarrow } from './i18n.js';
+import { t, tp, tr, getLang, locale, dowNarrow } from './i18n.js';
 import * as P from './program.js';
 const { exceptionPatch } = P;
 import * as store from './store.js';
@@ -83,7 +83,7 @@ export function viewCalendar() {
       ${daySessions.map((s) => `<div class="card" style="margin-bottom:8px"><div class="row between"><b>${t('sessionDoneShort')}</b><span class="chip pos">${icon('check', 14)}</span></div>
         ${s.items.map((i) => { const ex = EXERCISES[i.id]; const ch = i.change > 0 ? '<span class="pos" title="+1">↑</span>' : i.change < 0 ? '<span class="neg" title="−1">↓</span>' : '';
           return `<div class="toggle" style="padding:8px 0"><span><b>${esc(ex ? tr(ex.name) : i.id)}</b><br><small class="muted">${t('level')} ${i.level ?? '–'}/5 ${ch} · ${(i.sets || []).length} ${t('calSets')}${i.pain != null ? ` · ${t('calPain')} ${i.pain}/10` : ''}${i.difficulty != null ? ` · ${t('calDifficulty')} ${i.difficulty}/5` : ''}</small></span></div>`; }).join('')}</div>`).join('')}
-      ${!daySessions.length && si.planned ? `<div class="toggle"><span><b>${si.missed ? t('calMissed') : t('calPlanned')}</b><br><small class="muted">${prog.length} ${t('exercises').toLowerCase()}</small></span></div>
+      ${!daySessions.length && si.planned ? `<div class="toggle"><span><b>${si.missed ? t('calMissed') : t('calPlanned')}</b><br><small class="muted">${tp('nEx', prog.length)}</small></span></div>
         ${prog.map((x) => `<div class="toggle" style="padding:8px 14px"><span>${esc(tr(EXERCISES[x.id].name))}<br><small class="muted">${t('level')} ${x.level}/5</small></span>${si.k <= key() ? `<button class="btn sm ghost" data-ex="${x.id}">${t('start')}</button>` : ''}</div>`).join('')}` : ''}
       ${!daySessions.length && !si.planned && !si.appt.length ? `<div class="toggle"><span class="muted">${inSkip ? t('calRestChosen') : t('restDay')}</span></div>` : ''}
       ${actions.length ? `<div class="row wrap" style="gap:8px;margin-top:4px">${actions.join('')}</div>` : ''}

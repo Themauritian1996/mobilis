@@ -1,5 +1,5 @@
 // Mode clinicien : préparer un programme, l'envoyer par code / QR / lien, suivre et ajuster la progression du patient.
-import { t, tr, getLang, locale, LANGS, langInfo } from './i18n.js';
+import { t, tp, tr, getLang, locale, LANGS, langInfo } from './i18n.js';
 import { REGIONS, PATHOLOGIES } from './data/pathologies.js';
 import { EXERCISES, EQUIP } from './data/exercises.js';
 import { EQUIP_IDS, missing, alternatives } from './equip.js';
@@ -44,7 +44,7 @@ export async function viewClinic() {
     const painMax = PATHOLOGIES.find((x) => x.id === rx.pathology)?.painMax ?? 4;
     const cols = `<div class="pt-cols"><span>${t('patient')}</span><span>${t('sessions7')}</span><span>${t('avgPain')}</span><span>${t('quality')}</span></div>`;
     return `<article class="card rx-card"><header class="rx-head"><div class="grow"><h3>${esc(tr(PATHOLOGIES.find((p) => p.id === rx.pathology)?.name))}</h3>
-        <div class="rx-meta">${rx.code ? `<b class="tnum">${store.fmtCode(rx.code)}</b> · ` : ''}${t('phase')} ${rx.phase}${rx.auto ? '' : ' · ' + t('locked')} · ${rx.ids.length} ${t('exercises').toLowerCase()}${rx.lang && rx.lang !== 'fr' ? ' · ' + esc(langInfo(rx.lang).name) : ''}${rx.label ? '<br>' + esc(rx.label) : ''}</div></div>
+        <div class="rx-meta">${rx.code ? `<b class="tnum">${store.fmtCode(rx.code)}</b> · ` : ''}${t('phase')} ${rx.phase}${rx.auto ? '' : ' · ' + t('locked')} · ${tp('nEx', rx.ids.length)}${rx.lang && rx.lang !== 'fr' ? ' · ' + esc(langInfo(rx.lang).name) : ''}${rx.label ? '<br>' + esc(rx.label) : ''}</div></div>
         <span class="rx-date">${fmtDate(rx.updated)}</span></header>
       ${pts.length ? `<div class="pt-table">${cols}${pts.map((p) => {
         const adh = p.planned ? Math.round((p.sessions7 / p.planned) * 100) : 0;
