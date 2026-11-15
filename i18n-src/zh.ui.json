@@ -567,5 +567,6 @@
 "trend_down": "下降",
 "trend_steady": "稳定",
 "wrongHandL": "现在练习左手：请把左手对准摄像头。",
-"wrongHandR": "现在练习右手：请把右手对准摄像头。"
+"wrongHandR": "现在练习右手：请把右手对准摄像头。",
+"calMoveBusy": "这一天已经安排了训练：两次训练会合并为一次。"
 }

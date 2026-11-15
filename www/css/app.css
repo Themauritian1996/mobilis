@@ -95,7 +95,7 @@ h3 { font-size: 17px; margin: 0 0 4px; letter-spacing: -0.01em; }
 .seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; background: var(--surface-2); padding: 4px; border-radius: 13px; }
 .seg button { border: 0; background: transparent; border-radius: 10px; padding: 9px 4px; font-size: 13px; font-weight: 600; color: var(--muted); min-height: 38px; }
 .seg button.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0, 0, 0, .12); }
-.days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
 .days button { aspect-ratio: 1; max-width: 100%; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); font-weight: 700; font-size: 13px; color: var(--muted); }
 .days button.on { background: var(--ink); color: var(--on-ink); border-color: var(--ink); }
 
@@ -248,8 +248,8 @@ html.wide .sticky-cta { padding-left: 280px; }
 .plane small { font-size: 11.5px; color: var(--muted); }
 
 /* Calendrier */
-.cal-head { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: .06em; margin-bottom: 6px; }
-.cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.cal-head { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); text-align: center; font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: .06em; margin-bottom: 6px; }
+.cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
 .cal button { aspect-ratio: 1; border: 0; background: transparent; border-radius: 12px; position: relative; font-size: 14px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; display: grid; place-items: center; }
 .cal button.out { color: var(--muted); opacity: .35; }
 .cal button.today { box-shadow: inset 0 0 0 1.5px var(--ink); }

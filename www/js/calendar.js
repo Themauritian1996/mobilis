@@ -140,9 +140,11 @@ export function viewCalendar() {
   const bMove = q('#calMove');
   if (bMove) bMove.onclick = () => {
     const tmr = new Date(); tmr.setDate(tmr.getDate() + 1);
-    const bg = sheet(`<h3>${t('calMoveTitle')}</h3><label class="field"><span>${t('calMoveTo')}</span><input class="input" type="date" id="mvd" min="${key()}" value="${key(tmr.getTime())}"></label>
+    const bg = sheet(`<h3>${t('calMoveTitle')}</h3><label class="field"><span>${t('calMoveTo')}</span><input class="input" type="date" id="mvd" min="${key()}" value="${key(tmr.getTime())}"></label><p class="muted small" id="mvw" hidden>${t('calMoveBusy')}</p>
       <div class="row" style="gap:8px"><button class="btn ghost" id="mvc">${t('cancel')}</button><button class="btn" id="mvs">${t('save')}</button></div>`);
     bg.querySelector('#mvc').onclick = () => bg.remove();
+    const mvd = bg.querySelector('#mvd'), warn = () => { bg.querySelector('#mvw').hidden = !(mvd.value && mvd.value !== C.sel && P.isPlannedDay(profile(), mvd.value)); };
+    mvd.oninput = warn; warn();
     bg.querySelector('#mvs').onclick = async () => {
       const to = bg.querySelector('#mvd').value; if (!to || to < key()) return;
       bg.remove(); if (to === C.sel) return; await apply('move', to); C.sel = to; C.month = new Date(+to.slice(0, 4), +to.slice(5, 7) - 1, 1); viewCalendar();
