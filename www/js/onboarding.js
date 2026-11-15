@@ -9,6 +9,10 @@ import * as store from './store.js';
 import { state, go, render, profile, updateProfile } from './state.js';
 import { esc, icon, mountFigs, figSvg, toast, langPicker } from './ui.js';
 import { doseText } from './train.js';
+import { rxExtrasProm } from './questionnaires.js';
+import { rxExtrasRom } from './rom.js';
+import { rxExtrasProtocol } from './protocols-ui.js';
+import { protocolById } from './data/protocols.js';
 
 const $app = () => document.getElementById('app');
 const DAY = 86400000;
@@ -219,11 +223,15 @@ export function viewCodeEntry() {
 }
 
 // Réglages fins du clinicien : dose par exercice (avec le niveau auquel elle a été fixée), progression auto, niveau maximal
-export function rxExtras(rx) {
+export function rxExtras(rx, prev = null) {
   const rxDose = {};
   for (const [id, d] of Object.entries(rx.dose || {})) if (d && rx.ids?.includes(id)) rxDose[id] = { ...d, lv: rx.levels?.[id] || 2 };
-  return { rxDose, autoEx: { ...(rx.autoEx || {}) }, maxLevel: { ...(rx.maxLevel || {}) }, partialEx: { ...(rx.partial || {}) } };
+  return { rxDose, autoEx: { ...(rx.autoEx || {}) }, maxLevel: { ...(rx.maxLevel || {}) }, partialEx: { ...(rx.partial || {}) },
+    ...rxExtrasProm(rx), ...rxExtrasRom(rx), ...rxExtrasProtocol(rx, prev), reportPlan: rx.report && +rx.report.every > 0 ? { every: +rx.report.every } : null };
 }
+
+// Protocole sans pathologie dans le programme : on prend la première pathologie de sa région
+const protocolPathology = (rx, prev) => (rx.pathology || prev?.pathology || !rx.protocol ? {} : { pathology: PATHOLOGIES.find((x) => x.region === protocolById(rx.protocol.id)?.region)?.id || null });
 
 // Profil patient construit à partir d'un programme du clinicien
 function rxToProfile(rx, prev, extra = {}) {
@@ -234,7 +242,7 @@ function rxToProfile(rx, prev, extra = {}) {
     irritability: prev?.irritability || 'med', painBase: prev?.painBase ?? 3, days: rx.days || prev?.days || [1, 3, 5], perWeek: (rx.days || prev?.days || [1, 3, 5]).length,
     startDate: Date.now() - weeks * 7 * DAY, joinedAt: prev?.joinedAt || Date.now(), rxCode: rx.code || null, rxVersion: rx.version || 1, clinician: rx.clinician || '', rxNotes: rx.notes || '',
     nextVisit: rx.nextVisit || prev?.nextVisit || null, lang: getLang(), flareUntil: 0,
-    equipment: rx.equip || prev?.equipment || null, side: rx.side || prev?.side || null, ...rxExtras(rx), ...extra,
+    equipment: rx.equip || prev?.equipment || null, side: rx.side || prev?.side || null, ...rxExtras(rx, prev), ...protocolPathology(rx, prev), ...extra,
   };
 }
 
@@ -306,7 +314,7 @@ export async function checkRxUpdate() {
     if (!rx || (rx.version || 1) <= (p.rxVersion || 1)) return;
     const days = rx.days?.length ? rx.days : p.days;
     const np = await updateProfile({ phase: rx.phase, plan: { phase: rx.phase, ids: rx.ids }, levels: { ...(p.levels || {}), ...(rx.levels || {}) }, lockPhase: !rx.auto, rxVersion: rx.version, rxNotes: rx.notes || '', nextVisit: rx.nextVisit || p.nextVisit, clinician: rx.clinician || p.clinician,
-      days, perWeek: days?.length || p.perWeek, equipment: rx.equip || p.equipment || null, side: rx.side || p.side || null, ...rxExtras(rx) });
+      days, perWeek: days?.length || p.perWeek, equipment: rx.equip || p.equipment || null, side: rx.side || p.side || null, ...rxExtras(rx, p) });
     if (np.remind?.on) { try { (await import('./calendar.js')).scheduleReminders(np); } catch (e) { console.warn(e); } }
     toast(t('rxUpdated'), 4000);
     render();

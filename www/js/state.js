@@ -31,7 +31,13 @@ export async function updateProfile(patch) {
 export async function syncProgress() {
   const p = profile();
   if (!p?.rxCode || !p.shareProgress || !store.isCloud()) return;
-  await store.pushProgress(p.rxCode, P.progressSummary(p, sessions()));
+  await store.pushProgress(p.rxCode, await fullSummary(p, sessions()));
+}
+// Résumé complet : progressSummary + amplitudes (rom.js chargé à la demande : dépend du DOM)
+export async function fullSummary(p, sess) {
+  const base = P.progressSummary(p, sess);
+  try { Object.assign(base, (await import('./rom.js')).summaryPart(p)); } catch (e) { console.warn(e); }
+  return base;
 }
 // Clinicien en « mode test patient » : il voit l'app exactement comme son patient
 export const inTrial = () => profile()?.role === 'clinician' && !!profile()?.pathology;

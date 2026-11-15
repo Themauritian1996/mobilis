@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { INSTRUMENTS, score, due, trend, summaryPart, customToDef, validateLicense, resolveDef, isAvailable, suggestFor, band, FREE_ORDER, LICENSED_ORDER } from '../www/js/data/proms.js';
+import { INSTRUMENTS, score, due, trend, summaryPart, customToDef, validateLicense, mergeLicenses, resolveDef, isAvailable, suggestFor, band, FREE_ORDER, LICENSED_ORDER } from '../www/js/data/proms.js';
 
 const fill = (n, v) => Array(n).fill(v);
 const S = (id, a) => score(INSTRUMENTS[id], a);
@@ -129,4 +129,16 @@ assert.deepEqual(summaryPart({}), { prom: [] });
 assert.ok(suggestFor('knee').region.includes('mfq_knee') && suggestFor('knee').region.includes('koos12') && suggestFor('knee').region.includes('lefs'));
 assert.ok(suggestFor('lumbar').region.includes('mfq_trunk') && suggestFor('lumbar').region.includes('odi'));
 assert.equal(band(INSTRUMENTS.sane, 90), 0); assert.equal(band(INSTRUMENTS.nprs, 8), 3); assert.equal(band(INSTRUMENTS.nprs, 1), 0);
+// ---- textes sous licence embarqués dans la prescription (aller-retour JSON du lien) : le patient peut répondre sans les avoir importés
+{
+  const lic = validateLicense({ instrument: 'lefs', items: Array.from({ length: 20 }, (_, i) => 'item ' + i), options: ['a', 'b', 'c', 'd', 'e'] });
+  const rx = JSON.parse(JSON.stringify({ prom: [{ id: 'lefs', every: 4 }], promTexts: { lefs: lic.entry } }));
+  assert.equal(isAvailable('lefs', { licenses: {} }), false);
+  const merged = mergeLicenses(rx.promTexts, {});
+  assert.equal(isAvailable('lefs', { licenses: merged }), true);
+  assert.equal(resolveDef('lefs', { licenses: merged }).items.length, 20);
+  assert.deepEqual(mergeLicenses({ lefs: { items: ['x'] }, nprs: { items: [] } }, null), {}); // entrées invalides ou instruments libres ignorés
+  const local = { ...lic.entry, items: lic.entry.items.map((x) => ({ ...x, fr: 'local' })) };
+  assert.equal(mergeLicenses(rx.promTexts, { lefs: local }).lefs.items[0].fr, 'local'); // l'import local prime
+}
 console.log('proms tests OK');

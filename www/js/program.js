@@ -2,6 +2,7 @@
 // plan imposé par le clinicien, journée difficile (poussée de douleur).
 import { EXERCISES } from './data/exercises.js';
 import { PATHOLOGIES } from './data/pathologies.js';
+import { summaryPart as promSummary } from './data/proms.js';
 import { protocolById, protocolPhases, exerciseEntry } from './data/protocols.js';
 
 export const pathologyById = (id) => PATHOLOGIES.find((p) => p.id === id);
@@ -375,7 +376,15 @@ export function progressSummary(profile, sessions, now = Date.now()) {
     levels: profile.levels || {}, flare: inFlare(profile, now), ex: exerciseSummary(profile, sessions),
     last: sessions.slice(-5).reverse().map((s) => ({ date: s.date, n: s.items.length, pain: avg(s.items.map((i) => i.pain)) })),
     notes: recentNotes(sessions, 5),
+    ...promSummary(profile), ...protocolSummary(profile, now),
+    badges: Object.keys(profile.badges || {}).length,
   };
+}
+// Protocole post-opératoire : semaine et phase (même forme que protocols-ui.summaryPart, sans dépendre du DOM)
+function protocolSummary(profile, now) {
+  const st = protocolStatus(profile, now);
+  if (!st) return {};
+  return { protocol: { id: st.id, variant: st.variant, week: st.week, phase: st.phaseIndex + 1, phases: st.phaseCount, phaseId: st.phase.id, blocked: st.blocked, criteriaConfirmed: st.criteriaConfirmed, nextPhaseInWeeks: st.nextPhaseInWeeks, preop: st.preop } };
 }
 // Par exercice du programme : niveau, dernière difficulté et douleur, tendance (up | down | steady) d'après les 3 dernières séances
 export function exerciseSummary(profile, sessions) {

@@ -1,4 +1,5 @@
 // Triage en langage simple : noms compréhensibles, reconnaissance d'un diagnostic écrit, questions par région.
+import { LAY_NEW, EXTRA_QUESTIONS } from './pathologies.js';
 const S = (fr, en) => ({ fr, en });
 
 // Nom simple (affiché au patient) + mots-clés pour reconnaître un diagnostic écrit librement
@@ -44,6 +45,7 @@ export const LAY = {
   hallux: { name: S('Douleur au gros orteil (oignon ou raideur)', 'Big-toe pain (bunion or stiffness)'), kw: ['hallux', 'oignon', 'gros orteil', 'bunion', 'big toe'] },
   metatarsalgia: { name: S('Douleur sous l’avant du pied', 'Pain under the ball of the foot'), kw: ['metatarsalgie', 'avant pied', 'morton', 'metatarsal', 'ball of foot'] },
 };
+Object.assign(LAY, LAY_NEW); // pathologies ajoutées (v1.14)
 
 // Questions simples par région : chaque réponse donne des points aux problèmes possibles
 const Q = (fr, en, opts) => ({ q: S(fr, en), opts });
@@ -151,6 +153,7 @@ export const QUESTIONS = {
       O('Sous l’avant du pied, comme un caillou', 'Under the ball of the foot, like a pebble', { metatarsalgia: 5 })]),
   ],
 };
+for (const [region, qs] of Object.entries(EXTRA_QUESTIONS)) QUESTIONS[region] = [...(QUESTIONS[region] || []), ...qs]; // questions des pathologies ajoutées
 
 // Où en est le patient : durée et exercices déjà commencés → phase et niveau de départ
 export const START_QS = [

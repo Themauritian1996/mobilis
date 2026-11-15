@@ -220,6 +220,18 @@ export function validateLicense(json) {
   }
   return { ok: true, id: def.id, entry: { items, options, importedAt: Date.now() } };
 }
+// Textes sous licence disponibles : ceux embarqués dans la prescription (rx.promTexts / profil.promTexts) complétés par ceux importés
+// sur l'appareil (prioritaires). Seules les entrées valides (bon nombre d'items) sont gardées. Retourne { id: entry }.
+export function mergeLicenses(embedded, local) {
+  const out = {};
+  for (const src of [embedded, local]) {
+    for (const [id, e] of Object.entries(src || {})) {
+      const def = INSTRUMENTS[id];
+      if (def?.kind === 'licensed' && Array.isArray(e?.items) && e.items.length === def.nItems) out[id] = e;
+    }
+  }
+  return out;
+}
 // def avec items (licences : { id: entry })
 export function resolveDef(id, { custom = [], licenses = {}, activities = [] } = {}) {
   const def = instrumentDef(id, custom);

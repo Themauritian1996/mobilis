@@ -893,6 +893,7 @@ export function viewTrain(id, cleanup) {
       await store.saveProfile({ ...profile(), levels: { ...(profile().levels || {}), [id]: adj.level } });
       state.data = await store.loadData();
       syncProgress();
+      if (profile()?.role !== 'clinician') import('./badges.js').then((m) => m.syncBadges()).catch((e) => console.warn('badges', e));
       toast(adj.reason === 'flare' ? t('flareKeep') : adj.change > 0 ? `${t('lvlUp')} ${adj.level}` : adj.change < 0 ? `${t('lvlDown')} ${adj.level}` : `${t('lvlSame')} ${adj.level}`);
       let nxt = nextExercise();
       if (state.redoQueue?.length) { const q = state.redoQueue; const i = q.indexOf(id); const n = q[i + 1]; if (n) nxt = { id: n }; else { state.redoQueue = null; nxt = null; } }

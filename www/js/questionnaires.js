@@ -12,7 +12,8 @@ export { score, due, trend, summaryPart, suggestFor, validateLicense, INSTRUMENT
 const num = (x) => (x == null ? '–' : new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 }).format(x));
 const rootOf = ($app) => (typeof $app === 'function' ? $app() : $app);
 const licenses = () => { try { return store.settings().promLicenses || {}; } catch (_) { return {}; } };
-const ctxOf = (prof = profile() || {}, custom = prof.promCustom) => ({ custom: custom || [], licenses: licenses(), activities: prof.promActivities || [] });
+// Textes sous licence : ceux importés sur cet appareil (clinicien), sinon ceux embarqués dans la prescription (profil.promTexts)
+const ctxOf = (prof = profile() || {}, custom = prof.promCustom) => ({ custom: custom || [], licenses: M.mergeLicenses(prof.promTexts, licenses()), activities: prof.promActivities || [] });
 const nameOf = (def) => tr(def.name);
 
 // Importe un fichier de licence { instrument, items, options } : conservé sur cet appareil (réglages). -> { ok, id?, error? }
@@ -24,8 +25,10 @@ export function importPromLicense(json) {
 }
 export const removePromLicense = (id) => { const l = { ...licenses() }; delete l[id]; store.saveSettings({ promLicenses: l }); };
 
+// Textes sous licence des instruments du plan (importés sur l'appareil du clinicien) : embarqués dans la prescription pour que le patient puisse répondre
+export const packTexts = (plan, embedded) => { const all = M.mergeLicenses(embedded, licenses()); return Object.fromEntries((plan || []).map((p) => p.id).filter((id) => all[id]).map((id) => [id, all[id]])); };
 // Profil patient : plan + questionnaires personnalisés recopiés depuis la prescription
-export const rxExtrasProm = (rx) => ({ promPlan: (rx?.prom || []).map((p) => ({ id: p.id, every: +p.every || 0, first: +p.first || 0 })), promCustom: JSON.parse(JSON.stringify(rx?.promCustom || [])) });
+export const rxExtrasProm = (rx) => ({ promPlan: (rx?.prom || []).map((p) => ({ id: p.id, every: +p.every || 0, first: +p.first || 0 })), promTexts: JSON.parse(JSON.stringify(rx?.promTexts || {})), promCustom: JSON.parse(JSON.stringify(rx?.promCustom || [])) });
 
 // Questionnaires dus et remplissables maintenant
 function dueList(prof) {
@@ -244,7 +247,7 @@ export function rxSectionProm(rx = {}) {
   const region = rx.region;
 
   const body = (plan, custom) => {
-    const ctx = { custom, licenses: licenses(), activities: [] };
+    const ctx = { custom, licenses: M.mergeLicenses(rx.promTexts, licenses()), activities: [] };
     const taken = new Set(plan.map((p) => p.id));
     const sug = M.suggestFor(region);
     const pill = (id) => {
@@ -281,11 +284,11 @@ export function rxSectionProm(rx = {}) {
 
   function read(root) {
     const el = sec(root);
-    if (!el) return { prom: plan0.filter((p) => M.isAvailable(p.id, { custom: custom0, licenses: licenses() })), promCustom: custom0 };
+    if (!el) { const prom = plan0.filter((p) => M.isAvailable(p.id, { custom: custom0, licenses: M.mergeLicenses(rx.promTexts, licenses()) })); return { prom, promCustom: custom0, promTexts: packTexts(prom, rx.promTexts) }; }
     const custom = readCustom(root);
-    const ctx = { custom, licenses: licenses(), activities: [] };
+    const ctx = { custom, licenses: M.mergeLicenses(rx.promTexts, licenses()), activities: [] };
     const prom = readPlan(root).filter((p) => { const d = M.instrumentDef(p.id, custom); return d && (d.kind !== 'licensed' || M.isAvailable(p.id, ctx)) && (d.kind !== 'custom' || M.nItemsOf(d) > 0); });
-    return { prom, promCustom: custom.filter((c) => prom.some((p) => p.id === c.id)) };
+    return { prom, promCustom: custom.filter((c) => prom.some((p) => p.id === c.id)), promTexts: packTexts(prom, rx.promTexts) };
   }
 
   function bind(root) {

@@ -10,6 +10,12 @@ import { esc, icon, IC, toast, nav, mountFigs, figSvg, sheet, copyText, shareTex
 import { layName, startTrial } from './onboarding.js';
 import * as P from './program.js';
 import { doseText } from './train.js';
+import { rxSectionProm, clinicPanelProm } from './questionnaires.js';
+import { rxSectionRom, clinicPanelRom } from './rom.js';
+import { rxSectionProtocol } from './protocols-ui.js';
+
+// report.js (rapports PDF) : chargé à la demande, l'interface reste utilisable s'il manque
+let reportMod; const loadReport = async () => (reportMod !== undefined ? reportMod : (reportMod = await import('./report.js').catch(() => null)));
 
 const $app = () => document.getElementById('app');
 const fmtDate = (ts) => new Date(ts).toLocaleDateString(locale(), { day: 'numeric', month: 'short' });
@@ -36,13 +42,24 @@ export async function viewClinic() {
       <div class="small muted">${rx.ids.length} ${t('exercises').toLowerCase()}${rx.label ? ' · ' + esc(rx.label) : ''}</div>
       ${pts.length ? pts.map((p) => {
         const adh = p.planned ? Math.round((p.sessions7 / p.planned) * 100) : 0;
-        return `<div class="list" style="margin-top:10px"><div class="toggle"><span><b>${esc(p.name || t('patient'))}</b><br><small class="muted">${t('week')} ${p.week} · ${t('phase')} ${p.phase} · ${t('updated')} ${fmtDate(p.updated)}</small></span>${p.flare ? `<span class="chip neg">${t('flareShort')}</span>` : ''}</div>
+        return `<div class="list" data-pt="${esc(p.uid || p.updated)}" style="margin-top:10px"><div class="toggle"><span><b>${esc(p.name || t('patient'))}</b><br><small class="muted">${t('week')} ${p.week} · ${t('phase')} ${p.phase} · ${t('updated')} ${fmtDate(p.updated)}</small></span>${p.flare ? `<span class="chip neg">${t('flareShort')}</span>` : ''}</div>
           <div class="kpis"><div><b class="${adh >= 80 ? 'pos' : adh < 50 ? 'neg' : ''}">${p.sessions7}/${p.planned}</b><span>${t('sessions7')}</span></div><div><b class="${p.pain7 != null && p.pain7 > painMax ? 'neg' : ''}">${p.pain7 ?? '–'}</b><span>${t('avgPain')}</span></div><div><b>${p.quality7 != null ? p.quality7 + '%' : '–'}</b><span>${t('quality')}</span></div></div>
+          ${p.protocol ? `<div class="toggle"><span class="small"><b>${esc(t('ig_protoWeek', { n: p.protocol.week, a: p.protocol.phase, b: p.protocol.phases }))}</b>${p.protocol.preop ? '' : p.protocol.blocked ? ` · <span class="neg">${t('pr_blocked')}</span>` : ''}</span></div>` : ''}
           ${exProgress(p, rx)}
+          ${(p.prom?.length || p.rom?.length) ? `<details class="ex-prog"><summary class="small">${t('ig_clinMore')}</summary>${clinicPanelProm(p)}${p.rom?.length ? `<h2>${t('rom_secTitle')}</h2>${clinicPanelRom(p)}` : ''}</details>` : ''}
+          <div data-pdf="${esc(p.uid || p.updated)}"></div>
           ${p.notes?.length ? `<div class="toggle" style="display:block"><b class="small">${t('patientComments')}</b>${p.notes.slice(0, 3).map((n) => `<div class="small" style="margin-top:6px"><span class="muted">${fmtDate(n.date)} · ${esc(tr(EXERCISES[n.ex]?.name))}${n.pain != null ? ' · ' + n.pain + '/10' : ''}</span><br>« ${esc(n.text)} »</div>`).join('')}</div>` : ''}</div>`;
       }).join('') : (rx.code ? `<p class="small muted" style="margin:10px 0 0">${t('waitingPatient')}</p>` : '')}
       <div class="row" style="margin-top:12px"><button class="btn sm ghost grow" data-share="${rxRef(rx)}">${icon('share', 16)} ${t('sendCode')}</button><button class="btn sm ghost grow" data-test="${rxRef(rx)}">${icon('play', 14)} ${t('testRx')}</button><button class="btn sm grow" data-go="#/clinic/rx/${rxRef(rx)}">${t('adjust')}</button></div></div>`;
   }).join('');
+  // Bouton PDF du rapport (report.js) sur chaque fiche patient
+  loadReport().then((R) => {
+    if (!R?.clinicPdfButton) return;
+    list.forEach((rx) => (rx.patients || []).forEach((p) => {
+      const slot = box.querySelector(`[data-pdf="${CSS.escape(String(p.uid || p.updated))}"]`); if (!slot) return;
+      slot.innerHTML = R.clinicPdfButton(p); R.bindClinicPdf?.(slot, p, { pathology: rx.pathology, surgeryDate: rx.protocol?.surgeryDate });
+    }));
+  });
   const find = (ref) => list.find((x) => rxRef(x) === ref);
   box.querySelectorAll('[data-share]').forEach((b) => (b.onclick = () => { const rx = find(b.dataset.share); shareSheet(rx.code, linkOf(rx)); }));
   box.querySelectorAll('[data-test]').forEach((b) => (b.onclick = () => startTrial(find(b.dataset.test))));
@@ -90,11 +107,25 @@ export async function viewRxEditor(code) {
     label: rx?.label || '', version: rx?.version || 0, created: rx?.created || null, days: rx?.days || [1, 3, 5],
     lang: rx?.lang || getLang(), localId: rx?.localId || null, equip: rx?.equip || null, side: rx?.side || null,
     dose: JSON.parse(JSON.stringify(rx?.dose || {})), autoEx: { ...(rx?.autoEx || {}) }, maxLevel: { ...(rx?.maxLevel || {}) }, partial: { ...(rx?.partial || {}) }, open: null,
+    prom: JSON.parse(JSON.stringify(rx?.prom || [])), promCustom: JSON.parse(JSON.stringify(rx?.promCustom || [])), promTexts: { ...(rx?.promTexts || {}) },
+    rom: rx?.rom || null, protocol: rx?.protocol || null, report: rx?.report || null,
   });
   const path = PATHOLOGIES.find((p) => p.id === f.pathology);
   const regionEx = [...new Set(PATHOLOGIES.filter((p) => p.region === f.region).flatMap((p) => Object.values(p.phases).flat()))];
   const others = regionEx.filter((id) => !f.ids.includes(id));
-  const draw = () => viewRxEditor(code);
+  // Sections ajoutées (protocole, questionnaires, amplitude, rapport) : lues dans le DOM avant chaque nouveau dessin
+  const R = await loadReport();
+  const secs = path ? { protocol: rxSectionProtocol(f), prom: rxSectionProm(f), rom: rxSectionRom(f), report: R?.rxSectionReport ? R.rxSectionReport(f) : null } : {};
+  const collect = () => {
+    const root = $app();
+    if (!path || !root.querySelector('#pr-root')) return;
+    const id = root.querySelector('#pr-id')?.value;
+    if (!id) f.protocol = null;
+    else { const r = secs.protocol.read(root); f.protocol = r.protocol || { id, variant: root.querySelector('#pr-variant')?.value || undefined, surgeryDate: root.querySelector('#pr-date')?.value || '', pastOk: root.querySelector('#pr-past')?.checked !== false }; }
+    Object.assign(f, secs.prom.read(root), secs.rom.read(root));
+    if (secs.report) { try { Object.assign(f, secs.report.read(root)); } catch (e) { console.warn(e); } }
+  };
+  const draw = () => { collect(); viewRxEditor(code); };
   // Matériel manquant → remplacement maison ou exercice équivalent proposé au clinicien
   const missEq = (id) => {
     const m = missing(id, f.equip); if (!m.length) return '';
@@ -140,11 +171,13 @@ export async function viewRxEditor(code) {
     <div class="list" style="margin-top:14px"><div class="toggle"><span><b>${t('autoProg')}</b><br><small class="muted">${t('autoProgD')}</small></span><button class="switch ${f.auto ? 'on' : ''}" id="auto" role="switch" aria-checked="${f.auto}"></button></div></div>
     <label class="field" style="margin-top:14px"><span>${t('notesForPatient')}</span><textarea class="input" id="nt" placeholder="${t('notesPh')}">${esc(f.notes)}</textarea></label>
     <label class="field"><span>${t('nextVisit')}</span><input class="input" type="date" id="nv" value="${esc(f.nextVisit)}"></label>
-    <label class="field"><span>${t('patientLang')}</span><select class="input" id="pl">${LANGS.map((l) => `<option value="${l.id}" ${f.lang === l.id ? 'selected' : ''}>${l.name}</option>`).join('')}</select><small class="muted">${t('patientLangD')}</small></label>` : ''}
+    <label class="field"><span>${t('patientLang')}</span><select class="input" id="pl">${LANGS.map((l) => `<option value="${l.id}" ${f.lang === l.id ? 'selected' : ''}>${l.name}</option>`).join('')}</select><small class="muted">${t('patientLangD')}</small></label>
+    ${secs.protocol.html}${secs.prom.html}${secs.rom.html}${secs.report ? secs.report.html : ''}` : ''}
     <div style="height:96px"></div>
     <div class="sticky-cta"><div class="row"><button class="btn ghost" id="try" style="flex:0 0 auto;width:auto;padding-inline:16px" ${path && f.ids.length ? '' : 'disabled'}>${icon('play', 14)} ${t('testRx')}</button><button class="btn grow" id="save" ${path && f.ids.length ? '' : 'disabled'}>${code ? t('saveChanges') : t('createSend')}</button></div></div></section>
     <div class="desk-only">${nav('clinic', prof.role)}</div>`;
   mountFigs($app());
+  Object.values(secs).forEach((x) => { try { x?.bind?.($app()); } catch (e) { console.warn(e); } });
   const q = (s) => $app().querySelector(s), qa = (s) => $app().querySelectorAll(s);
   q('#cn').oninput = (e) => { f.clinician = e.target.value; };
   q('#lb').oninput = (e) => { f.label = e.target.value; };
@@ -182,9 +215,15 @@ export async function viewRxEditor(code) {
   const levelsOf = () => Object.fromEntries(f.ids.map((id) => [id, f.levels[id] || 2]));
   q('#try').onclick = () => startTrial({ ...f, levels: levelsOf(), code: null, dose: only(f.dose), autoEx: only(f.autoEx), maxLevel: only(f.maxLevel), partial: only(f.partial) });
   q('#save').onclick = async () => {
+    if (path) {
+      const pr = secs.protocol.read($app());
+      if (pr.error) return toast(t('ig_protoDate'), 4000);
+      collect();
+    }
     q('#save').disabled = true;
     const levels = levelsOf();
-    const data = { code: f.code, clinician: f.clinician.trim(), label: f.label.trim(), region: f.region, pathology: f.pathology, phase: f.phase, ids: f.ids, levels, auto: f.auto, notes: f.notes.trim(), nextVisit: f.nextVisit || null, days: f.days, version: f.version, created: f.created, lang: f.lang || getLang(), equip: f.equip || null, side: f.side || null, dose: only(f.dose), autoEx: only(f.autoEx), maxLevel: only(f.maxLevel), partial: only(f.partial) };
+    const data = { code: f.code, clinician: f.clinician.trim(), label: f.label.trim(), region: f.region, pathology: f.pathology, phase: f.phase, ids: f.ids, levels, auto: f.auto, notes: f.notes.trim(), nextVisit: f.nextVisit || null, days: f.days, version: f.version, created: f.created, lang: f.lang || getLang(), equip: f.equip || null, side: f.side || null, dose: only(f.dose), autoEx: only(f.autoEx), maxLevel: only(f.maxLevel), partial: only(f.partial),
+      prom: f.prom || [], promCustom: f.promCustom || [], promTexts: f.promTexts || {}, rom: f.rom || null, protocol: f.protocol || null, report: f.report || null };
     if (f.localId) data.localId = f.localId;
     try {
       const res = await store.saveRx(data);

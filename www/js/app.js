@@ -13,12 +13,27 @@ import { viewTrain, doseText } from './train.js';
 import { viewSession } from './session.js';
 import { viewCalendar, appointments, refreshReminders } from './calendar.js';
 import { viewClinic, viewRxEditor, viewTestStart } from './clinic.js';
+import { viewProm, viewPromHistory, homeCardProm, bindHomeCardProm } from './questionnaires.js';
+import { viewRom, viewRomHistory, homeCardRom, bindHomeCardRom } from './rom.js';
+import { viewProtocol, homeCardProtocol } from './protocols-ui.js';
+import { viewBadges, homeChipBadges, syncBadges } from './badges.js';
 
 const $app = document.getElementById('app');
 let cleanup = [];
+let RPT = null; // report.js (rapports PDF) : chargé au démarrage, l'app fonctionne sans lui
+
+// Badges : évalue après une sauvegarde ; rafraîchit l'accueil si un badge vient d'être gagné (jamais pour le clinicien)
+async function badgesAfter() {
+  try {
+    const p = profile(); if (!p || p.role === 'clinician') return;
+    const { newOnes } = await syncBadges();
+    if (newOnes?.length && /^#?\/?(home)?$/.test(location.hash)) render();
+  } catch (e) { console.warn('badges', e); }
+}
 
 // ---------- Démarrage et routes ----------
 async function boot() {
+  try { RPT = await import('./report.js'); } catch (_) { RPT = null; }
   await setLang(getLang());
   applyTheme();
   try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme); } catch (_) {}
@@ -50,6 +65,7 @@ function route() {
   window.scrollTo(0, 0);
   const r = location.hash.replace(/^#\/?/, '');
   const [name, arg, arg2] = r.split('/');
+  if (name !== 'train' && name !== 'rx') badgesAfter(); // après une séance, un questionnaire, une mesure ou un rapport : nouveaux badges
   if (name === 'rx' && arg) {
     try { localStorage.setItem('mobilis.pendingRx', arg); } catch (_) {}
     // Le lien porte la langue choisie par le clinicien (#/rx/CODE/es)
@@ -71,6 +87,13 @@ function route() {
   if (name === 'profile') return viewProfile();
   if (name === 'train' && arg) return viewTrain(arg, cleanup);
   if (prof.role === 'clinician' && !prof.pathology) return viewTestStart();
+  if (name === 'prom' && arg) return viewProm($app, arg);
+  if (name === 'proms') return viewPromHistory($app);
+  if (name === 'rom' && arg) return viewRom($app, arg, arg2 || '-', cleanup);
+  if (name === 'amplitude') return viewRomHistory($app);
+  if (name === 'protocole') return viewProtocol($app);
+  if (name === 'badges') return viewBadges($app);
+  if (name === 'rapport' && RPT?.viewPatientReport) return RPT.viewPatientReport($app);
   if (name === 'calendar') return viewCalendar();
   if (name === 'session') return viewSession();
   if (name === 'progress') return viewProgress();
@@ -161,10 +184,14 @@ function viewHome() {
   const isTrainDay = P.isPlannedDay(prof, today);
   const npi = P.nextPhaseInfo(prof, sessions());
   const path = P.pathologyById(prof.pathology);
+  // « À faire » : questionnaire, mesure d'amplitude, rapport, semaine du protocole
+  const todo = [homeCardProm(prof), homeCardRom(prof), RPT?.homeCardReport ? RPT.homeCardReport(prof) : '', homeCardProtocol(prof)].filter(Boolean);
+  const isPatientView = prof.role !== 'clinician';
 
   $app.innerHTML = `<section class="screen">${trialBar()}
     <div class="hello"><div class="avatar">${esc((prof.name || '?')[0].toUpperCase())}</div><div class="grow"><span class="eyebrow">${new Date().toLocaleDateString(locale(), { weekday: 'long', day: 'numeric', month: 'long' })}</span><div style="font-size:19px;font-weight:700">${t('hello')} ${esc(prof.name)}</div></div>
       <span class="chip" title="${t('streak')}">${icon('flame', 14)} ${P.streak(prof, sessions())}</span></div>
+    ${isPatientView ? `<div class="row" style="margin:-6px 0 12px;gap:8px">${homeChipBadges(prof)}</div>` : ''}
 
     <div class="card today">
       <div class="row between"><div class="grow"><span class="eyebrow">${t('week')} ${week} · ${t('phase')} ${phase} · ${t('phaseName' + phase)}</span><h3 style="margin-top:6px">${esc(layName(prof.pathology))}</h3></div><div class="big">${pct}<span style="font-size:18px">%</span></div></div>
@@ -180,6 +207,8 @@ function viewHome() {
       <div><b>${ws.sessions ?? 0}<small style="font-size:13px;color:var(--muted)">/${P.plannedPerWeek(prof)}</small></b><span>${t('sessions')}</span></div>
       <div><b>${ws.pain != null ? ws.pain.toFixed(1) : '–'}</b><span>${t('avgPain')}</span></div>
       <div><b>${ws.quality != null ? Math.round(ws.quality * 100) + '%' : '–'}</b><span>${t('quality')}</span></div></div></div>
+
+    ${todo.length ? `<h2>${t('ig_todo')}</h2><div class="stack todo">${todo.join('')}</div>` : ''}
 
     ${prof.rxNotes ? `<h2>${t('fromClinician')}</h2><div class="card"><span class="eyebrow">${esc(prof.clinician || t('yourClinician'))}</span><p style="margin:6px 0 0;white-space:pre-line">${esc(prof.rxNotes)}</p></div>` : ''}
     ${appt ? `<div class="card row" style="margin-top:10px">${icon('cal', 22)}<div class="grow"><b>${t('calAppt')}</b><div class="small muted">${new Date(appt.date + 'T12:00').toLocaleDateString(locale(), { weekday: 'long', day: 'numeric', month: 'long' })}${appt.time ? ' · ' + esc(appt.time) : ''}${appt.note ? ' · ' + esc(appt.note) : ''}</div></div></div>` : ''}
@@ -200,6 +229,7 @@ function viewHome() {
   </section>${nav('home', navRole())}`;
   mountFigs($app);
   bindTrialBar();
+  bindHomeCardProm($app, go); bindHomeCardRom($app, go); RPT?.bindHomeCardReport?.($app, go);
   $app.querySelectorAll('[data-jp]').forEach((b) => (b.onclick = async () => { await store.saveJournal({ day: today, pain: +b.dataset.jp, ts: Date.now() }); state.data = await store.loadData(); toast(t('saved')); render(); }));
   const fl = $app.querySelector('[data-a="flare"]');
   if (fl) fl.onclick = () => {
@@ -304,6 +334,8 @@ function viewProgress() {
   const j = (state.data.journal || []).slice(-14);
   $app.innerHTML = `<section class="screen"><div class="topbar"><h1>${t('progress')}</h1><span class="chip">${t('week')} ${P.weekNumber(prof)} · ${t('phase')} ${prof.phase || 1}</span></div>
     <button class="btn ghost" data-go="#/report">${icon('doc', 18)} ${t('reportBtn')}</button>
+    <div class="list" style="margin-top:10px">${[['#/proms', t('pmTitle')], ['#/amplitude', t('ig_amplitude')], ['#/badges', t('bdgTitle')], ...(prof.protocol ? [['#/protocole', t('pr_title')]] : []), ...(RPT?.viewPatientReport ? [['#/rapport', t('reportTitle')]] : [])]
+      .map(([h, l]) => `<button class="toggle" data-go="${h}" style="width:100%;text-align:start;border:0;background:transparent;color:inherit;font:inherit;cursor:pointer;min-height:44px"><span><b>${esc(l)}</b></span><span class="muted" aria-hidden="true">›</span></button>`).join('')}</div>
     ${!has ? `<div class="card muted" style="margin-top:12px">${t('noData')}</div>` : `
     <h2>${t('weekly')}</h2><div class="card chart">${lineChart(rows, [
       { get: (r) => r.pain, color: 'var(--neg)' },
@@ -348,10 +380,13 @@ function viewReport() {
     <p class="muted small">${t('reportD')}</p>
     <div class="card"><pre style="white-space:pre-wrap;font:inherit;margin:0;font-size:14px">${esc(txt)}</pre></div>
     <div class="row" style="margin-top:12px"><button class="btn ghost" id="cp">${icon('copy', 18)} ${t('copy')}</button><button class="btn" id="sh">${icon('share', 18)} ${t('share')}</button></div>
+    ${RPT?.viewPatientReport ? `<button class="btn soft" id="pdf" style="margin-top:10px">${icon('doc', 18)} ${t('ig_pdf')}</button>` : ''}
     ${prof.rxCode ? `<div class="list" style="margin-top:14px"><div class="toggle"><span><b>${t('shareWithClin')}</b><br><small class="muted">${store.isCloud() ? t('shareWithClinD') : t('shareNeedsAccount')}</small></span>${store.isCloud() ? `<button class="switch ${prof.shareProgress ? 'on' : ''}" id="auto" role="switch" aria-checked="${!!prof.shareProgress}"></button>` : ''}</div></div>` : ''}
   </section>${nav('progress', navRole())}`;
   $app.querySelector('#cp').onclick = () => copyText(txt);
   $app.querySelector('#sh').onclick = () => shareText(t('reportTitle'), txt);
+  const pdf = $app.querySelector('#pdf');
+  if (pdf) pdf.onclick = () => go('#/rapport');
   const au = $app.querySelector('#auto');
   if (au) au.onclick = async () => { await updateProfile({ shareProgress: !prof.shareProgress }); syncProgress(); viewReport(); };
 }
