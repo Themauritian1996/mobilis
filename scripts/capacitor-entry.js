@@ -4,3 +4,5 @@ export { Browser } from '@capacitor/browser';
 export { LocalNotifications } from '@capacitor/local-notifications';
 export { SpeechRecognition } from '@capacitor-community/speech-recognition';
 export { TextToSpeech } from '@capacitor-community/text-to-speech';
+export { Share } from '@capacitor/share';
+export { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
