@@ -1,0 +1,35 @@
+/* Questionnaires (PROM) — complète app.css, n'utilise que ses variables */
+.prom-screen { outline: none; }
+.prom-q { font-size: 21px; line-height: 1.3; letter-spacing: -0.01em; margin: 6px 0 18px; text-wrap: balance; }
+.prom-stem { margin: 0 0 4px; font-size: 14px; }
+.prom-opts { display: grid; gap: 10px; }
+.prom-opt { min-height: 56px; padding: 14px 16px; text-align: start; border-radius: 14px; border: 1.5px solid var(--line); background: var(--surface); font-weight: 600; font-size: 16px; }
+.prom-opt.on, .prom-num.on { background: var(--ink); color: var(--on-ink); border-color: var(--ink); }
+.prom-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+.prom-num { min-height: 56px; border-radius: 14px; border: 1.5px solid var(--line); background: var(--surface); font-weight: 700; font-size: 18px; font-variant-numeric: tabular-nums; }
+.prom-slider { padding: 8px 0 14px; text-align: center; }
+.prom-slider input[type=range] { width: 100%; height: 44px; accent-color: var(--ink); }
+.prom-big { font-size: 40px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; margin: 6px 0; }
+.prom-big small { font-size: 18px; font-weight: 600; color: var(--muted); }
+.prom-mid { font-size: 22px; font-weight: 700; }
+.prom-nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 22px; }
+.prom-nav .btn { width: auto; flex: 1; max-width: 260px; margin-inline-start: auto; }
+.prom-band { font-weight: 700; margin: 4px 0 0; }
+.prom-band.b0, .prom-band.b1 { color: var(--pos); }
+.prom-band.b3 { color: var(--neg); }
+.prom-due { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; margin-top: 8px; padding: 10px 14px; text-align: start; border-radius: 14px; border: 1px solid var(--line); background: var(--surface-2); }
+.prom-due small { display: block; }
+.prom-due svg { flex: none; }
+.prom-svg { width: 100%; height: auto; display: block; }
+.prom-svg .ax { stroke: var(--line); }
+.prom-svg text { font-size: 10px; fill: var(--muted); font-family: var(--font); }
+.prom-spark { min-width: 70px; max-width: 140px; margin-inline-start: auto; }
+.prom-row { border: 1px solid var(--line); border-radius: 14px; padding: 12px; background: var(--surface); }
+.prom-row .input.sm { padding: 8px 10px; font-size: 14px; width: auto; min-height: 40px; }
+.prom-delta, .prom-mid.pos { color: var(--pos); font-weight: 700; }
+.prom-delta.neg, .prom-mid.neg { color: var(--neg); }
+.prom-mid.pos { color: var(--pos); }
+.prom-clin + .prom-clin, .prom-hist + .prom-hist { margin-top: 10px; }
+.pills.wrapped { flex-wrap: wrap; overflow: visible; padding-inline: 0; margin-inline: 0; }
+.pill.lock { opacity: .55; border-style: dashed; }
+.seg[role=radiogroup] { grid-auto-flow: row; grid-auto-columns: auto; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); }
