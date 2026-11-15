@@ -891,5 +891,12 @@
 "rp_none": "Sem relatório automático",
 "rp_everyN": "A cada {n} semanas",
 "rp_pdfClin": "Gerar o PDF do paciente",
-"rp_pdfClinD": "A partir do resumo compartilhado (últimos 7 dias, sem detalhe das séries)."
+"rp_pdfClinD": "A partir do resumo compartilhado (últimos 7 dias, sem detalhe das séries).",
+"vpCam": "A câmara conta as tuas repetições e corrige a tua postura",
+"vpPlan": "Um programa que se ajusta à tua dor, semana após semana",
+"vpClin": "O teu clínico pode acompanhar o teu progresso, se quiseres",
+"dsRx": "Programas",
+"dsFollow": "Pacientes seguidos",
+"dsWatch": "A vigiar",
+"dsDone": "{a} de {b} exercícios feitos"
 }

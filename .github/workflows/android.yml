@@ -45,6 +45,10 @@ jobs:
           # Retour de la connexion Google (ca.mobilis.app://auth)
           sed -i '0,/<\/activity>/s##    <intent-filter>\n                <action android:name="android.intent.action.VIEW" />\n                <category android:name="android.intent.category.DEFAULT" />\n                <category android:name="android.intent.category.BROWSABLE" />\n                <data android:scheme="ca.mobilis.app" />\n            </intent-filter>\n        </activity>#' android/app/src/main/AndroidManifest.xml
           cat android/app/src/main/AndroidManifest.xml
+          # Icône de l'app (brand/) : mipmaps + fond de l'icône adaptative
+          for d in brand/android/mipmap-*; do cp -f "$d"/*.png "android/app/src/main/res/$(basename "$d")/"; done
+          f=android/app/src/main/res/values/ic_launcher_background.xml
+          if [ -f "$f" ]; then sed -i 's#<color name="ic_launcher_background">[^<]*</color>#<color name="ic_launcher_background">\#2747D4</color>#' "$f"; fi
 
       - name: Signature (facultatif)
         if: env.HAS_KEYSTORE == 'true'
