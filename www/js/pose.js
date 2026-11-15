@@ -145,6 +145,8 @@ const M = {
   // ouverture du pouce (abduction / « C ») : angle entre le pouce (2 → 4) et le 2e métacarpien (0 → 5)
   hThumbAbd: (p) => { const h = H3(p), z = p.hand3 ? 1 : 0; return angle3(sub3(h[4], h[2], z), sub3(h[5], h[0], z)); },
 };
+// Mesures des doigts et du pouce : contacts ou fermetures enchaînés, souvent sans rouvrir complètement la main (voir Tracker)
+const FINGER_METRICS = new Set(['hPinch', 'hClose', 'hThumbAbd']);
 // points de la main utilisés pour les distances : 3D (mètres) si disponibles, sinon 2D (pixels ; le z relatif du modèle 2D est ignoré)
 const H3 = (p) => p.hand3 || p.hand;
 const D3 = (p) => (p.hand3 ? d3 : dist);
@@ -242,6 +244,7 @@ export function bodyVisible(p) {
 // ---------- Compteur de répétitions / maintien ----------
 // Haut du mouvement : 85 % de la cible (la cible tient déjà compte du niveau du patient)
 const TOP = 0.85;
+const AGAIN_DROP = 0.55, AGAIN_RISE = 0.22;
 export class Tracker {
   constructor(ex, planeKey, { romFactor = 1, holdTarget = 0, onRep = () => {}, onCue = () => {}, side = null } = {}) {
     this.forceSide = side; // 'L' | 'R' : côté travaillé choisi par le patient
@@ -275,6 +278,15 @@ export class Tracker {
     // Fenêtres mesurées en TEMPS (et non en nombre d'images) : même comportement à 30 images/s (ordinateur) qu'à 10–18
     // analyses/s (téléphone) — avant, 18 images à 10/s faisaient attendre 1,8 s et l'arrêt entre deux répétitions n'était plus vu.
     if (!this.base) {
+      // position de départ exigée (« guard », ex. main ouverte) : pas de « zéro » pris sur un poing fermé
+      if (s.guard) {
+        const gv = metric(s.guard.m, p, this.side);
+        if ((s.guard.min != null && gv < s.guard.min) || (s.guard.max != null && gv > s.guard.max)) {
+          this.calib = []; this.calibBest = null; this.calibT0 = 0; this.guardMs = (this.guardMs || 0) + dt * 1000;
+          return { phase: 'calibrating', progress: 0, reps: 0, holdSec: 0, guard: this.guardMs >= 400 };
+        }
+        this.guardMs = 0;
+      }
       const snap = { t, L: this.valueFor(p, 'L'), R: this.valueFor(p, 'R'), checks: {} };
       if (!this.calibT0) this.calibT0 = t;
       for (const ck of s.checks || []) if (ck.rel) snap.checks[ck.m] = metric(ck.m, p, this.side);
@@ -372,6 +384,14 @@ export class Tracker {
     }
 
     // Mode répétitions
+    // Condition à respecter pendant toute la répétition (« guard », ex. opposition du pouce : la main reste ouverte, hClose ≥ 1,15).
+    // Un poing fermé amène le bout du pouce à côté des doigts repliés sans contact pulpe à pulpe : la mesure seule le prendrait
+    // pour une opposition. Une répétition pendant laquelle (ou juste avant laquelle) la condition n'est pas respectée ne compte pas.
+    if (s.guard) {
+      const gv = metric(s.guard.m, p, side);
+      const off = (s.guard.min != null && gv < s.guard.min) || (s.guard.max != null && gv > s.guard.max);
+      if (off) { this.guardT = t; this.guardMs = (this.guardMs || 0) + dt * 1000; } else this.guardMs = 0;
+    }
     const { pr, to, d: dv } = prog(v, side);
     if (dv != null) v = dv; // écart à la position de départ (degrés ou fraction) : c'est ce que voient le patient et l'IA
     // lissage dans le temps (≈ 0,12 s) : le tremblement des points ne crée ni fausse répétition ni fausse amplitude
@@ -379,10 +399,20 @@ export class Tracker {
     if (this.noiseP > 0.12) tau = Math.min(0.35, tau * this.noiseP / 0.12); // points qui tremblent beaucoup : lissage plus fort
     const a = dt ? 1 - Math.exp(-dt / tau) : 0.45;
     this.p = this.p + (Math.max(-0.5, Math.min(1.25, pr)) - this.p) * a; // au-delà de 125 % : aucune information utile (et retour plus rapide)
+    this.u = (this.u ?? 0) + (Math.max(-0.5, Math.min(1.5, pr)) - (this.u ?? 0)) * a; // même lissage, borné à 150 % (sommet réel d'un contact franc)
     const P = this.p, holdTop = s.holdTop || 0;
     if (s.rel && this.state === 'rest') {
       if (P < -0.35) { this.lowT = this.lowT || t; if (t - this.lowT > 1500) { this.base[side] = this.base[side] + (pr * (s.absRel ? Math.abs(s.delta) : s.delta) * this.rom); if (cur3) this.base3 = cur3; this.p = 0; this.lowT = 0; } }
       else this.lowT = 0;
+      // Doigts / pouce : « zéro » pris main à demi fermée (série lancée pendant un contact) → la main ouverte se retrouve bien
+      // en dessous du départ à chaque cycle, mais jamais 1,5 s d'affilée quand les contacts s'enchaînent, et rien ne compte.
+      // On cumule donc ce temps d'un cycle à l'autre (remis à zéro dès qu'une répétition compte) et on reprend le zéro à la
+      // position la plus ouverte atteinte (valeur lissée, non bornée).
+      if (FINGER_METRICS.has(s.metric) && !s.absRel) {
+        this.q = this.q == null ? pr : this.q + (pr - this.q) * a;
+        if (P < -0.35 && this.q < -0.35) { this.lowAcc = (this.lowAcc || 0) + dt * 1000; this.lowQ = Math.min(this.lowQ ?? 0, this.q); }
+        if (this.lowAcc > 1500) { this.base[side] = this.base[side] + this.lowQ * s.delta * this.rom; if (cur3) this.base3 = cur3; this.p = Math.max(0, Math.min(1.25, this.q - this.lowQ)); this.q = null; this.lowT = 0; this.lowAcc = 0; this.lowQ = null; }
+      }
     }
     if (this.p0 == null) {
       // progression de la position de départ réelle (chaque patient part d'un angle différent)
@@ -392,11 +422,20 @@ export class Tracker {
     const span0 = 1 - this.p0;
     const startT = this.p0 + 0.28 * span0, endT = this.p0 + 0.14 * span0;
     if (this.state === 'rest' && P <= this.p0 + 0.08 * span0) this.restT = t; // dernier instant au repos
-    if (this.state === 'rest' && P > startT) {
+    // Doigts / pouce : répétition déjà comptée à la redescente, sans retour complet au départ (voir « again » plus bas) →
+    // la suivante ne démarre que si le mouvement REPART nettement (≥ 22 % au-dessus du point le plus bas atteint) :
+    // une main qui se rouvre lentement, ou qui reste à mi-chemin, ne crée pas de répétition.
+    if (this.state === 'rest' && this.floor != null) {
+      if (P < endT) this.floor = null;
+      else if (P < this.floor) { this.floor = P; this.restT = t; }
+    }
+    if (this.state === 'rest' && P > startT && (this.floor == null || P >= this.floor + AGAIN_RISE)) {
+      this.floor = null; this.q = null; this.peakU = this.u;
       this.state = 'moving'; this.peak = P; this.moveStart = t; this.highMs = 0; this.repStart = Math.max(this.restT || t, t - 4000); this.repFaults = new Set(); this.topSince = 0; this.repWorst = {}; this.peakVal = v;
     }
     if (this.state === 'moving') {
       if (P > this.peak) { this.peak = P; this.peakVal = v; }
+      if (this.u > this.peakU) this.peakU = this.u;
       if (P >= 0.6) this.highMs = (this.highMs || 0) + dt * 1000;
       // haut du mouvement : 85 % de la cible ; maintien toléré à 80 % (petits tremblements pendant la tenue)
       if (P >= TOP) { if (!this.topSince) this.topSince = t; }
@@ -420,20 +459,30 @@ export class Tracker {
           if (s.rel && !s.absRel) this.p = 0;
         }
       } else this.lowStart = 0;
-      if (P < endT || settled) {
+      // Doigts / pouce (opposition, poing, ouverture du pouce) : le patient enchaîne les contacts en rouvrant la main plus ou
+      // moins — rarement jusqu'à la position de départ exacte, et le lissage retarde encore le retour. Attendre le retour à
+      // 14 % fusionnait plusieurs contacts en une seule répétition (vidéo d'un patient : 2 comptées sur 7). La répétition est
+      // donc terminée dès que le mouvement est redescendu à 55 % de son sommet (nette réouverture). Sommet mesuré jusqu'à 150 % :
+      // un contact franc dépasse largement la cible, et rouvrir à mi-course est déjà un nouveau départ.
+      const again = s.again ?? (FINGER_METRICS.has(s.metric) ? AGAIN_DROP : 0);
+      const reopened = again > 0 && this.peak >= 0.6 && P <= again * Math.max(this.peak, this.peakU);
+      if (P < endT || settled || reopened) {
+        this.floor = reopened && !settled && P >= endT ? P : null;
         this.lowStart = 0;
         const dur = (t - this.repStart) / 1000;
         const reachedTop = this.peak >= TOP;
         const heldOk = !holdTop || this.topOk;
         // une vraie répétition : au moins 60 % de la cible et 0,6 s (sinon : tremblement ou faux départ, ignoré)
-        if (this.peak >= 0.6 && (this.highMs || 0) >= 150 && dur >= 0.6 && t - this.moveStart >= 450) { // ≥ 0,45 s hors de la zone de repos : pas un sursaut des points
+        const guarded = this.guardT != null && this.guardT >= this.moveStart - 300;
+        if (guarded) this.voided = (this.voided || 0) + 1;
+        if (!guarded && this.peak >= 0.6 && (this.highMs || 0) >= 150 && dur >= 0.6 && t - this.moveStart >= 450) { // ≥ 0,45 s hors de la zone de repos : pas un sursaut des points
           const full = reachedTop && heldOk;
           const fl = [...this.repFaults];
           const minSec = s.minRepSec || 1.0;
           if (dur < minSec * 0.75) { fl.push('slow'); this.onCue('slow'); }
           if (!reachedTop) this.onCue('depth'); else if (!heldOk) this.onCue('holdIt');
           const quality = Math.max(0, Math.min(1, 1 - 0.25 * new Set(fl).size - (full ? 0 : 0.3)));
-          this.reps++; full ? this.full++ : this.partial++;
+          this.reps++; full ? this.full++ : this.partial++; this.lowAcc = 0; this.lowQ = null;
           for (const f of fl) this.faultCount[f] = (this.faultCount[f] || 0) + 1;
           const rep = { n: this.reps, full, dur: +dur.toFixed(1), faults: fl, quality: +quality.toFixed(2), peak: +this.peak.toFixed(2),
             meas: { metric: s.metric, peakValue: +(+this.peakVal).toFixed(1), targetValue: +(+to).toFixed(1), romPct: Math.round(this.peak * 100), minRepSec: s.minRepSec || 1.0, checks: Object.values(this.repWorst) } };
@@ -443,7 +492,7 @@ export class Tracker {
         this.state = 'rest'; this.peak = 0; this.topSince = 0; this.topOk = false;
       }
     }
-    return { phase: this.state, value: v, target: to, side, progress: Math.max(0, Math.min(1, P)), reps: this.reps, faults };
+    return { phase: this.state, value: v, target: to, side, progress: Math.max(0, Math.min(1, P)), reps: this.reps, faults, guard: (this.guardMs || 0) >= 400 };
   }
 
   // Répétition jugée « mauvais mouvement » par le contrôle de la démonstration : elle ne compte pas comme complète

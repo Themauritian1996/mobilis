@@ -365,7 +365,7 @@ export const EXERCISES = {
     keys: [k('thumbTip', 'Forme un O, pas un D', 'Make an O, not a D', [8, 8])],
     dose: { type: 'reps', sets: 2, reps: 10 },
     fig: { view: 'palm', frames: [{ thumb: 10 }, { opp: 1 }, { opp: 2 }, { opp: 3 }, { opp: 4 }], period: 8 },
-    track: { mode: 'reps', kind: 'hand', cam: S('Paume face à la caméra, doigts vers le haut, à 30–50 cm : toute la main dans l’image.', 'Palm facing the camera, fingers up, 30–50 cm away: whole hand in view.'), planes: { hand: { metric: 'hPinch', rel: true, delta: 0.55, minRepSec: 0.8 } } },
+    track: { mode: 'reps', kind: 'hand', cam: S('Paume face à la caméra, doigts vers le haut, à 30–50 cm : toute la main dans l’image.', 'Palm facing the camera, fingers up, 30–50 cm away: whole hand in view.'), planes: { hand: { metric: 'hPinch', rel: true, delta: 0.55, minRepSec: 0.8, guard: { m: 'hClose', min: 1.15, cue: 'guardOpenHand' } } } },
   },
   thumb_cmc: {
     name: S('Stabilisation du pouce en « C »', 'Thumb “C” stabilization'),

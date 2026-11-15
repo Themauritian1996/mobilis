@@ -525,6 +525,12 @@ export function viewTrain(id, cleanup) {
         if (!handInFrame(hd.lm, 0.04)) return;
         const st = T.tracker.update({ hand: handPx(hd.lm, V.fw, V.fh), hand3: hd.world || undefined }, now); T.lastSt = st;
         hud(st);
+        // condition de l'exercice non respectée (opposition du pouce faite poing fermé) : ces mouvements ne comptent pas → on le dit
+        const gk = st.guard && T.tracker.spec.guard?.cue;
+        if (gk && t(gk) !== gk && (st.phase === 'calibrating' || now - lastWarn > 6000)) {
+          showCue(t(gk), 'bad');
+          if (now - lastWarn > 6000) { lastWarn = now; if (!T.live) speak(t(gk)); else T.live.event?.('fault', { fault: 'closing the hand into a fist instead of touching one fingertip with the thumb (does not count)' }); setTimeout(() => { if ($('.cue span').textContent === t(gk)) showCue(''); }, 3500); }
+        }
       };
       T.raf = requestAnimationFrame(loopHand);
       return;

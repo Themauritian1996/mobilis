@@ -568,5 +568,6 @@
 "trend_steady": "estable",
 "wrongHandL": "Trabajamos la mano izquierda: muestra tu mano izquierda a la cámara.",
 "wrongHandR": "Trabajamos la mano derecha: muestra tu mano derecha a la cámara.",
-"calMoveBusy": "Ese día ya tiene una sesión prevista: las dos se unirán en una sola."
+"calMoveBusy": "Ese día ya tiene una sesión prevista: las dos se unirán en una sola.",
+"guardOpenHand": "Abre la mano: toca la punta de un dedo con el pulgar, sin cerrar el puño."
 }
