@@ -2,8 +2,10 @@
 import { CONFIG, coachUrl } from './config.js';
 import { CUES, getLang, tr, t, langInfo } from './i18n.js';
 import { settings } from './store.js';
+import { primeAudio, stopAll, playRich } from './audio.js';
 
 // ---------- Voix de l'appareil (latence quasi nulle, idéal pour corriger en direct) ----------
+let liveTalking = false, richSeq = 0;
 let voices = [];
 const loadVoices = () => { try { voices = speechSynthesis.getVoices(); } catch (_) { voices = []; } };
 if ('speechSynthesis' in window) { loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; }
@@ -21,12 +23,22 @@ async function tts() {
   if (!nativeTTS) { try { nativeTTS = (await import('../vendor/capacitor.js')).TextToSpeech || false; } catch (_) { nativeTTS = false; } }
   return nativeTTS;
 }
-export function stopSpeech() {
+// Coupe les voix de l'appareil (navigateur + native) seulement
+function stopDeviceVoice() {
   try { speechSynthesis.cancel(); } catch (_) {}
   if (isNative()) tts().then((T) => T && T.stop().catch(() => {}));
 }
-export function speak(text, { interrupt = false } = {}) {
+// Coupe toute parole : voix de l'appareil, voix Gemini de fin de série et voix en direct (fondu de 60 ms)
+export function stopSpeech() {
+  richSeq++;
+  stopDeviceVoice();
+  stopAll({ fade: true });
+}
+// force : parler même pendant que le coach en direct parle (sinon on se tait : jamais deux voix à la fois)
+export function speak(text, { interrupt = false, force = false } = {}) {
   if (settings().voice === 'off' || !text) return;
+  if (liveTalking && !force) return;
+  if (interrupt) { richSeq++; stopAll({ fade: true, kind: 'rich' }); }
   if (isNative()) {
     tts().then((T) => {
       if (!T) return;
@@ -48,8 +60,7 @@ export function speak(text, { interrupt = false } = {}) {
 // Anti-répétition des consignes
 const lastSaid = {}; let lastAny = 0;
 // Pendant que le coach IA en direct parle, les consignes locales se taisent (sauf le comptage).
-let liveTalking = false;
-export const setLiveTalking = (v) => { liveTalking = v; if (v) stopSpeech(); };
+export const setLiveTalking = (v) => { liveTalking = v; if (v) stopDeviceVoice(); };
 export function cue(key) {
   const now = Date.now();
   if (liveTalking) return false;
@@ -271,11 +282,13 @@ async function transcribe(b64, mime) {
 }
 
 // ---------- Voix Gemini (TTS) pour les commentaires de fin de série ----------
-let audioCtx = null;
 export async function speakRich(text) {
   const s = settings();
   if (s.voice === 'off') return;
-  if (s.voice !== 'gemini') return speak(text, { interrupt: true });
+  primeAudio(); // dans le geste de l'utilisateur quand il y en a un
+  const seq = ++richSeq; // toute parole plus récente (ou stopSpeech) annule celle-ci
+  stopDeviceVoice(); stopAll({ fade: true });
+  if (s.voice !== 'gemini') return speak(text, { interrupt: true, force: true });
   try {
     const voiceName = getLang() === 'fr' ? 'Aoede' : 'Kore';
     const body = { contents: [{ parts: [{ text }] }], generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } } } };
@@ -297,13 +310,10 @@ export async function speakRich(text) {
     const j = await r.json();
     const b64 = j.audio || j.candidates?.[0]?.content?.parts?.find((p) => p.inlineData)?.inlineData?.data;
     if (!b64) throw new Error('no audio');
-    const bin = atob(b64); const n = bin.length / 2; const f = new Float32Array(n);
-    for (let i = 0; i < n; i++) { let v = bin.charCodeAt(2 * i) | (bin.charCodeAt(2 * i + 1) << 8); if (v > 32767) v -= 65536; f[i] = v / 32768; }
-    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-    const buf = audioCtx.createBuffer(1, n, 24000); buf.copyToChannel(f, 0);
-    const src = audioCtx.createBufferSource(); src.buffer = buf; src.connect(audioCtx.destination); src.start();
+    if (seq !== richSeq) return; // une parole plus récente a pris la place pendant le chargement
+    if (!playRich(b64)) throw new Error('no audio ctx');
   } catch (_) {
-    speak(text, { interrupt: true });
+    if (seq === richSeq) speak(text, { interrupt: true, force: true });
   }
 }
 

@@ -8,6 +8,7 @@ import { speak, stopSpeech, cue, cueText, countAloud, coachComment, localComment
 import { state, go, profile, sessions, todaySession, nextExercise, syncProgress, updateProfile } from './state.js';
 import { esc, icon, IC, toast, mountFigs, figSvg, figureBlock, sleep } from './ui.js';
 import { startLiveCoach, liveAvailable, primeAudio } from './live.js';
+import { isPlaying } from './audio.js';
 import { createPreciseCoach, fineKind } from './ai-coach.js';
 import { loadHands, detectHands, pickHand, handPx, drawHand, handInFrame, HandSideVote } from './hand.js';
 import { canvasSize, fitRect, projectLandmarks, LandmarkSmoother, SubjectGuard, Pacer } from './overlay.js';
@@ -174,16 +175,32 @@ export function viewTrain(id, cleanup) {
     ex, exercise: ex.name.en, condition: path.name.en || tr(path.name), target: dose.type === 'hold' ? holdTarget : dose.reps,
     painLimit: path.painMax ?? 4, steps: ex.steps.en || [], keys: (ex.keys || []).map((k) => k.en || tr(k)), plane: T.mode === 'camera' ? planeFor(setIdx()) : 'guided',
   });
+  // Visibilité vue par le suivi de l'app (et non par l'impression de l'IA) : la dernière analyse comptée date de moins de 1,5 s
+  const subject = () => (fine === 'hand' ? 'hand' : fine === 'foot' ? 'foot' : 'body');
+  const isTracked = () => {
+    if (T.mode !== 'camera') return fine === 'hand' ? !!T.lastHand : true;
+    if (T.lastSt !== T.liveSeen) { T.liveSeen = T.lastSt; T.liveSeenT = performance.now(); }
+    return performance.now() - (T.liveSeenT || T.liveStartT || 0) < 1500 && (fine !== 'hand' || !!T.lastHand);
+  };
+  // Évènements pour le coach en direct : défaut mesuré, sujet perdu > 1,5 s, sujet retrouvé (les répétitions arrivent par onRep)
+  function liveWatch() {
+    if (!T.live?.event || !T.active || T.paused) return;
+    const tr_ = isTracked();
+    if (!tr_ && !T.liveLost) { T.liveLost = true; T.live.event('lost', { subject: subject(), sec: 1.5 }); }
+    else if (tr_ && T.liveLost) { T.liveLost = false; T.live.event('back', { subject: subject() }); }
+    for (const [k, ts] of T.recentFaults || []) if (ts > (T.liveFaultT || 0)) { T.liveFaultT = ts; T.live.event('fault', { fault: CUES[k]?.en || k }); }
+  }
   function liveState() {
+    const base = { tracked: isTracked(), subject: subject(), paused: !!T.paused, phase: T.mode === 'camera' ? T.lastSt?.phase || 'calibrating' : 'guided' };
     if (T.mode === 'camera' && T.tracker) {
       const now = performance.now();
       const faults = [...(T.recentFaults || new Map())].filter(([, ts]) => now - ts < 6000).map(([k]) => CUES[k]?.en || k);
       const last = T.tracker.repLog.slice(-1)[0];
       const measures = [last?.meas ? `last rep reached ${last.meas.romPct}% of range in ${last.dur}s` : '', ...(T.lastSt?.checks || []).map((c) => `${c.cue} ${c.value} (limit ${c.kind === 'max' ? '≤' : '≥'}${c.limit})`)].filter(Boolean).join('; ');
-      return { reps: T.tracker.reps, target: dose.reps, holdSec: dose.type === 'hold' ? Math.floor(T.lastSt?.holdSec || 0) : null, faults, measures };
+      return { ...base, lastRomPct: last?.meas?.romPct ?? null, reps: T.tracker.reps, target: dose.reps, holdSec: dose.type === 'hold' ? Math.floor(T.lastSt?.holdSec || 0) : null, faults, measures };
     }
     const g = T.guidedEl ? T.guidedEl() : { el: 0, reps: 0 };
-    return dose.type === 'hold' ? { holdSec: g.el, target: holdTarget, faults: [] } : { reps: g.reps, target: dose.reps, faults: [] };
+    return dose.type === 'hold' ? { ...base, holdSec: g.el, target: holdTarget, faults: [] } : { ...base, reps: g.reps, target: dose.reps, faults: [] };
   }
   // Contrôle « bon mouvement » vs démonstration + consigne précise quand ça ne correspond pas
   const figView = ex.fig.view || 'side';
@@ -208,11 +225,13 @@ export function viewTrain(id, cleanup) {
   function startLive() {
     if (!T.liveAI || T.live || !T.stream || !T.active) return;
     if ((store.settings().aiMode || 'precise') === 'live') {
+      T.liveStartT = performance.now(); T.liveLost = false; T.liveFaultT = performance.now(); T.liveSeen = T.lastSt; T.liveSeenT = T.liveStartT;
       T.live = startLiveCoach({
         video, mirror: isMirror(), context: liveCtx(), getState: liveState, frame: () => annotated(512),
         onText: (txt, final) => aiText(txt, final),
         onState: (st) => { if (st === 'error' && T.liveState !== 'error') toast(t('liveErr'), 4500); T.liveState = st; paintAI(); },
       });
+      clearInterval(T.liveWatchT); T.liveWatchT = setInterval(liveWatch, 250);
       return;
     }
     const plane = T.mode === 'camera' ? planeFor(setIdx()) : 'guided';
@@ -235,6 +254,7 @@ export function viewTrain(id, cleanup) {
     }
   }
   function aiText(txt, final, seen) {
+    if (final === 'drop') { clearTimeout(T.aiCueT); if ($('.cue span').className === 'ai') showCue(''); return; } // remarque identique à la précédente : on ne la ré-affiche pas
     showCue(txt, 'ai'); clearTimeout(T.aiCueT);
     if (final) { T.aiNotes = [...(T.aiNotes || []), seen ? `${txt} (${seen})` : txt].slice(-6); T.aiCueT = setTimeout(() => { if ($('.cue span').className === 'ai') showCue(''); }, 4500); }
   }
@@ -308,7 +328,14 @@ export function viewTrain(id, cleanup) {
     };
     requestAnimationFrame(tick);
   }
-  function stopLive() { clearInterval(T.aiTimer); if (T.live) { T.live.stop(); T.live = null; } T.liveState = 'off'; paintAI(); }
+  // Retourne true si la voix du coach en direct jouait encore (elle s'éteint en fondu de 60 ms)
+  function stopLive() {
+    clearInterval(T.aiTimer); clearInterval(T.liveWatchT);
+    const was = !!T.live && isPlaying('live');
+    if (T.live) { T.live.stop(); T.live = null; } T.liveState = 'off'; paintAI();
+    return was;
+  }
+  const afterLive = (was, fn) => (was ? setTimeout(fn, 90) : fn()); // laisse finir le fondu avant de parler : jamais deux voix
   function setLiveAI(on) {
     if (on && !liveAvailable()) { toast(t('liveNeedKey'), 5000); return; }
     primeAudio();
@@ -430,6 +457,7 @@ export function viewTrain(id, cleanup) {
         // répétition jugée « mauvais mouvement » seulement si le mouvement ne correspondait pas pendant ≥ 35 % de sa durée
         if ((T.mvWrongMs || 0) >= 350 * rep.dur) { T.tracker.flagRep('wrongMove'); rep = T.tracker.repLog[T.tracker.repLog.length - 1]; }
         T.mvWrongMs = 0;
+        T.live?.event?.('rep', { n: T.tracker.reps, romPct: rep.meas?.romPct ?? null, faults: (rep.faults || []).map((k) => CUES[k]?.en || k) });
         if (T.live?.review && !rep.faults.includes('wrongMove')) {
           T.live.review(T.kf || annotated(), { ...rep.meas, dur: rep.dur, faults: rep.faults, move: T.mm?.describe() }, T.tracker.repLog.slice(-4, -1).map((r) => ({ n: r.n, romPct: r.meas?.romPct, faults: r.faults })));
           T.kf = null; T.kfP = 0;
@@ -537,10 +565,10 @@ export function viewTrain(id, cleanup) {
     T.paused = on;
     const b = $('[data-t="pause"]'); b.innerHTML = `${icon(on ? 'play' : 'pause', 18)} ${t(on ? 'resume' : 'pause')}`; b.classList.toggle('on', on);
     if (on) {
-      stopLive(); showCue(''); clearOverlay(); // en pause : la vidéo en direct, sans squelette figé
+      const was = stopLive(); showCue(''); clearOverlay(); // en pause : la vidéo en direct, sans squelette figé
       center(`<div class="rest-box"><span class="eyebrow">${t('pausedLbl')}</span><p class="small" style="opacity:.8;margin:6px 0 14px">${t('pausedD')}</p><button class="btn sm" data-t="resume">${icon('play', 16)} ${t('resume')}</button></div>`);
       root.querySelector('[data-t="resume"]').onclick = () => setPause(false);
-      speak(t('pausedSpoken'), { interrupt: true });
+      afterLive(was, () => speak(t('pausedSpoken'), { interrupt: true }));
     } else {
       center(''); if (T.mode === 'guided') guidedLayout();
       if (T.tracker) T.tracker.lastT = 0; // pas de saut de temps au maintien
@@ -551,12 +579,11 @@ export function viewTrain(id, cleanup) {
 
   function endSet() {
     if (!T.active) return;
-    T.active = false; stopLive(); cancelAnimationFrame(T.raf); clearOverlay(); showCue('');
+    T.active = false; const was = stopLive(); cancelAnimationFrame(T.raf); clearOverlay(); showCue('');
     const sum = T.tracker.summary();
     const pl = planeFor(setIdx());
     T.sets.push({ side: curSide(), plane: pl, mode: sum.mode, reps: sum.reps, full: sum.full, partial: sum.partial, holdSec: sum.holdSec, quality: sum.quality, faults: sum.faults });
-    speak(cueText('setDone'), { interrupt: true });
-    summarySheet({ ...sum, plane: pl });
+    afterLive(was, () => { speak(cueText('setDone'), { interrupt: true }); summarySheet({ ...sum, plane: pl }); }); // d'abord la voix en direct s'éteint, ensuite seulement bilan et voix
   }
 
   function startGuided() {
@@ -586,12 +613,11 @@ export function viewTrain(id, cleanup) {
   }
   function endGuided() {
     if (!T.active) return;
-    T.active = false; stopLive(); clearInterval(T.guidedTimer); center(''); $('.mini-fig').hidden = true;
+    T.active = false; const was = stopLive(); clearInterval(T.guidedTimer); center(''); $('.mini-fig').hidden = true;
     const { el, reps } = T.guidedEl();
     const sum = dose.type === 'hold' ? { mode: 'hold', holdSec: el, reps: 0, full: 0, partial: 0, quality: null, faults: {} } : { mode: 'reps', reps, full: reps, partial: 0, quality: null, faults: {} };
     T.sets.push({ side: curSide(), plane: 'guided', ...sum });
-    speak(cueText('setDone'), { interrupt: true });
-    summarySheet({ ...sum, plane: 'guided' });
+    afterLive(was, () => { speak(cueText('setDone'), { interrupt: true }); summarySheet({ ...sum, plane: 'guided' }); });
   }
 
   // Repos entre les séries (réglable dans l'aperçu de la séance)
