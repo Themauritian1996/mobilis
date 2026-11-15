@@ -1,0 +1,53 @@
+/* Mesure d'amplitude (rom.js) — s'appuie sur les variables de app.css (--ink, --muted, --line, --surface-2, --pos, --neg) */
+.rom-chart { width: 100%; height: auto; display: block; margin-top: 8px; overflow: visible; }
+.rom-chart .rom-band { fill: var(--pos); opacity: .14; }
+.rom-chart .rom-grid { stroke: var(--line); stroke-width: 1; }
+.rom-chart .rom-tx { fill: var(--muted); font-size: 10px; font-variant-numeric: tabular-nums; }
+.rom-chart .rom-l { stroke: var(--ink); fill: var(--ink); }
+.rom-chart .rom-r { stroke: var(--pos); fill: var(--pos); }
+.rom-chart .rom-ln { stroke-width: 2; }
+.rom-chart .rom-ln.rom-r { stroke-dasharray: 6 4; }
+.rom-chart .rom-pt { stroke-width: 1.5; }
+.rom-chart .rom-pt.man { fill: var(--surface); }
+.rom-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); margin-top: 6px; }
+.rom-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.rom-key { display: inline-block; width: 14px; height: 3px; border-radius: 2px; background: var(--ink); }
+.rom-key.r { background: repeating-linear-gradient(90deg, var(--pos) 0 5px, transparent 5px 8px); height: 3px; }
+.rom-key.band { height: 10px; background: var(--pos); opacity: .25; }
+.rom-spark { color: var(--ink); display: block; }
+.rom-test + .rom-test { margin-top: 12px; }
+.rom-test { margin-top: 12px; }
+.rom-side { margin-top: 10px; font-size: 12.5px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.rom-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(88px, 1fr)); gap: 8px; margin-top: 8px; }
+.rom-stats > div { background: var(--surface-2); border-radius: 12px; padding: 8px 10px; min-width: 0; }
+.rom-stats small { display: block; font-size: 11.5px; color: var(--muted); line-height: 1.2; }
+.rom-stats b { font-size: 17px; font-variant-numeric: tabular-nums; }
+.rom-up { color: var(--pos); }
+.rom-down { color: var(--neg); }
+.rom-card .rom-ic { width: 40px; height: 40px; border-radius: 12px; background: var(--surface-2); display: grid; place-items: center; flex: none; }
+.rom-scroll { overflow-x: auto; margin: 0 -4px; }
+.rom-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.rom-table th { text-align: start; font-size: 11.5px; color: var(--muted); font-weight: 600; padding: 4px 6px; }
+.rom-table td { padding: 8px 6px; border-top: 1px solid var(--line); vertical-align: top; }
+.rom-table .tnum { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rom-row .rom-pills { gap: 6px; flex: none; }
+.rom-row .pill { min-height: 36px; padding: 6px 12px; }
+
+/* écran de mesure (dans .train) */
+.train.rom .setup { max-height: calc(100% - 96px); overflow-y: auto; }
+.rom-intro .rom-sch { width: 84px; height: 84px; flex: none; }
+.rom-sch .sch-fix { stroke: var(--ink); stroke-width: 6; stroke-linecap: round; }
+.rom-sch .sch-from { stroke: var(--muted); stroke-width: 4; stroke-linecap: round; stroke-dasharray: 2 6; }
+.rom-sch .sch-to { stroke: var(--ink); stroke-width: 4; stroke-linecap: round; }
+.rom-sch .sch-arc { stroke: #ffb020; stroke-width: 3; stroke-linecap: round; }
+.rom-sch .sch-pv { fill: var(--ink); }
+.rom-steps { margin: 12px 0 6px; padding-inline-start: 22px; display: grid; gap: 8px; font-size: 14.5px; line-height: 1.4; }
+.rom-steps b { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.rom-more { margin: 4px 0 12px; font-size: 13.5px; }
+.rom-more summary { cursor: pointer; color: var(--muted); font-weight: 600; min-height: 32px; display: flex; align-items: center; }
+.rom-big { font-size: 56px; font-weight: 300; line-height: 1.1; font-variant-numeric: tabular-nums; margin: 4px 0 6px; }
+.rom-trials { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 4px; font-size: 14px; }
+.rom-trials li.best { font-weight: 700; }
+.rom-trials li.best::after { content: ' ★'; }
+.train.rom .counter.rom-live .val b { font-size: 30px; }
+.train.rom .counter.rom-live .val small { font-size: 10.5px; }

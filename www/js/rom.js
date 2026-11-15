@@ -323,7 +323,7 @@ export async function viewRomHistory($app) {
   const others = TEST_IDS.filter((id) => !shown.includes(id));
   $app.innerHTML = `<section class="screen"><div class="topbar"><button class="icon-btn" data-rom-back aria-label="${esc(t('back'))}">${ui.icon('back', 20)}</button><h1>${esc(t('rom_histTitle'))}</h1></div>
     ${prof.romPlan ? `<div class="banner"><div><b>${esc(t('rom_yourPlan'))}</b><br><small>${esc(everyLabel(planEvery(prof.romPlan)))} · ${plan.length} ${esc(t('rom_measures'))}</small></div></div>` : ''}
-    ${dueNow.length ? `<h2>${esc(t('rom_toDo'))}</h2><div class="list">${dueNow.map((d) => `<button class="toggle" data-rom-go="${romHash(d.test, d.side)}"><span><b>${esc(label(d.test, d.side))}</b><br><small class="muted">${esc(t(d.reason === 'baseline' ? 'rom_dueBaseline' : 'rom_dueAgain'))}</small></span>${RULER}</button>`).join('')}</div>` : ''}
+    ${dueNow.length ? `<h2>${esc(t('rom_toDo'))}</h2><div class="list">${dueNow.map((d) => `<div class="toggle"><span><b>${esc(label(d.test, d.side))}</b><br><small class="muted">${esc(t(d.reason === 'baseline' ? 'rom_dueBaseline' : 'rom_dueAgain'))}</small></span><button class="btn sm" data-rom-go="${romHash(d.test, d.side)}">${esc(t('rom_start'))}</button></div>`).join('')}</div>` : ''}
     ${shown.length ? shown.map(card).join('') : `<div class="card muted" style="margin-top:12px">${esc(t('rom_noneYetPatient'))}</div>`}
     ${others.length ? `<h2>${esc(t('rom_moreTests'))}</h2>${others.map(card).join('')}` : ''}
     <p class="muted small" style="margin:14px 2px">${esc(t('rom_disclaimer'))}</p></section>${ui.nav('progress', state.data?.profile?.role === 'clinician' && state.data?.profile?.pathology ? 'patient' : state.data?.profile?.role)}`;
