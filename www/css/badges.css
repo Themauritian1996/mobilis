@@ -1,0 +1,42 @@
+/* Badges : grille, cartes, pastille d'accueil, célébration. Utilise les variables de app.css (repli fourni). */
+.badges-screen .muted { color: var(--muted, #6b6b6b); margin: 4px 0 12px; }
+.badge-count { font-size: 15px; color: var(--muted, #6b6b6b); margin: 0 0 14px; }
+.badge-count strong { color: var(--ink, #111); font-size: 20px; }
+.badge-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+.badge-card {
+  background: var(--surface, #fff); border: 1px solid var(--line, #e3e3e1); border-radius: var(--radius, 16px);
+  padding: 14px; display: flex; flex-direction: column; gap: 6px; min-height: 44px; color: var(--ink, #111);
+}
+.badge-card h2 { font-size: 15px; margin: 6px 0 0; line-height: 1.25; }
+.badge-card p { font-size: 13px; margin: 0; color: var(--muted, #6b6b6b); line-height: 1.4; }
+.badge-card .bc-meta { font-size: 12px; color: var(--muted, #6b6b6b); }
+.badge-card .bc-ic {
+  width: 40px; height: 40px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+  background: var(--line, #e3e3e1); color: var(--muted, #6b6b6b);
+}
+.badge-card.earned { border-color: var(--ink, #111); }
+.badge-card.earned .bc-ic { background: var(--ink, #111); color: var(--on-ink, #fff); }
+.badge-card.locked .bc-ic { opacity: .6; }
+.badge-card.locked h2 { color: var(--ink, #111); }
+.bc-bar { height: 6px; border-radius: 3px; background: var(--line, #e3e3e1); overflow: hidden; margin-top: 4px; }
+.bc-bar i { display: block; height: 100%; background: var(--ink, #111); border-radius: 3px; }
+
+.badge-chip { gap: 6px; }
+
+.badge-toast {
+  position: fixed; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 12px); transform: translate(-50%, -16px);
+  opacity: 0; transition: opacity .25s ease, transform .25s ease; z-index: 1000;
+  display: flex; align-items: center; gap: 12px; max-width: min(92vw, 420px); width: max-content;
+  background: var(--surface, #fff); color: var(--ink, #111); border: 1px solid var(--line, #e3e3e1);
+  border-radius: var(--radius, 16px); padding: 12px 16px; box-shadow: 0 8px 24px rgba(0, 0, 0, .14); cursor: pointer;
+}
+.badge-toast.in { opacity: 1; transform: translate(-50%, 0); }
+.badge-toast .bt-ic {
+  width: 36px; height: 36px; border-radius: 50%; flex: none; display: inline-flex; align-items: center; justify-content: center;
+  background: var(--ink, #111); color: var(--on-ink, #fff);
+}
+.badge-toast .bt-txt { display: flex; flex-direction: column; min-width: 0; }
+.badge-toast small { font-size: 11px; color: var(--muted, #6b6b6b); text-transform: uppercase; letter-spacing: .04em; }
+.badge-toast strong { font-size: 15px; }
+.badge-toast span { font-size: 13px; color: var(--muted, #6b6b6b); }
+@media (prefers-reduced-motion: reduce) { .badge-toast { transition: none; } }
