@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { t } from '../www/js/i18n.js';
 import * as P from '../www/js/program.js';
 import { PROTOCOLS, protocolById, protocolPhases, phaseExerciseIds, exerciseEntry, DISCLAIMER } from '../www/js/data/protocols.js';
 import { PATHOLOGIES, REGIONS, LAY_NEW, EXTRA_QUESTIONS } from '../www/js/data/pathologies.js';
@@ -206,10 +207,10 @@ assert.equal(sp.protocol.id, 'acl'); assert.equal(sp.protocol.blocked, true); as
 assert.deepEqual(summaryPart(prof()), {});
 assert.equal(homeCardProtocol(prof()), '');
 const card = homeCardProtocol(withP('tha', 'posterior'), day(10));
-assert.ok(card.includes('data-go="#/protocole"') && card.includes('pr_week'));
+assert.ok(card.includes('data-go="#/protocole"') && !card.includes('undefined'));
 const vh = protocolViewHtml(withP('tha', 'anterior'), day(10));
 assert.ok(vh.includes('data-phase="tha1"') && vh.includes('open') && vh.includes('proto-flags'));
-assert.ok(protocolViewHtml(prof(), day(1)).includes('pr_noProtocol'));
+assert.ok(protocolViewHtml(prof(), day(1)).includes(t('pr_noProtocol')));
 // confirmations : rejet par rxExtras quand la date change, conservation sinon
 const rx = { protocol: { id: 'tka', surgeryDate: S0, confirmed: { tka1: 1 } } };
 assert.deepEqual(rxExtrasProtocol(rx).protocol.confirmed, { tka1: 1 });
