@@ -17,6 +17,10 @@ if (!IDS.includes(lang)) lang = 'fr';
 export const getLang = () => lang;
 export const langInfo = (id = lang) => LANGS.find((l) => l.id === id) || LANGS[0];
 export const locale = () => langInfo().locale;
+// Langue du coach IA (texte + voix) : « auto » = langue de l'app, sinon une des langues offertes (ex. app en français, coach en anglais)
+export const getAiLang = () => { let a = 'auto'; try { a = localStorage.getItem('mobilis.aiLang') || 'auto'; } catch (_) {} return IDS.includes(a) ? a : lang; };
+export const setAiLang = (a) => { try { localStorage.setItem('mobilis.aiLang', IDS.includes(a) ? a : 'auto'); } catch (_) {} };
+export const aiLangInfo = () => langInfo(getAiLang());
 export const isLang = (id) => IDS.includes(id);
 const packs = {};
 async function loadPack(id) {
