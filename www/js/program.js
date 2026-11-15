@@ -2,6 +2,7 @@
 // plan imposé par le clinicien, journée difficile (poussée de douleur).
 import { EXERCISES } from './data/exercises.js';
 import { PATHOLOGIES } from './data/pathologies.js';
+import { protocolById, protocolPhases, exerciseEntry } from './data/protocols.js';
 
 export const pathologyById = (id) => PATHOLOGIES.find((p) => p.id === id);
 const DAY = 86400000;
@@ -12,6 +13,60 @@ export function weekNumber(profile, now = Date.now()) {
 export function calendarPhase(week) { return week <= 2 ? 1 : week <= 6 ? 2 : 3; }
 export const startLevel = (irr) => (irr === 'high' ? 1 : irr === 'med' ? 2 : 3);
 export const inFlare = (profile, now = Date.now()) => !!(profile.flareUntil && profile.flareUntil > now);
+
+// ───────── Protocole post-opératoire (profile.protocol = { id, variant?, surgeryDate 'AAAA-MM-JJ', confirmed?: { idPhase: ts|true } }) ─────────
+// Les phases avancent avec le temps écoulé depuis la chirurgie, mais on ne QUITTE une phase que si ses critères de passage
+// sont confirmés (confirmed[idPhase]) : sinon la phase est maintenue et le statut est marqué `blocked`.
+// Un protocole n'avance jamais plus vite que le temps, et la revue hebdomadaire ne le fait pas avancer.
+function dateKeyUTC(k) { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(k || '')); return m ? Date.UTC(+m[1], +m[2] - 1, +m[3]) : NaN; }
+export function protocolDaysSince(surgeryDate, now = Date.now()) {
+  const a = dateKeyUTC(surgeryDate); if (!Number.isFinite(a)) return NaN;
+  const d = new Date(now);
+  return Math.round((Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) - a) / DAY);
+}
+const phaseEnd = (ph) => (ph.weeks[1] == null ? Infinity : ph.weeks[1]);
+export function protocolActive(profile) {
+  const pr = profile?.protocol;
+  return !!(pr && pr.id && protocolById(pr.id) && Number.isFinite(dateKeyUTC(pr.surgeryDate)));
+}
+export function protocolStatus(profile, now = Date.now()) {
+  if (!protocolActive(profile)) return null;
+  const pr = profile.protocol, proto = protocolById(pr.id);
+  const phases = protocolPhases(proto, pr.variant);
+  const days = protocolDaysSince(pr.surgeryDate, now);
+  const weeksSince = days / 7;
+  // Phase selon le temps seul (avant la chirurgie : première phase)
+  let timeIdx = 0;
+  phases.forEach((ph, i) => { if (weeksSince >= ph.weeks[0]) timeIdx = i; });
+  // On ne quitte une phase que si ses critères sont confirmés
+  const conf = pr.confirmed || {};
+  let idx = 0;
+  while (idx < timeIdx && conf[phases[idx].id]) idx++;
+  const phase = phases[idx];
+  const blocked = idx < timeIdx;
+  const last = idx === phases.length - 1;
+  const end = phaseEnd(phase);
+  const nextPhaseInWeeks = last ? null : blocked ? 0 : Math.max(0, Math.ceil(end - weeksSince));
+  return {
+    id: pr.id, variant: pr.variant || null, protocol: proto, phases, phase, phaseIndex: idx, phaseCount: phases.length,
+    weeksSince, daysSince: days, week: Math.max(1, Math.floor(weeksSince) + 1), preop: days < 0, daysToSurgery: days < 0 ? -days : 0,
+    timeIndex: timeIdx, blocked, last, nextPhase: last ? null : phases[idx + 1], nextPhaseInWeeks,
+    criteria: phase.progressionCriteria || [], criteriaConfirmed: !!conf[phase.id], precautions: phase.precautions || [],
+    painMax: phase.painMax ?? proto.painMax ?? 3,
+  };
+}
+// Phase courante du protocole (objet de phase résolu pour la variante) ou null
+export function protocolPhase(profile, now = Date.now()) {
+  const st = protocolStatus(profile, now);
+  return st ? { ...st.phase, index: st.phaseIndex, blocked: st.blocked } : null;
+}
+// Entrée de l'exercice dans la phase courante du protocole : { id, level?, maxLevel?, dose? } ou null
+function protocolEntry(profile, id, now = Date.now()) {
+  const st = protocolStatus(profile, now); if (!st) return null;
+  const list = (st.phase.exercises || []).map(exerciseEntry);
+  const from = (profile.swaps && Object.entries(profile.swaps).find(([, v]) => v === id)?.[0]) || null;
+  return list.find((e) => e.id === id) || (from && list.find((e) => e.id === from)) || null;
+}
 
 const REP_F = [0.6, 0.8, 1, 1.2, 1.4];
 const HOLD_F = [0.5, 0.75, 1, 1.25, 1.5];
@@ -48,7 +103,8 @@ export function scaleDose(exId, d, fromLv, toLv) {
 // Dose d'un exercice : niveau (doseFor) -> dose du clinicien adaptée au niveau (rxDose) -> réglages permanents du patient (doseOver)
 // -> réglages d'aujourd'hui (todayOver)
 export function doseOf(profile, id, level, flare = false, to = null) {
-  const rd = profile.rxDose?.[id];
+  const pe = protocolActive(profile) ? protocolEntry(profile, id) : null;
+  const rd = profile.rxDose?.[id] || (pe?.dose ? { lv: 3, ...pe.dose } : null);
   let dose = doseFor(id, level, flare && !rd);
   dose.rest = DEFAULT_REST;
   if (rd) {
@@ -69,9 +125,12 @@ export function doseOf(profile, id, level, flare = false, to = null) {
 }
 
 // Exercices de la phase : plan du clinicien s'il correspond à la phase, sinon protocole de la pathologie
-export function exerciseIds(profile, phase = profile.phase || 1) {
+export function exerciseIds(profile, phase) {
   let ids;
-  if (profile.plan && profile.plan.phase === phase && profile.plan.ids?.length) ids = profile.plan.ids;
+  const st = phase === undefined ? protocolStatus(profile) : null; // protocole actif : exercices de sa phase
+  phase = phase === undefined ? profile.phase || 1 : phase;
+  if (st) ids = st.phase.exercises.map((e) => exerciseEntry(e).id);
+  else if (profile.plan && profile.plan.phase === phase && profile.plan.ids?.length) ids = profile.plan.ids;
   else { const path = pathologyById(profile.pathology); ids = path ? path.phases[phase] || path.phases[1] : []; }
   // Remplacements choisis (matériel manquant) : exercice d'origine → exercice équivalent
   const sw = profile.swaps || {};
@@ -80,7 +139,9 @@ export function exerciseIds(profile, phase = profile.phase || 1) {
 export const swappedFrom = (profile, id) => Object.entries(profile.swaps || {}).find(([, v]) => v === id)?.[0] || null;
 
 export function levelOf(profile, id) {
-  return profile.levels?.[id] ?? profile.baseLevel ?? startLevel(profile.irritability);
+  const pe = protocolActive(profile) ? protocolEntry(profile, id) : null;
+  const lv = profile.levels?.[id] ?? pe?.level ?? profile.baseLevel ?? startLevel(profile.irritability);
+  return pe?.maxLevel ? Math.min(lv, pe.maxLevel) : lv; // phase protégée : niveau plafonné
 }
 
 // Réglages du patient avant la séance : pour aujourd'hui seulement (todayOver) ou permanents (doseOver)
@@ -140,9 +201,11 @@ export function lastItem(sessions, id) {
 // reason : pain | hard | easy | steady | locked | max | flare
 export function adjustLevel(profile, item, sessions, checkin) {
   const path = pathologyById(profile.pathology);
-  const painMax = path?.painMax ?? 4;
+  const pst = protocolStatus(profile);
+  const painMax = pst ? pst.painMax : path?.painMax ?? 4;
   const cur = levelOf(profile, item.id);
-  const cap = Math.max(1, Math.min(5, profile.maxLevel?.[item.id] ?? 5));
+  const pEntry = pst ? protocolEntry(profile, item.id) : null;
+  const cap = Math.max(1, Math.min(5, profile.maxLevel?.[item.id] ?? pEntry?.maxLevel ?? 5));
   if (inFlare(profile)) return { level: cur, change: 0, reason: 'flare' };
   const q = itemQuality(item);
   const d = item.difficulty, pain = item.pain ?? 0;
@@ -171,6 +234,8 @@ export function adjustLevel(profile, item, sessions, checkin) {
 
 // Revue hebdomadaire : avance la phase seulement si la douleur est sous contrôle (sauf si le clinicien verrouille)
 export function weeklyReview(profile, sessions, now = Date.now()) {
+  const pst = protocolStatus(profile, now);
+  if (pst) return { week: pst.week, phase: Math.min(3, pst.phaseIndex + 1), protocol: true }; // le protocole est piloté par la date de chirurgie
   const week = weekNumber(profile, now);
   if (profile.lockPhase) return { week, phase: profile.phase || 1 };
   const target = calendarPhase(week);
@@ -187,6 +252,12 @@ export function weeklyReview(profile, sessions, now = Date.now()) {
 
 // Ce qui manque pour passer à la phase suivante (affiché au patient)
 export function nextPhaseInfo(profile, sessions, now = Date.now()) {
+  const pst = protocolStatus(profile, now);
+  if (pst) {
+    const last7 = sessions.filter((s) => now - s.date < 7 * DAY);
+    const pains = last7.flatMap((s) => s.items.map((i) => i.pain)).filter((x) => x != null);
+    return { done: pst.last, protocol: true, phase: pst.phaseIndex + 1, painMax: pst.painMax, locked: true, weeksLeft: pst.nextPhaseInWeeks ?? 0, blocked: pst.blocked, sessionsNeeded: 0, painOk: !pains.length || avg(pains) <= pst.painMax, painAvg: avg(pains) };
+  }
   const phase = profile.phase || 1;
   if (phase >= 3) return { done: true };
   const path = pathologyById(profile.pathology);
