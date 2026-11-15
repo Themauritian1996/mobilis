@@ -127,6 +127,9 @@ export function priorItems(sessions, id, dayKey, n = 3) {
   return [...byDay.values()].sort((a, b) => a.ts - b.ts).slice(-n);
 }
 export const itemQuality = (i) => avg((i.sets || []).map((s) => s.quality).filter((x) => x != null));
+// Part des répétitions partielles (amplitude incomplète) : on ne monte pas de niveau si plus d'un quart sont partielles
+export const partialShare = (i) => { let f = 0, p = 0; for (const s of i.sets || []) { f += s.full || 0; p += s.partial || 0; } return f + p ? p / (f + p) : 0; };
+const fullEnough = (i) => partialShare(i) <= 0.25;
 export function lastItem(sessions, id) {
   let best = null;
   for (const s of sessions || []) for (const i of s.items || []) if (i.id === id && (!best || (i.ts ?? s.date) >= (best.ts ?? 0))) best = { ...i, ts: i.ts ?? s.date };
@@ -154,10 +157,10 @@ export function adjustLevel(profile, item, sessions, checkin) {
   let up = false;
   if (d <= 2 && okQ(q) && calm(item)) {
     const p = prior.slice(-1)[0];
-    up = !!p && p.difficulty <= 2 && calm(p) && okQ(itemQuality(p));
+    up = !!p && p.difficulty <= 2 && calm(p) && okQ(itemQuality(p)) && fullEnough(p) && fullEnough(item);
   } else if (d === 3 && okQ(q) && calm(item)) {
     const p = prior.slice(-2);
-    up = p.length === 2 && p.every((i) => i.difficulty === 3 && calm(i) && okQ(itemQuality(i)));
+    up = p.length === 2 && p.every((i) => i.difficulty === 3 && calm(i) && okQ(itemQuality(i)) && fullEnough(i)) && fullEnough(item);
   }
   if (up) {
     if (cur >= cap) return { level: cur, change: 0, reason: 'max' };

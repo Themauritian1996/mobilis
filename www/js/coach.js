@@ -1,6 +1,6 @@
 // Coach vocal : consignes instantanées (voix de l'appareil) + commentaires de fin de série par Gemini.
 import { CONFIG, coachUrl } from './config.js';
-import { CUES, getLang, tr, t, langInfo } from './i18n.js';
+import { CUES, getLang, getAiLang, aiLangInfo, tr, t, langInfo } from './i18n.js';
 import { settings } from './store.js';
 import { primeAudio, stopAll, playRich } from './audio.js';
 
@@ -10,8 +10,8 @@ let voices = [];
 const loadVoices = () => { try { voices = speechSynthesis.getVoices(); } catch (_) { voices = []; } };
 if ('speechSynthesis' in window) { loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; }
 
-function pickVoice() {
-  const pref = langInfo().voice;
+function pickVoice(id) {
+  const pref = langInfo(id).voice;
   for (const p of pref) { const v = voices.find((x) => x.lang && x.lang.replace('_', '-').startsWith(p)); if (v) return v; }
   return null;
 }
@@ -35,14 +35,15 @@ export function stopSpeech() {
   stopAll({ fade: true });
 }
 // force : parler même pendant que le coach en direct parle (sinon on se tait : jamais deux voix à la fois)
-export function speak(text, { interrupt = false, force = false } = {}) {
+// lang : id de langue de la voix (défaut = langue de l'app) ; le texte du coach IA passe par speakAI (langue du coach)
+export function speak(text, { interrupt = false, force = false, lang } = {}) {
   if (settings().voice === 'off' || !text) return;
   if (liveTalking && !force) return;
   if (interrupt) { richSeq++; stopAll({ fade: true, kind: 'rich' }); }
   if (isNative()) {
     tts().then((T) => {
       if (!T) return;
-      T.speak({ text, lang: langInfo().voice[0], rate: 1.0, pitch: 1.0, volume: 1.0, category: 'playback', queueStrategy: interrupt ? 0 : 1 }).catch((e) => console.warn('tts', e));
+      T.speak({ text, lang: langInfo(lang).voice[0], rate: 1.0, pitch: 1.0, volume: 1.0, category: 'playback', queueStrategy: interrupt ? 0 : 1 }).catch((e) => console.warn('tts', e));
     });
     return;
   }
@@ -50,12 +51,15 @@ export function speak(text, { interrupt = false, force = false } = {}) {
   try {
     if (interrupt) speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
-    u.lang = langInfo().voice[0];
-    const v = pickVoice(); if (v) u.voice = v;
+    u.lang = langInfo(lang).voice[0];
+    const v = pickVoice(lang); if (v) u.voice = v;
     u.rate = 1.05;
     speechSynthesis.speak(u);
   } catch (_) {}
 }
+
+// Texte produit par le coach IA : voix de l'appareil dans la langue du coach
+export const speakAI = (text, o = {}) => speak(text, { ...o, lang: getAiLang() });
 
 // Anti-répétition des consignes
 const lastSaid = {}; let lastAny = 0;
@@ -86,7 +90,8 @@ const SYS = {
   week: 'You are an MSK rehab coach supervised by a physiatrist. Write a weekly review for the patient in max 3 sentences from the JSON data (sessions done/planned, mean pain, movement quality, pain change, patient comments). Highlight one real gain and one priority for next week, no diagnosis, no jargon.',
   reply: 'You are an MSK rehab coach supervised by a physiatrist. The patient just finished an exercise and left a comment (JSON: exercise, condition, pain 0-10, pain limit, difficulty 1-5, comment). Answer the comment in max 2 short sentences (35 words): acknowledge it, give one safe practical tip. Never diagnose or change the program. If the comment suggests worsening pain, numbness, weakness, swelling or anything unusual, tell them to ease off and contact their clinician. No jargon.',
 };
-const langLine = () => `Always answer in ${langInfo().label}.`;
+const REG = { fr: ' Address the patient informally with "tu"/"ton", never "vous".', es: ' Use informal "tú", never "usted".', pt: ' Use informal "você", never "o senhor/a senhora".' };
+export const langLine = () => `Always answer in ${aiLangInfo().label}.${REG[getAiLang()] || ' Use a warm, informal register.'}`;
 export const aiAvailable = () => !!(settings().geminiKey || CONFIG.coachEndpoint);
 
 // Appel Gemini direct (clé personnelle). Rapide par défaut : modèle « lite », réflexion minimale, limite de temps stricte.
@@ -137,7 +142,7 @@ export const geminiDirect = (key, sys, parts, maxTokens = 180) => gemini({ key, 
 
 async function callProxy(body) {
   if (!CONFIG.coachEndpoint) throw new Error('no endpoint');
-  const r = await fetch(coachUrl(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lang: getLang(), langLabel: langInfo().label, ...body }) });
+  const r = await fetch(coachUrl(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lang: getAiLang(), langLabel: aiLangInfo().label, ...body }) });
   if (!r.ok) throw new Error('proxy ' + r.status);
   const j = await r.json();
   return (j.text || '').trim();
@@ -275,22 +280,22 @@ export async function startDictation({ onText, onState }) {
 }
 const blobB64 = (blob) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.onerror = rej; r.readAsDataURL(blob); });
 async function transcribe(b64, mime) {
-  const sys = `Transcribe the patient's spoken comment verbatim. The patient speaks ${langInfo().label} (they may mix languages). Output only the transcription, no quotes, no notes.`;
+  const sys = `Transcribe the patient's spoken comment verbatim. The patient most likely speaks ${aiLangInfo().label} or ${langInfo().label} (they may mix languages). Output only the transcription, no quotes, no notes.`;
   const key = settings().geminiKey;
   if (key) return gemini({ key, sys, parts: [{ inline_data: { mime_type: mime, data: b64 } }], maxTokens: 400, timeout: 20000 });
   return callProxy({ kind: 'transcribe', audio: b64, mime });
 }
 
 // ---------- Voix Gemini (TTS) pour les commentaires de fin de série ----------
-export async function speakRich(text) {
+export async function speakRich(text, { lang = getAiLang() } = {}) {
   const s = settings();
   if (s.voice === 'off') return;
   primeAudio(); // dans le geste de l'utilisateur quand il y en a un
   const seq = ++richSeq; // toute parole plus récente (ou stopSpeech) annule celle-ci
   stopDeviceVoice(); stopAll({ fade: true });
-  if (s.voice !== 'gemini') return speak(text, { interrupt: true, force: true });
+  if (s.voice !== 'gemini') return speak(text, { interrupt: true, force: true, lang });
   try {
-    const voiceName = getLang() === 'fr' ? 'Aoede' : 'Kore';
+    const voiceName = lang === 'fr' ? 'Aoede' : 'Kore';
     const body = { contents: [{ parts: [{ text }] }], generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } } } };
     let r;
     if (s.geminiKey) {
@@ -304,7 +309,7 @@ export async function speakRich(text) {
       if (!r) throw new Error('no tts');
     } else {
       if (!CONFIG.coachEndpoint) throw new Error('no endpoint');
-      r = await fetch(coachUrl(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'tts', text, lang: getLang(), langLabel: langInfo().label }) });
+      r = await fetch(coachUrl(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'tts', text, lang, langLabel: langInfo(lang).label }) });
     }
     if (!r.ok) throw new Error('tts');
     const j = await r.json();
@@ -313,7 +318,7 @@ export async function speakRich(text) {
     if (seq !== richSeq) return; // une parole plus récente a pris la place pendant le chargement
     if (!playRich(b64)) throw new Error('no audio ctx');
   } catch (_) {
-    if (seq === richSeq) speak(text, { interrupt: true, force: true });
+    if (seq === richSeq) speak(text, { interrupt: true, force: true, lang });
   }
 }
 

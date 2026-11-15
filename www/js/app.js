@@ -1,9 +1,10 @@
 import { firebaseEnabled } from './config.js';
-import { t, tr, getLang, setLang, locale, langInfo } from './i18n.js';
+import { t, tr, getLang, setLang, locale, langInfo, LANGS, setAiLang } from './i18n.js';
 import { EXERCISES, EQUIP } from './data/exercises.js';
 import { REGIONS, PATHOLOGIES } from './data/pathologies.js';
 import * as store from './store.js';
 import * as P from './program.js';
+import { setPartialPolicy } from './pose.js';
 import { coachComment, speakRich, cueText } from './coach.js';
 import { state, setRender, render, go, profile, sessions, todaySession, nextExercise, updateProfile, syncProgress, inTrial, navRole } from './state.js';
 import { esc, icon, IC, toast, stopFigs, mountFigs, figSvg, figureBlock, nav, applyTheme, lvlBar, sheet, shareText, copyText, langPicker } from './ui.js';
@@ -417,6 +418,14 @@ function viewAdjust() {
 }
 
 // ---------- Profil ----------
+// Répétitions partielles : réglage du patient + exception par exercice du clinicien (profile.partialEx)
+const exId = (ex) => ex?.id || Object.keys(EXERCISES).find((k) => EXERCISES[k] === ex);
+setPartialPolicy((ex) => (store.settings().countPartial === false || profile()?.partialEx?.[exId(ex)] === false ? false : true));
+// Texte avec repli FR/EN tant que la clé n'est pas dans les dictionnaires
+const aiPref = () => { try { return localStorage.getItem('mobilis.aiLang') || 'auto'; } catch (_) { return 'auto'; } };
+const tk = (k, fb) => { const v = t(k); return v === k ? tr(fb) : v; };
+const AI_LANG_TXT = { fr: 'Langue du coach IA', en: 'AI coach language' }, AI_AUTO = { fr: 'Comme l\'app', en: 'Same as the app' };
+const PARTIAL_TXT = { fr: 'Compter les répétitions partielles', en: 'Count partial reps' }, PARTIAL_D = { fr: 'Une répétition moins ample compte quand même (dès ~35 % du mouvement), marquée « partielle ».', en: 'A smaller rep still counts (from ~35% of the range), marked "partial".' };
 function viewProfile() {
   const prof = profile(); const st = store.settings(); const u = state.user;
   const sw = (k, on) => `<button class="switch ${on ? 'on' : ''}" data-sw="${k}" role="switch" aria-checked="${on}"></button>`;
@@ -437,6 +446,8 @@ function viewProfile() {
     <h2>${t('aiCoach')}</h2><div class="card">
       <label class="field"><span>${t('geminiKey')}</span><input class="input" id="gk" type="password" value="${esc(st.geminiKey)}" placeholder="AIza…" autocomplete="off"></label>
       <p class="note" style="margin-top:-6px">${t('geminiKeyD')}</p>
+      <div class="toggle" style="padding:12px 0 0"><span>${tk('aiLang', AI_LANG_TXT)}</span><select class="input lang-select" id="ailang" aria-label="${tk('aiLang', AI_LANG_TXT)}"><option value="auto" ${(aiPref()) === 'auto' ? 'selected' : ''}>${tk('aiLangAuto', AI_AUTO)}</option>${LANGS.map((l) => `<option value="${l.id}" ${aiPref() === l.id ? 'selected' : ''}>${l.name}</option>`).join('')}</select></div>
+      <div class="toggle" style="padding:12px 0 0"><span><span>${tk('countPartial', PARTIAL_TXT)}</span><br><small class="muted">${tk('countPartialD', PARTIAL_D)}</small></span>${sw('countPartial', st.countPartial !== false)}</div>
       <div class="toggle" style="padding:12px 0 0"><span><span>${t('sendFrame')}</span><br><small class="muted">${t('sendFrameD')}</small></span>${sw('sendFrame', st.sendFrame)}</div>
       <div class="toggle" style="padding:12px 0 0"><span><span>${t('liveAI')}</span><br><small class="muted">${t(st.geminiKey ? 'liveAID' : 'liveNeedKey')}</small></span>${sw('liveAI', !!st.liveAI)}</div>
       <div class="toggle" style="display:block;padding:12px 0 0"><span>${t('aiMode')}<br><small class="muted">${t('aiModeD')}</small></span><div class="seg" style="margin-top:8px">${['precise', 'live'].map((v) => `<button data-aimode="${v}" class="${(st.aiMode || 'precise') === v ? 'on' : ''}">${t(v === 'precise' ? 'aiModePrecise' : 'aiModeLive')}</button>`).join('')}</div></div>
@@ -451,8 +462,9 @@ function viewProfile() {
   bindTrialBar();
   $app.querySelectorAll('[data-theme-set]').forEach((b) => (b.onclick = () => { store.saveSettings({ theme: b.dataset.themeSet }); applyTheme(); viewProfile(); }));
   $app.querySelectorAll('[data-aimode]').forEach((b) => (b.onclick = () => { store.saveSettings({ aiMode: b.dataset.aimode }); viewProfile(); }));
-  $app.querySelectorAll('[data-voice]').forEach((b) => (b.onclick = () => { store.saveSettings({ voice: b.dataset.voice }); viewProfile(); if (b.dataset.voice !== 'off') speakRich(cueText('good')); }));
-  $app.querySelectorAll('[data-sw]').forEach((b) => (b.onclick = () => { const k = b.dataset.sw; store.saveSettings({ [k]: !store.settings()[k] }); viewProfile(); }));
+  $app.querySelectorAll('[data-voice]').forEach((b) => (b.onclick = () => { store.saveSettings({ voice: b.dataset.voice }); viewProfile(); if (b.dataset.voice !== 'off') speakRich(cueText('good'), { lang: getLang() }); }));
+  $app.querySelectorAll('[data-sw]').forEach((b) => (b.onclick = () => { const k = b.dataset.sw; store.saveSettings({ [k]: k === 'countPartial' ? store.settings().countPartial === false : !store.settings()[k] }); viewProfile(); }));
+  q('#ailang').onchange = () => { setAiLang(q('#ailang').value); toast(t('saved')); };
   q('#gk').onchange = () => { store.saveSettings({ geminiKey: q('#gk').value.trim() }); toast(t('saved')); };
   q('[data-a="role"]').onclick = async () => {
     const role = prof.role === 'clinician' ? 'patient' : 'clinician';

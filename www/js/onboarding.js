@@ -222,7 +222,7 @@ export function viewCodeEntry() {
 export function rxExtras(rx) {
   const rxDose = {};
   for (const [id, d] of Object.entries(rx.dose || {})) if (d && rx.ids?.includes(id)) rxDose[id] = { ...d, lv: rx.levels?.[id] || 2 };
-  return { rxDose, autoEx: { ...(rx.autoEx || {}) }, maxLevel: { ...(rx.maxLevel || {}) } };
+  return { rxDose, autoEx: { ...(rx.autoEx || {}) }, maxLevel: { ...(rx.maxLevel || {}) }, partialEx: { ...(rx.partial || {}) } };
 }
 
 // Profil patient construit à partir d'un programme du clinicien

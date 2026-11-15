@@ -6,8 +6,8 @@
 // Nécessite la clé Gemini personnelle (Profil → Coach IA). Les images vont à Google ; Mobilis n'en garde aucune.
 import { CONFIG } from './config.js';
 import { settings } from './store.js';
-import { langInfo, getLang } from './i18n.js';
-import { speak, geminiDirect, setLiveTalking } from './coach.js';
+import { aiLangInfo, getAiLang } from './i18n.js';
+import { speakAI, geminiDirect, setLiveTalking } from './coach.js';
 import { planeText, fineKind } from './ai-coach.js';
 import { primeAudio, pushLive, endLiveTurn, stopAll } from './audio.js';
 
@@ -21,7 +21,7 @@ const REGISTER = {
   fr: 'French (Canada): ALWAYS address the patient informally with "tu" / "ton" / "ta", NEVER "vous" (the app itself says "tu")',
   es: 'Spanish: informal "tú", never "usted"', pt: 'Portuguese (Brazil): informal "você"/"tu", never "o senhor/a senhora"',
 };
-const speakLang = () => REGISTER[getLang()] || `${langInfo().label}, informal and friendly register (the way you would talk to a friend, never formal)`;
+const speakLang = () => REGISTER[getAiLang()] || `${aiLangInfo().label}, informal and friendly register (the way you would talk to a friend, never formal)`;
 
 // Similarité de deux remarques (mots normalisés en commun / le plus long) : > 0.7 → même idée
 const norm = (t) => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/).filter(Boolean);
@@ -159,7 +159,7 @@ export function startLiveCoach(o) {
     sock.onopen = () => sock.send(JSON.stringify({
       setup: {
         model: `models/${model}`,
-        generationConfig: { responseModalities: ['AUDIO'] },
+        generationConfig: { responseModalities: ['AUDIO'], ...(noExtras ? {} : { speechConfig: { languageCode: aiLangInfo().voice[0] } }) },
         systemInstruction: { parts: [{ text: systemPrompt(o.context) }] },
         outputAudioTranscription: {},
         // vidéo + audio : sans compression, une session est coupée après ~2 min ; fenêtre glissante + reprise de session
@@ -230,7 +230,7 @@ export function startLiveCoach(o) {
       geminiDirect(key, sys, [{ text: checkText(evs) }, { inline_data: { mime_type: 'image/jpeg', data: d } }], 60).then((r) => {
         if (stopped || isPaused() || !r) return;
         const show = remark(r);
-        if (show) { o.onText(r, true); setLiveTalking(true); speak(r, { interrupt: true, force: true }); setTimeout(() => setLiveTalking(false), 2500); }
+        if (show) { o.onText(r, true); setLiveTalking(true); speakAI(r, { interrupt: true, force: true }); setTimeout(() => setLiveTalking(false), 2500); }
       }).catch((e) => { console.warn('live snapshot', e); if (!stopped) o.onState('error'); }).finally(() => { pending = false; });
       return true;
     };

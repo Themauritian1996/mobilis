@@ -244,13 +244,25 @@ export function bodyVisible(p) {
 // ---------- Compteur de répétitions / maintien ----------
 // Haut du mouvement : 85 % de la cible (la cible tient déjà compte du niveau du patient)
 const TOP = 0.85;
+// Répétition partielle : compte dès 35 % de la cible (marquée « partielle »). countPartial = false → ancien seuil de 60 %.
+export const PARTIAL_MIN = 0.35, FULL_MIN = 0.6;
+let partialPolicy = null;
+/** fn(ex) → false : exiger l'amplitude quasi complète pour cet exercice ; true / undefined : compter les partielles. */
+export const setPartialPolicy = (fn) => { partialPolicy = typeof fn === 'function' ? fn : null; };
+export function partialMinFor(ex, spec, opt) {
+  if (typeof opt === 'number') return Math.max(0.25, Math.min(FULL_MIN, opt));
+  if (opt === false) return FULL_MIN;
+  let on = true; try { if (partialPolicy && partialPolicy(ex) === false) on = false; } catch (_) {}
+  return on ? Math.max(0.25, Math.min(FULL_MIN, spec?.partialMin ?? PARTIAL_MIN)) : FULL_MIN;
+}
 const AGAIN_DROP = 0.55, AGAIN_RISE = 0.22;
 export class Tracker {
-  constructor(ex, planeKey, { romFactor = 1, holdTarget = 0, onRep = () => {}, onCue = () => {}, side = null } = {}) {
+  constructor(ex, planeKey, { romFactor = 1, holdTarget = 0, onRep = () => {}, onCue = () => {}, side = null, partialMin } = {}) {
     this.forceSide = side; // 'L' | 'R' : côté travaillé choisi par le patient
     this.ex = ex; this.mode = ex.track.mode;
     this.spec = ex.track.planes[planeKey];
     this.rom = romFactor; this.holdTarget = holdTarget;
+    this.pMin = partialMinFor(ex, this.spec, partialMin); this.partialRun = 0;
     this.onRep = onRep; this.onCue = onCue;
     this.calib = []; this.base = null; this.side = null;
     this.reps = 0; this.full = 0; this.partial = 0; this.repLog = [];
@@ -436,7 +448,7 @@ export class Tracker {
     if (this.state === 'moving') {
       if (P > this.peak) { this.peak = P; this.peakVal = v; }
       if (this.u > this.peakU) this.peakU = this.u;
-      if (P >= 0.6) this.highMs = (this.highMs || 0) + dt * 1000;
+      if (P >= this.pMin) this.highMs = (this.highMs || 0) + dt * 1000;
       // haut du mouvement : 85 % de la cible ; maintien toléré à 80 % (petits tremblements pendant la tenue)
       if (P >= TOP) { if (!this.topSince) this.topSince = t; }
       else if (this.topSince && P < TOP - 0.1 && !this.topOk) { if (holdTop && (t - this.topSince) / 1000 < holdTop * 0.8) this.onCue('holdIt'); this.topSince = 0; }
@@ -444,7 +456,7 @@ export class Tracker {
       // retour presque au départ puis immobile ≥ 0,6 s (le patient ne revient jamais exactement à sa position initiale) :
       // la répétition est terminée et le point de départ est ajusté (dérive de posture au fil de la série)
       let settled = false;
-      if (this.peak >= 0.6 && P < 0.5) {
+      if (this.peak >= this.pMin && P < (this.peak >= FULL_MIN ? 0.5 : 0.65 * this.peak)) {
         if (!this.lowStart) { this.lowStart = t; this.lowPts = []; }
         this.lowPts.push([t, P]);
         while (this.lowPts.length && t - this.lowPts[0][0] > 700) this.lowPts.shift();
@@ -465,7 +477,7 @@ export class Tracker {
       // donc terminée dès que le mouvement est redescendu à 55 % de son sommet (nette réouverture). Sommet mesuré jusqu'à 150 % :
       // un contact franc dépasse largement la cible, et rouvrir à mi-course est déjà un nouveau départ.
       const again = s.again ?? (FINGER_METRICS.has(s.metric) ? AGAIN_DROP : 0);
-      const reopened = again > 0 && this.peak >= 0.6 && P <= again * Math.max(this.peak, this.peakU);
+      const reopened = again > 0 && this.peak >= this.pMin && P <= again * Math.max(this.peak, this.peakU);
       if (P < endT || settled || reopened) {
         this.floor = reopened && !settled && P >= endT ? P : null;
         this.lowStart = 0;
@@ -475,12 +487,13 @@ export class Tracker {
         // une vraie répétition : au moins 60 % de la cible et 0,6 s (sinon : tremblement ou faux départ, ignoré)
         const guarded = this.guardT != null && this.guardT >= this.moveStart - 300;
         if (guarded) this.voided = (this.voided || 0) + 1;
-        if (!guarded && this.peak >= 0.6 && (this.highMs || 0) >= 150 && dur >= 0.6 && t - this.moveStart >= 450) { // ≥ 0,45 s hors de la zone de repos : pas un sursaut des points
+        if (!guarded && this.peak >= this.pMin && (this.highMs || 0) >= 150 && dur >= 0.6 && t - this.moveStart >= 450) { // ≥ 0,45 s hors de la zone de repos : pas un sursaut des points
           const full = reachedTop && heldOk;
           const fl = [...this.repFaults];
           const minSec = s.minRepSec || 1.0;
           if (dur < minSec * 0.75) { fl.push('slow'); this.onCue('slow'); }
-          if (!reachedTop) this.onCue('depth'); else if (!heldOk) this.onCue('holdIt');
+          // « depth » : à la 1re partielle puis une sur trois (pas de harcèlement) ; l'écart au sommet remet le compteur à zéro
+          if (!reachedTop) { if (this.partialRun++ % 3 === 0) this.onCue('depth'); } else { this.partialRun = 0; if (!heldOk) this.onCue('holdIt'); }
           const quality = Math.max(0, Math.min(1, 1 - 0.25 * new Set(fl).size - (full ? 0 : 0.3)));
           this.reps++; full ? this.full++ : this.partial++; this.lowAcc = 0; this.lowQ = null;
           for (const f of fl) this.faultCount[f] = (this.faultCount[f] || 0) + 1;

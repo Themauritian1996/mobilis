@@ -13,6 +13,8 @@ import { doseText } from './train.js';
 
 const $app = () => document.getElementById('app');
 const fmtDate = (ts) => new Date(ts).toLocaleDateString(locale(), { day: 'numeric', month: 'short' });
+const tk = (k, fb) => { const v = t(k); return v === k ? tr(fb) : v; };
+const RX_PARTIAL = { fr: 'Compter les répétitions partielles', en: 'Count partial reps' }, RX_PARTIAL_D = { fr: 'Désactive pour exiger l\'amplitude complète (≥ 60 %) pour cet exercice.', en: 'Turn off to require near-full range (≥ 60%) for this exercise.' };
 const rxRef = (rx) => rx.code || rx.localId;
 const linkOf = (rx) => store.rxLink(rx.code || rx.packed, rx.lang);
 
@@ -87,7 +89,7 @@ export async function viewRxEditor(code) {
     phase: rx?.phase || 1, ids: rx?.ids || [], levels: { ...(rx?.levels || {}) }, auto: rx ? !!rx.auto : true, notes: rx?.notes || '', nextVisit: rx?.nextVisit || '',
     label: rx?.label || '', version: rx?.version || 0, created: rx?.created || null, days: rx?.days || [1, 3, 5],
     lang: rx?.lang || getLang(), localId: rx?.localId || null, equip: rx?.equip || null, side: rx?.side || null,
-    dose: JSON.parse(JSON.stringify(rx?.dose || {})), autoEx: { ...(rx?.autoEx || {}) }, maxLevel: { ...(rx?.maxLevel || {}) }, open: null,
+    dose: JSON.parse(JSON.stringify(rx?.dose || {})), autoEx: { ...(rx?.autoEx || {}) }, maxLevel: { ...(rx?.maxLevel || {}) }, partial: { ...(rx?.partial || {}) }, open: null,
   });
   const path = PATHOLOGIES.find((p) => p.id === f.pathology);
   const regionEx = [...new Set(PATHOLOGIES.filter((p) => p.region === f.region).flatMap((p) => Object.values(p.phases).flat()))];
@@ -110,6 +112,7 @@ export async function viewRxEditor(code) {
       ${hold ? st('hold', t('holdLbl'), d.hold, ' ' + t('sec')) : st('reps', t('repsLbl'), d.reps)}
       ${st('rest', t('restLbl'), d.rest, ' ' + t('sec'))}
       <div class="toggle"><span>${t('rxAutoEx')}<br><small class="muted">${t('rxAutoExD')}</small></span><button class="switch ${f.autoEx[id] === false ? '' : 'on'}" data-aex="${id}" role="switch" aria-checked="${f.autoEx[id] !== false}"></button></div>
+      <div class="toggle"><span>${tk('rxPartial', RX_PARTIAL)}<br><small class="muted">${tk('rxPartialD', RX_PARTIAL_D)}</small></span><button class="switch ${f.partial[id] === false ? '' : 'on'}" data-pex="${id}" role="switch" aria-checked="${f.partial[id] !== false}"></button></div>
       <div class="toggle"><span>${t('rxMaxLevel')}<br><small class="muted">${t('rxMaxLevelD')}</small></span><div class="stepper"><button data-mx="${id}" data-dir="-1" aria-label="−">−</button><b class="tnum">${f.maxLevel[id] || 5}</b><button data-mx="${id}" data-dir="1" aria-label="+">+</button></div></div>
       ${f.dose[id] ? `<div class="row" style="padding:10px 12px 12px"><button class="btn sm ghost grow" data-dreset="${id}">${t('rxDoseReset')}</button></div>` : ''}
     </div>`;
@@ -163,6 +166,7 @@ export async function viewRxEditor(code) {
   })));
   qa('[data-dreset]').forEach((b) => (b.onclick = () => scroll(() => { delete f.dose[b.dataset.dreset]; })));
   qa('[data-aex]').forEach((b) => (b.onclick = () => scroll(() => { const id = b.dataset.aex; if (f.autoEx[id] === false) delete f.autoEx[id]; else f.autoEx[id] = false; })));
+  qa('[data-pex]').forEach((b) => (b.onclick = () => scroll(() => { const id = b.dataset.pex; if (f.partial[id] === false) delete f.partial[id]; else f.partial[id] = false; })));
   qa('[data-mx]').forEach((b) => (b.onclick = () => scroll(() => { const id = b.dataset.mx; const v = Math.max(lvOf(id), Math.min(5, (f.maxLevel[id] || 5) + +b.dataset.dir)); if (v >= 5) delete f.maxLevel[id]; else f.maxLevel[id] = v; })));
   qa('[data-rm]').forEach((b) => (b.onclick = () => scroll(() => { f.ids = f.ids.filter((x) => x !== b.dataset.rm); })));
   qa('[data-add]').forEach((b) => (b.onclick = () => scroll(() => { f.ids = [...f.ids, b.dataset.add]; })));
@@ -176,11 +180,11 @@ export async function viewRxEditor(code) {
   const pl = q('#pl'); if (pl) pl.onchange = (e) => { f.lang = e.target.value; };
   const only = (o) => Object.fromEntries(Object.entries(o || {}).filter(([id]) => f.ids.includes(id)));
   const levelsOf = () => Object.fromEntries(f.ids.map((id) => [id, f.levels[id] || 2]));
-  q('#try').onclick = () => startTrial({ ...f, levels: levelsOf(), code: null, dose: only(f.dose), autoEx: only(f.autoEx), maxLevel: only(f.maxLevel) });
+  q('#try').onclick = () => startTrial({ ...f, levels: levelsOf(), code: null, dose: only(f.dose), autoEx: only(f.autoEx), maxLevel: only(f.maxLevel), partial: only(f.partial) });
   q('#save').onclick = async () => {
     q('#save').disabled = true;
     const levels = levelsOf();
-    const data = { code: f.code, clinician: f.clinician.trim(), label: f.label.trim(), region: f.region, pathology: f.pathology, phase: f.phase, ids: f.ids, levels, auto: f.auto, notes: f.notes.trim(), nextVisit: f.nextVisit || null, days: f.days, version: f.version, created: f.created, lang: f.lang || getLang(), equip: f.equip || null, side: f.side || null, dose: only(f.dose), autoEx: only(f.autoEx), maxLevel: only(f.maxLevel) };
+    const data = { code: f.code, clinician: f.clinician.trim(), label: f.label.trim(), region: f.region, pathology: f.pathology, phase: f.phase, ids: f.ids, levels, auto: f.auto, notes: f.notes.trim(), nextVisit: f.nextVisit || null, days: f.days, version: f.version, created: f.created, lang: f.lang || getLang(), equip: f.equip || null, side: f.side || null, dose: only(f.dose), autoEx: only(f.autoEx), maxLevel: only(f.maxLevel), partial: only(f.partial) };
     if (f.localId) data.localId = f.localId;
     try {
       const res = await store.saveRx(data);

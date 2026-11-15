@@ -6,7 +6,7 @@
 // et prononce la consigne validée (pas un texte libre), ce qui garantit une correction anatomiquement juste.
 import { gemini, parseJSON } from './coach.js';
 import { settings } from './store.js';
-import { CUES, tr, langInfo } from './i18n.js';
+import { CUES, tr, aiLangInfo } from './i18n.js';
 import { METRIC_INFO } from './pose.js';
 
 // Corrections jugeables visuellement selon le plan filmé (2D)
@@ -54,7 +54,7 @@ ${c.ex && fineKind(c.ex) ? `If the ${fineKind(c.ex)} is not clearly visible in t
 Measurements come from validated pose tracking; TRUST THEM over your visual impression for anything they measure. Use the image only for what the measurements cannot capture, and only if it is clearly visible.
 Choose AT MOST ONE correction from the allowed list (ids). If the measurements show no fault and nothing is clearly wrong, answer cue "none" with a short encouragement.
 Never invent a correction outside the list. Never diagnose. Never contradict the correct technique.
-Reply JSON only. "say": max 10 words, in ${langInfo().label}, only used when cue is "none". "seen": max 15 words in English describing what you observed. "confidence": 0-1.`;
+Reply JSON only. "say": max 10 words, in ${aiLangInfo().label} (informal register), only used when cue is "none". "seen": max 15 words in English describing what you observed. "confidence": 0-1.`;
 }
 
 const SCHEMA = (ids) => ({
