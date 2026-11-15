@@ -1,10 +1,10 @@
 // Séance d'un exercice : caméra (pose 2D, 2 plans) ou mode guidé, résumé, rétroaction et ajustement du niveau.
-import { t, tr } from './i18n.js';
+import { t, tr, aiLangInfo } from './i18n.js';
 import { EXERCISES, UNILATERAL } from './data/exercises.js';
 import * as P from './program.js';
 import * as store from './store.js';
 import { loadPose, detect, toPx, Tracker, drawSkeleton, FAULT_JOINTS, detectPlane, bodyVisible } from './pose.js';
-import { speak, stopSpeech, cue, cueText, countAloud, coachComment, localComment, coachReply, speakRich, grabFrame, startDictation, dictationMode, aiAvailable } from './coach.js';
+import { speak, speakAI, stopSpeech, cue, cueText, countAloud, coachComment, localComment, coachReply, speakRich, grabFrame, startDictation, dictationMode, aiAvailable, geminiDirect } from './coach.js';
 import { state, go, profile, sessions, todaySession, nextExercise, syncProgress, updateProfile } from './state.js';
 import { esc, icon, IC, toast, mountFigs, figSvg, figureBlock, sleep } from './ui.js';
 import { startLiveCoach, liveAvailable, primeAudio } from './live.js';
@@ -16,6 +16,11 @@ import { MoveMatcher, drawGuides, hintKey } from './movematch.js';
 import { haveList, missing } from './equip.js';
 import { EQUIP } from './data/exercises.js';
 import { CUES } from './i18n.js';
+import { assessPlacement, PlacementGate, scopeOf, palmNeed, guideRect, subjectBox, measurementsText, issueIcon, ICON_SVG } from './placement.js';
+
+// Placement déjà fait (ou passé) pendant cette session : exercice → pas de nouvelle vérification aux séries suivantes (bouton « Recadrer » pour la rouvrir)
+const PLACED = new Set();
+const PLACE_MAX_MS = 25000; // au bout de ce délai on commence quand même (jamais de blocage)
 
 const RING = 276.5;
 // Cadence d'analyse (images / s) : assez pour compter juste, sans saturer le téléphone
@@ -55,6 +60,7 @@ export function viewTrain(id, cleanup) {
       <div class="hud-title"><b>${esc(tr(ex.name))}</b><small id="setlbl"></small><div id="pbadge"></div></div>
       <div class="hud-btns"><button class="icon-btn" data-t="demo" aria-label="${t('exDemoBtn')}" title="${t('exDemoBtn')}">${icon('demo', 20)}</button>
       <button class="icon-btn ai-btn" data-t="ai" aria-pressed="false" aria-label="${t('liveAI')}" title="${t('liveAI')}">${icon('spark', 20)}<i></i></button>
+      <button class="icon-btn" data-t="replace" hidden aria-label="${t('pl_reframe')}" title="${t('pl_reframe')}">${icon('cam', 20)}</button>
       <button class="icon-btn" data-t="video" aria-pressed="true"></button>
       <button class="icon-btn" data-t="flip" aria-label="${t('camSwitch')}" title="${t('camSwitch')}">${icon('flip', 20)}</button></div></div>
     <div class="vid-off" hidden>${icon('eyeOff', 18)} <span>${t('videoOffNote')}</span></div>
@@ -63,6 +69,8 @@ export function viewTrain(id, cleanup) {
     <button class="mini-fig" hidden aria-label="${t('exDemoBtn')}">${figSvg(id)}<span>${icon('demo', 12)} ${t('demoShort')}</span></button>
     <div class="demo" hidden></div>
     <div class="cue" hidden><span></span></div>
+    <div class="place" hidden role="status" aria-live="polite"><div class="place-ico"></div><div class="place-txt"></div><div class="place-ai" hidden></div><div class="place-bar"><i></i></div>
+      <div class="place-btns"><button class="btn sm ghost" data-t="place-ai" hidden>${icon('spark', 14)} ${t('pl_ai')}</button><button class="btn sm ghost" data-t="place-skip">${t('pl_skip')}</button></div></div>
     <div class="center-msg" hidden></div>
     <div class="setup" hidden></div></div>
     <div class="bottom"><button class="btn ghost" data-t="guided">${t('doGuided')}</button><button class="btn ghost" data-t="pause" hidden>${icon('pause', 18)} ${t('pause')}</button><button class="btn" data-t="end" hidden>${t('endSet')}</button></div>`;
@@ -122,7 +130,7 @@ export function viewTrain(id, cleanup) {
   function close() {
     document.removeEventListener('visibilitychange', onVis); try { wake && wake.release(); } catch (_) {}
     T.active = false; cancelAnimationFrame(T.raf); clearInterval(T.guidedTimer); clearInterval(T.restTimer);
-    try { stopLive(); } catch (e) { console.error('close', e); }
+    try { stopLive(); stopPlacementListeners(); } catch (e) { console.error('close', e); }
     if (T.stream) T.stream.getTracks().forEach((tk) => tk.stop());
     stopSpeech();
     root.remove();
@@ -238,7 +246,7 @@ export function viewTrain(id, cleanup) {
     if (!T.aiAnnounced) { T.aiAnnounced = true; speak(t('aiOnSpoken')); }
     const c = liveCtx();
     const coach = createPreciseCoach({ ex, exercise: c.exercise, condition: c.condition, steps: c.steps, plane, mode: T.mode === 'camera' ? (dose.type === 'hold' ? 'hold' : 'reps') : 'guided', target: c.target, tempo: dose.tempo || '2-1-2' }, {
-      onResult: (v) => { aiText(v.text, true, v.seen); speak(v.text); },
+      onResult: (v) => { aiText(v.text, true, v.seen); speakAI(v.text); },
       onState: (st) => { if (st === 'error' && T.liveState !== 'error') toast(t('liveErr'), 4500); T.liveState = st; paintAI(); },
     });
     T.live = { stop: () => { clearInterval(T.aiTimer); coach.stop(); }, review: coach.review };
@@ -277,6 +285,126 @@ export function viewTrain(id, cleanup) {
     }
     return shot.toDataURL('image/jpeg', 0.7).split(',')[1];
   }
+  // ---------- Assistant de placement (avant la calibration) ----------
+  // Vérifie distance, cadrage, orientation, hauteur / inclinaison du téléphone et lumière (placement.js), affiche et dit le problème principal,
+  // puis laisse la calibration normale prendre la suite. Jamais bloquant : bouton « Passer » et limite de PLACE_MAX_MS.
+  // Désactivé dans les tests de bout en bout : adresse avec « noplace » (…/index.html?noplace#/train/…) ou window.__noPlacement = true.
+  const placementWanted = () => T.mode === 'camera' && !!ex.track && !PLACED.has(id) && !/noplace/.test(location.href) && !window.__noPlacement;
+  const placeText = (k) => (k.startsWith('wrongHand') ? t(k) : t('pl_' + k));
+  const placeKey = () => store.settings().geminiKey;
+  const lumaCv = document.createElement('canvas');
+  // Luminance (0–255) sur une image réduite à 64 px : moyenne, centre (boîte du sujet, sinon milieu) et bords (hors sujet)
+  function sampleLuma(box) {
+    try {
+      if (!V.fw) return null;
+      const w = 64, h = Math.max(8, Math.round((V.fh / V.fw) * 64)); lumaCv.width = w; lumaCv.height = h;
+      const c = lumaCv.getContext('2d', { willReadFrequently: true }); c.drawImage(frame, 0, 0, w, h);
+      const d = c.getImageData(0, 0, w, h).data;
+      const b = box ? { x0: Math.max(0, box.x0 - 0.04), x1: Math.min(1, box.x1 + 0.04), y0: Math.max(0, box.y0 - 0.04), y1: Math.min(1, box.y1 + 0.04) } : { x0: 0.3, x1: 0.7, y0: 0.3, y1: 0.7 };
+      let sa = 0, na = 0, sc = 0, nc = 0, se = 0, ne = 0;
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        const i = (y * w + x) * 4, l = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2], u = (x + 0.5) / w, v = (y + 0.5) / h;
+        sa += l; na++;
+        if (u >= b.x0 && u <= b.x1 && v >= b.y0 && v <= b.y1) { sc += l; nc++; }
+        else if (u < 0.15 || u > 0.85 || v < 0.15 || v > 0.85) { se += l; ne++; }
+      }
+      const mean = sa / na;
+      return { mean, center: nc ? sc / nc : mean, edges: ne ? se / ne : mean };
+    } catch (_) { return null; }
+  }
+  function stopPlacementListeners() {
+    const P = T.place; if (!P) return;
+    clearTimeout(P.timer); clearTimeout(P.hideT);
+    if (P.onOri) { try { window.removeEventListener('deviceorientation', P.onOri); } catch (_) {} P.onOri = null; }
+  }
+  function drawGuideBox(P, ok) {
+    const r = guideRect(P.kind, P.plane, P.scope), k = Math.max(1, V.W / 400), X = r.x * V.W, Y = r.y * V.H, w = r.w * V.W, h = r.h * V.H, rad = Math.min(w, h) * 0.12;
+    g.save(); g.setTransform(1, 0, 0, 1, 0, 0);
+    g.lineWidth = 3 * k; g.setLineDash([10 * k, 8 * k]); g.strokeStyle = ok ? '#3ccf7b' : '#ffb020';
+    g.beginPath(); if (g.roundRect) g.roundRect(X, Y, w, h, rad); else g.rect(X, Y, w, h); g.stroke(); g.restore();
+  }
+  function renderPlace(P, key, kind) {
+    const box = $('.place'), txt = key ? (kind === 'ok' ? t('pl_perfect') : placeText(key)) : t('pl_checking');
+    box.hidden = false; box.dataset.state = kind;
+    if (P.shownKey !== key + kind) {
+      P.shownKey = key + kind;
+      $('.place-ico').innerHTML = ICON_SVG[kind === 'ok' ? 'ok' : key ? issueIcon(P.top) : 'eye'];
+      $('.place-txt').textContent = txt;
+    }
+  }
+  function startPlacement() {
+    if (T.mode !== 'camera' || !ex.track) return;
+    stopPlacementListeners();
+    const pl = planeFor(setIdx()), spec = ex.track.planes[pl];
+    const P = T.place = { on: true, t0: performance.now(), gate: new PlacementGate(), kind: handEx ? 'hand' : 'body', plane: pl, metric: spec.metric, scope: scopeOf(spec.metric), palm: handEx ? palmNeed(spec.metric) : null,
+      luma: null, lumaT: 0, tilt: null, spokenKey: null, spokenT: 0, aiBusy: false, aiN: 0, shownKey: null, top: null, last: null, box: null };
+    // Inclinaison du téléphone : capteur d'orientation (Android / WebView : pas de permission ; iOS l'exige → on ne s'en sert pas)
+    try {
+      if ('DeviceOrientationEvent' in window && typeof DeviceOrientationEvent.requestPermission !== 'function') {
+        P.onOri = (e) => { if (e.beta != null && e.gamma != null) P.tilt = { beta: e.beta, gamma: e.gamma }; };
+        window.addEventListener('deviceorientation', P.onOri);
+      }
+    } catch (_) {}
+    P.timer = setTimeout(() => { if (T.place === P && P.on) { toast(t('pl_timeout'), 3500); finishPlacement('timeout'); } }, PLACE_MAX_MS);
+    $('[data-t="replace"]').hidden = true; $('.place-ai').hidden = true; $('[data-t="place-ai"]').hidden = !placeKey();
+    showCue(''); renderPlace(P, null, 'wait');
+    resetTrack(); T.lastSt = null;
+  }
+  function finishPlacement(how) {
+    const P = T.place; if (!P || !P.on) return;
+    P.on = false; PLACED.add(id);
+    if (P.onOri) { try { window.removeEventListener('deviceorientation', P.onOri); } catch (_) {} P.onOri = null; }
+    clearTimeout(P.timer);
+    if (how === 'ok') { renderPlace(P, 'ok', 'ok'); speak(t('pl_perfect'), { interrupt: true }); P.hideT = setTimeout(() => { $('.place').hidden = true; }, 1300); }
+    else $('.place').hidden = true;
+    resetTrack(); if (T.tracker && T.tracker.reps === 0) T.tracker.lastT = 0;
+    $('[data-t="replace"]').hidden = false;
+  }
+  function placeStep(now, d) {
+    const P = T.place; if (!P || !P.on) return;
+    if (now - P.lumaT > 300) {
+      P.lumaT = now;
+      let bx = null;
+      if (d.lm) bx = subjectBox(d.lm, P.scope); else if (d.hand) { const xs = d.hand.map((p) => p.x), ys = d.hand.map((p) => p.y); bx = { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys) }; }
+      P.luma = sampleLuma(bx);
+    }
+    const a = assessPlacement({ kind: P.kind, plane: P.plane, side: curSide(), metric: P.metric, scope: P.scope, lm: d.lm, hand: d.hand, wrongHand: d.wrongHand, palm: P.palm,
+      frameW: V.fw, frameH: V.fh, mirror: isMirror(), luma: P.luma, tilt: P.tilt });
+    P.last = a;
+    const r = P.gate.push(a, now);
+    P.top = r.issue;
+    drawGuideBox(P, a.ok);
+    $('.place-bar i').style.width = `${Math.round(r.progress * 100)}%`;
+    if (r.stable) return finishPlacement('ok');
+    const key = r.issue ? r.issue.key : null;
+    renderPlace(P, key, key ? 'bad' : 'wait');
+    // voix : seulement quand le problème change, au moins 3 s après la dernière phrase
+    if (key && key !== P.spokenKey && now - P.spokenT >= 3000) { P.spokenKey = key; P.spokenT = now; if (t('pl_' + key) !== 'pl_' + key || key.startsWith('wrongHand')) speak(placeText(key), { interrupt: true }); }
+    if (!key) P.spokenKey = null;
+    // coach IA : seul, avec « coach IA » activé et une clé (3,5 s puis 12 s si ça ne s'arrange pas) ; sinon sur demande (bouton)
+    if (!a.ok && store.settings().liveAI && placeKey() && !P.aiBusy && ((P.aiN === 0 && now - P.t0 > 3500) || (P.aiN === 1 && now - P.t0 > 12000))) placeAdvice(false);
+  }
+  async function placeAdvice(manual) {
+    const P = T.place, key = placeKey();
+    if (!P || !P.on || P.aiBusy || !key || !P.last) return;
+    P.aiBusy = true; P.aiN++;
+    try {
+      const img = annotated(512); if (!img) return;
+      const lang = aiLangInfo();
+      const sys = `You help a patient place their phone camera so that an exercise-tracking app can see them well. Answer in ${lang.label}, informal register (in French use "tu"), maximum 2 short concrete sentences, spoken style, no greeting, no markdown. ` +
+        `Only talk about camera placement: distance, camera height, angle, left/right position, lighting, cluttered background, clothing that blends with the background. Never contradict the local measurements given; if they list no issue, give at most one small tip.`;
+      const cam = ex.track.cam ? tr(ex.track.cam) : t(P.plane === 'side' ? 'setupSide' : 'setupFront');
+      const text = `Exercise: ${ex.name.en || tr(ex.name)}. Wanted camera setup: ${cam}\n${measurementsText({ plane: P.plane, kind: P.kind }, P.last.info, P.last.issues, P.luma)}`;
+      const r = await geminiDirect(key, sys, [{ text }, { inline_data: { mime_type: 'image/jpeg', data: img } }], 90);
+      if (!r || T.place !== P || !P.on) return;
+      const el = $('.place-ai'); el.textContent = r; el.hidden = false;
+      const now = performance.now(); if (now - P.spokenT >= 3000 || manual) { P.spokenT = now; speakAI(r, { interrupt: true }); }
+    } catch (e) { /* silencieux : les consignes locales continuent */ } finally { P.aiBusy = false; }
+  }
+  $('[data-t="place-skip"]').onclick = () => finishPlacement('skip');
+  $('[data-t="place-ai"]').onclick = () => placeAdvice(true);
+  $('[data-t="replace"]').onclick = () => { if (!T.active || !T.tracker || T.place?.on) return; T.tracker = T.mkTracker(); PLACED.delete(id); startPlacement(); };
+
   // Mode guidé + coach IA : squelette sur le miroir (si le modèle de pose est disponible) pour des images annotées
   async function guidedPose() {
     if (T.gpRun) return;
@@ -437,9 +565,10 @@ export function viewTrain(id, cleanup) {
       toast(e && e.name === 'NotAllowedError' ? t('camDenied') : t('modelErr'), 4500);
       T.mode = 'guided'; return setup();
     }
-    for (const n of [3, 2, 1]) { center(`<div class="bignum">${n}</div>`); speak(String(n), { interrupt: true }); await sleep(900); }
-    center(''); speak(cueText('go'));
+    const willPlace = placementWanted();
+    if (!willPlace) { for (const n of [3, 2, 1]) { center(`<div class="bignum">${n}</div>`); speak(String(n), { interrupt: true }); await sleep(900); } center(''); speak(cueText('go')); }
     runSet();
+    if (willPlace) startPlacement(); // l'assistant de placement remplace le compte à rebours : on compte (calibration) quand le cadrage est bon
   }
 
   function runSet() {
@@ -447,7 +576,7 @@ export function viewTrain(id, cleanup) {
     const recentFaults = new Map(); T.recentFaults = recentFaults;
     T.mm = new MoveMatcher(ex); T.mvKey = null; T.mvWrongMs = 0; T.mvLastT = 0;
     T.frame = null; resetTrack(); T.ticks = 0;
-    T.tracker = new Tracker(ex, pl, { side: curSide(),
+    const mkTracker = () => new Tracker(ex, pl, { side: curSide(),
       romFactor: dose.romFactor,
       onCue: (k) => { if (cue(k)) { showCue(cueText(k), k === 'holdIt' || k === 'depth' ? '' : 'bad'); recentFaults.set(k, performance.now()); setTimeout(() => showCue(''), 2200); } },
       onRep: (rep) => {
@@ -468,13 +597,15 @@ export function viewTrain(id, cleanup) {
         if (dose.type !== 'hold' && T.tracker.reps >= dose.reps) setTimeout(endSet, 900);
       },
     });
+    T.tracker = mkTracker(); T.mkTracker = mkTracker;
     $('.counter').hidden = false; $('.depth').hidden = dose.type === 'hold'; $('.mini-fig').hidden = false; paintVideoBtn();
-    $('[data-t="end"]').hidden = false; $('[data-t="guided"]').hidden = true; $('[data-t="pause"]').hidden = false;
+    $('[data-t="end"]').hidden = false; $('[data-t="guided"]').hidden = true; $('[data-t="pause"]').hidden = false; $('[data-t="replace"]').hidden = false;
     $('#cntlbl').textContent = dose.type === 'hold' ? `/ ${holdTarget} ${t('sec')}` : `/ ${dose.reps}`;
     T.active = true; T.paused = false; startLive();
     let lastWarn = 0;
     // Compteur, anneau, barre d'amplitude ; retourne true si la série est terminée
     const hud = (st) => {
+      if (!$('[data-t="replace"]').hidden && ((st.reps || 0) > 0 || (st.holdSec || 0) > 0.5)) $('[data-t="replace"]').hidden = true; // une fois qu'on compte, plus de recadrage (la calibration serait perdue)
       if (T.live?.review && st.phase === 'moving' && (st.progress || 0) > (T.kfP || 0) + 0.04 && performance.now() - (T.kfT || 0) > 180) { T.kf = annotated(); T.kfP = st.progress; T.kfT = performance.now(); }
       if (st.phase === 'calibrating') showCue(t(handEx ? 'calibratingHand' : 'calibrating'));
       else if ([t('calibrating'), t('calibratingHand')].includes($('.cue span').textContent)) showCue('');
@@ -502,6 +633,11 @@ export function viewTrain(id, cleanup) {
         tock(now);
         T.handPrev = hd;
         paintFrame();
+        if (T.place?.on) { // placement : on montre la main, on ne compte pas encore
+          if (hd) { T.drawn = drawHand(g, project(smooth.apply(hd.lm, now)), V.W, V.H, isMirror(), { keep: true, bad: !handInFrame(hd.lm) }); T.lastHand = hd.lm; T.handInfo = { label: hd.label, score: hd.score, world: !!hd.world }; } else { smooth.reset(); T.lastHand = null; T.drawn = null; }
+          const ws = hd ? sideVote.push(hd, side) : false;
+          return placeStep(now, { hand: hd ? hd.lm : null, wrongHand: ws });
+        }
         if (!hd) {
           smooth.reset(); T.lastHand = null; T.drawn = null; T.handInfo = null;
           if (now - lastWarn > 3000) { lastWarn = now; cue('handInView'); showCue(cueText('handInView'), 'bad'); }
@@ -545,6 +681,11 @@ export function viewTrain(id, cleanup) {
       paintFrame();
       const fj = new Set();
       for (const [k, ts] of recentFaults) if (now - ts < 1500) (FAULT_JOINTS[k] || []).forEach((j) => fj.add(j));
+      if (T.place?.on) { // placement : on montre le squelette, on ne compte pas encore
+        if (lm) { T.drawn = drawSkeleton(g, project(smooth.apply(lm, now)), V.W, V.H, fj, isMirror(), true); } else { smooth.reset(); T.drawn = null; }
+        T.lastLm = lm; T.lastFj = fj;
+        return placeStep(now, { lm });
+      }
       if (!lm) { smooth.reset(); T.drawn = null; return; }
       const proj = project(smooth.apply(lm, now));
       T.drawn = drawSkeleton(g, proj, V.W, V.H, fj, isMirror(), true);

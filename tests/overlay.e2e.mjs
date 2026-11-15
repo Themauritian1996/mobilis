@@ -139,7 +139,7 @@ const redetect = (tool, id, kind) => tool.evaluate(async ({ id, kind }) => {
 
 // ---------- Une séance dans l'app ----------
 const HIDE_HUD = '.train .hud-top,.train .counter,.train .depth,.train .cue,.train .center-msg,.train .mini-fig,.train .vid-off,.toast{visibility:hidden!important}';
-async function openApp(browser, { viewport, dpr, facing, exercise, side, selfView = true }) {
+async function openApp(browser, { viewport, dpr, facing, exercise, side, selfView = true, place = false }) {
   const ctx = await browser.newContext({ viewport, deviceScaleFactor: dpr, permissions: ['camera'] });
   await ctx.addInitScript(({ facing, exercise, side, selfView }) => {
     localStorage.setItem('mobilis.delegate', 'CPU'); // pas de carte graphique ici : le moteur « GPU » logiciel met > 1 s par image
@@ -157,7 +157,7 @@ async function openApp(browser, { viewport, dpr, facing, exercise, side, selfVie
   page.on('pageerror', (e) => errors.push(String(e)));
   page.on('console', (m) => { if (m.type() === 'error' && !/XNNPACK|Firebase|firebase|net::ERR|Failed to load resource|WebGL|GL_|gl_context|OpenGL/i.test(m.text())) errors.push(m.text()); });
   await page.route((u) => !u.href.startsWith(ORIGIN), (r) => r.abort());
-  await page.goto(`${ORIGIN}/index.html#/train/${exercise}`);
+  await page.goto(`${ORIGIN}/index.html${place ? '' : '?noplace'}#/train/${exercise}`); // ?noplace : sans l'assistant de placement (il retarde la calibration)
   await page.waitForSelector('.train [data-t="go"]', { timeout: 20000 });
   await page.addStyleTag({ content: HIDE_HUD });
   return { ctx, page, errors };
@@ -380,6 +380,33 @@ const bodyP = still('body_portrait', { photo: 'body', fw: 720, fh: 960, box: [43
 await overlayScenario('Corps · portrait 720×960', bodyP, 'body', { ...PHONE, exercise: 'squat', rotate: { width: 600, height: 800 } });
 const bodyL = still('body_landscape', { photo: 'body', fw: 960, fh: 720, box: [300, 300], vis: { x: 0.9, y: 0.44 } });
 await overlayScenario('Corps · téléphone couché 915×412', bodyL, 'body', { viewport: { width: 915, height: 412 }, dpr: 2, exercise: 'squat', selfOff: true });
+
+
+// ---------- Assistant de placement : la phase s'ouvre avant la calibration, « Passer » la ferme et la calibration prend la suite ----------
+async function placementScenario(name, cam, kind, opts) {
+  if (process.env.E2E_ONLY && !name.includes(process.env.E2E_ONLY)) return;
+  console.log(`\n${name}`);
+  const browser = await chromium.launch({ args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', `--use-file-for-fake-video-capture=${cam.file}`] });
+  try {
+    const { ctx, page, errors } = await openApp(browser, { ...opts, facing: 'user', place: true });
+    await page.click('.train [data-t="go"]');
+    await page.waitForFunction(() => { const p = document.querySelector('.train .place'); return p && !p.hidden && p.querySelector('.place-txt').textContent; }, null, { timeout: 60000 });
+    check(true, 'la phase de placement s’ouvre');
+    const o = await overlay(page); check(!o.calibrated, 'pas encore de calibration pendant le placement');
+    await page.waitForFunction(() => document.querySelector('.train').__overlay().ticks > 8, null, { timeout: 60000 });
+    const guide = await page.evaluate(() => document.querySelector('.train .place').dataset.state);
+    check(['wait', 'bad', 'ok'].includes(guide), 'état du placement affiché', guide);
+    await page.click('.train [data-t="place-skip"]');
+    await page.waitForFunction(() => document.querySelector('.train .place').hidden, null, { timeout: 5000 });
+    const t0 = (await overlay(page)).ticks;
+    await page.waitForFunction(({ n, k }) => { const q = document.querySelector('.train').__overlay(); return q.ticks > n + 6 && (k !== 'hand' || q.calibrated); }, { n: t0, k: kind }, { timeout: 60000 });
+    check(true, '« Passer » : l’analyse continue et la calibration prend la suite' + (kind === 'hand' ? '' : ' (corps : image fixe, plan non vérifié)'));
+    check(errors.length === 0, 'aucune erreur dans la console', errors.slice(0, 2).join(' | '));
+    await ctx.close();
+  } finally { await browser.close(); }
+}
+await placementScenario('Placement · corps', bodyP, 'body', { ...PHONE, exercise: 'squat' });
+await placementScenario('Placement · main', handP, 'hand', { ...PHONE, exercise: 'thumb_opp', side: 'L' });
 
 // ---------- Main gauche / droite ----------
 async function handednessScenario() {
