@@ -464,6 +464,10 @@ html[dir="rtl"] .switch.on::after { transform: translateX(-20px); }
 .mv { display: inline-flex; flex-direction: column; gap: 2px; }
 .mv button { width: 26px; height: 20px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); font-size: 12px; line-height: 1; color: inherit; padding: 0; }
 .mv button:disabled { opacity: .35; }
+.clin-more { margin: 8px 0 0; }
+.clin-more summary { cursor: pointer; font-weight: 700; padding: 8px 0; min-height: 44px; display: flex; align-items: center; }
+.clin-more > h2 { margin: 14px 0 6px; }
+.todo { gap: 10px; }
 .ex-prog { margin: 8px 0 0; }
 .ex-prog summary { cursor: pointer; font-weight: 700; }
 .ex-prog > div { display: flex; gap: 8px; align-items: baseline; margin-top: 4px; }

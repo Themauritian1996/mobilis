@@ -46,7 +46,7 @@ export async function viewClinic() {
           <div class="kpis"><div><b class="${adh >= 80 ? 'pos' : adh < 50 ? 'neg' : ''}">${p.sessions7}/${p.planned}</b><span>${t('sessions7')}</span></div><div><b class="${p.pain7 != null && p.pain7 > painMax ? 'neg' : ''}">${p.pain7 ?? '–'}</b><span>${t('avgPain')}</span></div><div><b>${p.quality7 != null ? p.quality7 + '%' : '–'}</b><span>${t('quality')}</span></div></div>
           ${p.protocol ? `<div class="toggle"><span class="small"><b>${esc(t('ig_protoWeek', { n: p.protocol.week, a: p.protocol.phase, b: p.protocol.phases }))}</b>${p.protocol.preop ? '' : p.protocol.blocked ? ` · <span class="neg">${t('pr_blocked')}</span>` : ''}</span></div>` : ''}
           ${exProgress(p, rx)}
-          ${(p.prom?.length || p.rom?.length) ? `<details class="ex-prog"><summary class="small">${t('ig_clinMore')}</summary>${clinicPanelProm(p)}${p.rom?.length ? `<h2>${t('rom_secTitle')}</h2>${clinicPanelRom(p)}` : ''}</details>` : ''}
+          ${(p.prom?.length || p.rom?.length) ? `<details class="clin-more"><summary class="small">${t('ig_clinMore')}</summary>${clinicPanelProm(p)}${p.rom?.length ? `<h2>${t('rom_secTitle')}</h2>${clinicPanelRom(p)}` : ''}</details>` : ''}
           <div data-pdf="${esc(p.uid || p.updated)}"></div>
           ${p.notes?.length ? `<div class="toggle" style="display:block"><b class="small">${t('patientComments')}</b>${p.notes.slice(0, 3).map((n) => `<div class="small" style="margin-top:6px"><span class="muted">${fmtDate(n.date)} · ${esc(tr(EXERCISES[n.ex]?.name))}${n.pain != null ? ' · ' + n.pain + '/10' : ''}</span><br>« ${esc(n.text)} »</div>`).join('')}</div>` : ''}</div>`;
       }).join('') : (rx.code ? `<p class="small muted" style="margin:10px 0 0">${t('waitingPatient')}</p>` : '')}
