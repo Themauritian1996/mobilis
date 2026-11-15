@@ -1,5 +1,5 @@
 node_modules/
-android/
+/android/
 www/models/*.task
 .DS_Store
 www/review.html
