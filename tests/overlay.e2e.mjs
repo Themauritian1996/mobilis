@@ -396,7 +396,10 @@ async function placementScenario(name, cam, kind, opts) {
     await page.waitForFunction(() => document.querySelector('.train').__overlay().ticks > 8, null, { timeout: 60000 });
     const guide = await page.evaluate(() => document.querySelector('.train .place').dataset.state);
     check(['wait', 'bad', 'ok'].includes(guide), 'état du placement affiché', guide);
-    await page.click('.train [data-t="place-skip"]');
+    // la main bien cadrée peut valider le placement d'elle-même avant le clic : « Passer » seulement s'il est encore ouvert
+    const open = await page.evaluate(() => !document.querySelector('.train .place').hidden);
+    if (open) await page.click('.train [data-t="place-skip"]', { timeout: 3000 }).catch(() => {});
+    else check(true, 'placement validé de lui-même (cadrage bon)');
     await page.waitForFunction(() => document.querySelector('.train .place').hidden, null, { timeout: 5000 });
     const t0 = (await overlay(page)).ticks;
     await page.waitForFunction(({ n, k }) => { const q = document.querySelector('.train').__overlay(); return q.ticks > n + 6 && (k !== 'hand' || q.calibrated); }, { n: t0, k: kind }, { timeout: 60000 });
