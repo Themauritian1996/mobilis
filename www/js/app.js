@@ -1,3 +1,4 @@
+import { equipHelpHtml, bindEquipHelp } from './equipui.js';
 import { firebaseEnabled } from './config.js';
 import { t, tp, tr, getLang, setLang, locale, langInfo, LANGS, setAiLang } from './i18n.js';
 import { EXERCISES, EQUIP } from './data/exercises.js';
@@ -287,6 +288,7 @@ function viewExercise(id) {
     ${figureBlock(id)}
     <div class="row wrap" style="margin:12px 0 4px;gap:6px"><span class="chip ink">${t('level')} ${level}/5</span><span class="chip">${doseText(d)}</span>${d.tempo ? `<span class="chip">${t('tempo')} ${d.tempo}</span>` : ''}
       ${ex.equip.map((e) => `<span class="chip">${esc(tr(EQUIP[e]))}</span>`).join('')}</div>
+    ${ex.equip.length ? equipHelpHtml(id, level, prof) : ''}
     <h2>${t('keyPoints')}</h2><div class="list"><ul class="keylist">${ex.keys.map((k, i) => `<li><span class="n">${i + 1}</span><span>${esc(tr(k))}</span></li>`).join('')}</ul></div>
     <h2>${t('howTo')}</h2><div class="list"><ol class="steplist">${tr(ex.steps).map((s) => `<li><span>${esc(s)}</span></li>`).join('')}</ol></div>
     <h2>${t('planes')}</h2>${ex.track?.kind === 'hand' ? `<div class="card small row">${icon('hand', 26)}<div><b>${t('planeHand')} · ${t('planeHandD')}</b><br><span class="muted">${esc(tr(ex.track.cam))}</span></div></div>` : ex.track ? `<div class="planes">${plane('side')}${plane('front')}</div>` : `<div class="card small row">${icon('timer', 22)}<div><b>${t('guided')}</b><br><span class="muted">${t('guidedD')}</span></div></div>`}
@@ -294,6 +296,7 @@ function viewExercise(id) {
     ${canTrain ? `<div class="sticky-cta"><div><button class="btn" data-go="#/train/${id}">${ex.track ? icon('cam', 20) + ' ' + t('try') : IC.play.replace('<svg', '<svg width="16" height="16"') + ' ' + t('start')}</button></div></div>` : ''}
   </section>`;
   mountFigs($app);
+  bindEquipHelp($app, id, level);
   $app.querySelector('[data-back]').onclick = () => (history.length > 1 ? history.back() : go('#/home'));
 }
 

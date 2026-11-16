@@ -1,7 +1,9 @@
 // Mesure d'amplitude : calculs d'angle sur des points synthétiques (angles connus, miroir, côtés), détecteur de maintien,
 // confiance, échéances, évolution, résumé, crochets de l'éditeur. Aucun navigateur requis.
-import { TESTS, TEST_IDS, measure, facing, planeRatio, jointIdx, angleBetween, SUGGESTED } from '../www/js/data/romtests.js';
-import { HoldDetector, findHold, bestTrial, confidence, planeScore, due, trend, summaryPart, planItems, rxExtrasRom, rxSectionRom, suggestFor, homeCardRom, clinicPanelRom, romChartSvg, seriesOf, fmtVal, fmtGain, romHash } from '../www/js/rom.js';
+import { START, TESTS, TEST_IDS, measure, facing, planeRatio, jointIdx, angleBetween, SUGGESTED } from '../www/js/data/romtests.js';
+import fs from 'node:fs';
+import { getLang, t as tt } from '../www/js/i18n.js';
+import { sideBig, orientation, orientText, sampleOf, checkStart, nearSide, StartGate, startCue, Voicer, SIDE_COLOR, segmentAngle, startInstr, goInstr, HoldDetector, findHold, bestTrial, confidence, planeScore, due, trend, summaryPart, planItems, rxExtrasRom, rxSectionRom, suggestFor, homeCardRom, clinicPanelRom, romChartSvg, seriesOf, fmtVal, fmtGain, romHash } from '../www/js/rom.js';
 
 let fails = 0;
 const ok = (c, m) => { if (!c) { fails++; console.log('  ÉCHEC', m); } else console.log('  ok ', m); };
@@ -298,6 +300,151 @@ console.log('Éditeur de programme');
   eq(sec.read({ querySelector: () => secEl }), { rom: { tests: [{ test: 'sh_flex', side: 'L' }, { test: 'sh_er', side: 'R' }], every: 8 } }, 'read : tests actifs + fréquence');
   const none = { querySelectorAll: () => [], querySelector: () => ({ value: '4' }) };
   eq(sec.read({ querySelector: () => none }), { rom: null }, 'aucun test : rom = null');
+}
+
+
+// ---------- Position de départ guidée ----------
+console.log('Position de départ — données');
+for (const id of TEST_IDS) {
+  const st = TESTS[id].start;
+  ok(st && st.instr.fr && st.instr.en && st.go.fr && st.go.en && st.lo < st.hi && ['near', 'front', 'dir', 'profile'].includes(st.mode) && st.fixed.length === 2 && 'part' in st, `${id} : consigne de départ, plage, segment fixe`);
+  ok(TESTS[id].dir > 0 ? st.hi <= 100 : st.lo > 0, `${id} : plage de départ cohérente avec le sens du test`);
+}
+eq(Object.keys(START).sort(), [...TEST_IDS].sort(), 'un départ par test');
+{
+  const src = fs.readFileSync(new URL('../www/js/rom.js', import.meta.url), 'utf8'), keys = [...new Set([...src.matchAll(/\bt\('(rom_[A-Za-z0-9_]+)'/g)].map((m) => m[1]).filter((k) => !k.endsWith('_')))];
+  const miss = keys.filter((k) => tt(k) === k); eq(miss, [], `toutes les clés rom_ du code existent (${keys.length})`);
+  const dyn = ['rom_p_arm', 'rom_p_elbow', 'rom_p_wrist', 'rom_p_hip', 'rom_p_knee', 'rom_p_ankle', 'rom_pg_arm', 'rom_pg_wrist', 'rom_rightM', 'rom_rightF', 'rom_leftM', 'rom_leftF', 'rom_dirR', 'rom_dirL'];
+  eq(dyn.filter((k) => tt(k) === k), [], 'clés construites dynamiquement présentes');
+}
+const FR = getLang() === 'fr';
+
+console.log('Position de départ — côté et orientation');
+ok(SIDE_COLOR.L !== SIDE_COLOR.R, 'couleurs gauche / droite distinctes');
+if (FR) {
+  eq(sideBig(TESTS.sh_flex, 'R').text, 'Bras DROIT', 'gros libellé : Bras DROIT');
+  eq(sideBig(TESTS.kn_flex, 'L').text, 'Genou GAUCHE', 'gros libellé : Genou GAUCHE');
+  eq(sideBig(TESTS.hip_flex, 'R').text, 'Hanche DROITE', 'accord au féminin : Hanche DROITE');
+  eq(sideBig(TESTS.an_df, 'L').text, 'Cheville GAUCHE', 'Cheville GAUCHE');
+  eq(sideBig(TESTS.cerv_rot, 'R').text, 'Tête à DROITE', 'rotation cervicale : sens de la rotation');
+}
+eq(sideBig(TESTS.lumb_flex, null), null, 'test sans côté : pas de libellé');
+eq(sideBig(TESTS.sh_flex, 'R').color, SIDE_COLOR.R, 'couleur du côté D');
+// profil : côté D vers le téléphone → l'image brute le montre tourné vers la droite ; avec le miroir (caméra avant) il se voit tourné vers la gauche
+eq(orientation(TESTS.sh_flex, 'R', true), { mode: 'near', side: 'R', seen: 'left', lying: false }, 'profil, côté D, miroir : on se voit tourné à gauche');
+eq(orientation(TESTS.sh_flex, 'R', false), { mode: 'near', side: 'R', seen: 'right', lying: false }, 'profil, côté D, sans miroir : à droite');
+eq(orientation(TESTS.kn_flex, 'L', true).seen, 'right', 'profil, côté G, miroir : à droite');
+eq(orientation(TESTS.kn_flex, 'L', false).seen, 'left', 'profil, côté G, sans miroir : à gauche');
+// face : le côté D du patient s'affiche à droite de l'écran avec le miroir, à gauche sans
+eq([orientation(TESTS.sh_abd, 'R', true).scr, orientation(TESTS.sh_abd, 'R', false).scr, orientation(TESTS.sh_abd, 'L', true).scr, orientation(TESTS.sh_abd, 'L', false).scr], ['right', 'left', 'left', 'right'], 'face : côté à l\'écran selon côté + miroir');
+eq(orientation(TESTS.cerv_rot, 'L', true).mode, 'dir', 'rotation cervicale : face, sens');
+eq(orientation(TESTS.lumb_flex, null, true), { mode: 'profile' }, 'flexion lombaire : de profil sans côté');
+if (FR) {
+  const a = orientText(orientation(TESTS.sh_flex, 'R', true)), b = orientText(orientation(TESTS.sh_flex, 'R', false));
+  ok(a.startsWith('Tourne ton côté droit vers le téléphone.') && a.includes('vers la gauche') && b.includes('vers la droite') && a !== b, 'texte : « Tourne ton côté droit vers le téléphone » + sens vu à l\'écran selon le miroir');
+  ok(orientText(orientation(TESTS.kn_flex, 'L', true)).startsWith('Tourne ton côté gauche'), 'texte côté gauche');
+  ok(orientText(orientation(TESTS.sh_abd, 'L', true)).includes('Fais face au téléphone') && orientText(orientation(TESTS.sh_abd, 'L', true)).includes('à gauche'), 'face, côté G, miroir : à gauche de l\'écran');
+  ok(orientText(orientation(TESTS.sh_abd, 'L', false)).includes('à droite'), 'face, côté G, sans miroir : à droite de l\'écran');
+  eq(orientText(orientation(TESTS.cerv_rot, 'R', true)), 'Fais face au téléphone.', 'rotation cervicale : fais face');
+  ok(!orientText(orientation(TESTS.hip_flex, 'R', true)).includes('écran'), 'couché : pas de sens à l\'écran');
+  ok(goInstr(TESTS.cerv_rot, 'R').includes('vers ta droite') && goInstr(TESTS.cerv_rot, 'L').includes('vers ta gauche'), 'consigne de mouvement avec le sens');
+  ok(startInstr(TESTS.sh_flex).includes('bras le long du corps'), 'consigne de départ de l\'épaule');
+}
+
+console.log('Position de départ — vérification par la pose');
+{
+  // épaule, profil : patient tourné vers la droite de l'image brute (côté D vers la caméra) ; bras le long du corps / levé / en arrière
+  const prof = (armDeg, face = 1) => { const sh = [350, 400], pts = { 0: [350 + 50 * face, 300], 7: [350 - 10 * face, 300], 8: [350 - 10 * face, 300], 11: [352, 402], 12: sh, 23: [352, 802], 24: [350, 800], 14: at(sh, 90 - armDeg, 250) }; return pts; };
+  const S_ = (T_, sd, pts) => sampleOf(T_, sd, lmOf(pts), W, H);
+  const T = TESTS.sh_flex;
+  let c = checkStart(T, 'R', S_(T, 'R', prof(5)));
+  ok(c.ok && c.inRange && c.near === 'R', 'bras le long du corps, bon côté : départ valide');
+  c = checkStart(T, 'R', S_(T, 'R', prof(80)));
+  ok(!c.ok && c.issues[0] === 'startHigh', 'bras déjà levé à 80° : hors plage (trop haut)');
+  c = checkStart(T, 'R', S_(T, 'R', prof(-45)));
+  ok(!c.ok && c.issues[0] === 'startLow', 'bras en arrière : hors plage (trop bas)');
+  ok(checkStart(T, 'R', S_(T, 'R', prof(22))).ok && !checkStart(T, 'R', S_(T, 'R', prof(30))).ok && checkStart(T, 'R', S_(T, 'R', prof(-18))).ok && !checkStart(T, 'R', S_(T, 'R', prof(-25))).ok, 'bornes de la plage (−20° à 22°)');
+  // mauvais côté : le patient montre son côté gauche (regarde vers la gauche de l'image) alors qu'on mesure le côté D
+  const left = prof(5, -1);
+  c = checkStart(T, 'R', S_(T, 'R', left));
+  ok(!c.ok && c.issues[0] === 'wrongSide' && c.near === 'L' && !c.side, 'mauvais côté vers la caméra : wrongSide');
+  c = checkStart(T, 'L', S_(T, 'L', { 0: [300, 300], 7: [360, 300], 8: [360, 300], 11: [350, 400], 12: [352, 402], 23: [350, 800], 24: [352, 802], 13: at([350, 400], 90, 250) }));
+  ok(c.ok && c.near === 'L', 'côté G vers la caméra (regard vers la gauche de l\'image) : valide pour le côté G');
+  eq(nearSide({ facing: 0, visL: 0.9, visR: 0.4 }), 'L', 'sans regard : le côté le mieux vu');
+  eq(nearSide({ facing: 0, visL: 0.8, visR: 0.7 }), null, 'sans regard ni écart de visibilité : inconnu');
+  // vue : épaules de face alors qu'un profil est demandé
+  const frontPts = { ...prof(5), 11: [250, 400], 12: [450, 400], 23: [290, 800], 24: [410, 800] };
+  c = checkStart(T, 'R', S_(T, 'R', frontPts));
+  ok(!c.ok && c.issues[0] === 'turnSide' && !c.view, 'de face au lieu de profil : turnSide (avant le côté)');
+  // test de face : abduction
+  const TA = TESTS.sh_abd, fr = (armDeg, w = 220) => { const shL = [360 + w / 2, 400]; return { 0: [360, 300], 7: [330, 300], 8: [390, 300], 11: shL, 12: [360 - w / 2, 400], 23: [380, 800], 24: [340, 800], 13: at(shL, 90 - armDeg, 250) }; };
+  c = checkStart(TA, 'L', S_(TA, 'L', fr(5)));
+  ok(c.ok && c.view, 'abduction, de face, bras le long du corps : valide');
+  c = checkStart(TA, 'L', S_(TA, 'L', fr(5, 20)));
+  ok(!c.ok && c.issues[0] === 'turnFront', 'abduction, patient de profil : turnFront');
+  c = checkStart(TA, 'L', S_(TA, 'L', fr(100)));
+  ok(c.issues[0] === 'startHigh', 'abduction, bras déjà levé : hors plage');
+  ok(checkStart(TA, 'R', S_(TA, 'R', fr(5))).side, 'de face : pas de contrôle du côté tourné');
+  // départ « déficit » (coude, extension) : doit partir fléchi
+  const TE = TESTS.el_ext, elb = (flex) => ({ 0: [400, 300], 7: [340, 300], 8: [340, 300], 11: [352, 402], 12: [350, 400], 23: [352, 802], 24: [350, 800], 14: at([350, 400], 90, 200), 16: at(at([350, 400], 90, 200), 90 - flex, 180) });
+  ok(checkStart(TE, 'R', S_(TE, 'R', elb(90))).ok, 'extension du coude : départ plié à 90° valide');
+  eq(checkStart(TE, 'R', S_(TE, 'R', elb(5))).issues[0], 'startLow', 'extension du coude : déjà tendu = hors plage');
+  // couché : pas de contrôle du côté par la tête
+  const lying = { ...prof(5, -1), 24: [350, 400], 23: [352, 402] };
+  ok(START.hip_flex.lying && !checkStart(TESTS.hip_flex, 'R', { deg: 5, vis: 0.9, ratio: 0.1, facing: -1, visL: 0.9, visR: 0.9, seg: 0 }).issues.includes('wrongSide'), 'couché : le sens du regard n\'invalide pas le côté');
+  eq(checkStart(T, 'R', null).issues, ['lost'], 'pas de personne : lost');
+  eq(checkStart(T, 'R', { deg: null, vis: 0, ratio: 0.1, facing: 1 }).issues, ['lost'], 'angle introuvable : lost');
+  ok(typeof segmentAngle(T, 'R', { lm: lmOf(prof(5)), w: W, h: H }) === 'number', 'segment fixe (tronc) mesurable');
+}
+
+console.log('Position de départ — immobilité');
+{
+  const T = TESTS.sh_flex, good = { ok: true }, s0 = (deg, seg) => ({ deg, seg });
+  let g = new StartGate({ holdMs: 1200 }), r;
+  for (let i = 0; i <= 30; i++) r = g.push(i * 50, good, s0(3 + (i % 2) * 0.5, 90));
+  ok(r.ready && r.still && r.progress === 1, 'position stable 1,2 s : prête');
+  g = new StartGate(); for (let i = 0; i <= 12; i++) r = g.push(i * 50, good, s0(3, 90));
+  ok(!r.ready && r.progress > 0.3 && r.progress < 0.7, 'à mi-parcours : pas encore prête');
+  g = new StartGate(); for (let i = 0; i <= 40; i++) r = g.push(i * 50, good, s0(i % 2 ? 0 : 14, 90));
+  ok(!r.ready && !r.still, 'l\'angle bouge de 14° : pas immobile');
+  g = new StartGate(); for (let i = 0; i <= 40; i++) r = g.push(i * 50, good, s0(3, i % 2 ? 80 : 95));
+  ok(!r.ready && !r.still, 'le segment fixe bouge de 15° : pas immobile');
+  g = new StartGate(); for (let i = 0; i <= 40; i++) r = g.push(i * 50, good, s0(3, 179 + (i % 2 ? 0 : 3) - (i % 2 ? 0 : 360 * 0)));
+  ok(r.ready, 'segment fixe vers ±180° : le passage de l\'angle est géré');
+  g = new StartGate(); for (let i = 0; i <= 30; i++) r = g.push(i * 50, i === 28 ? { ok: false } : good, s0(3, 90));
+  ok(!r.ready, 'une sortie de plage remet le compte à zéro');
+  g = new StartGate(); for (let i = 0; i <= 30; i++) r = g.push(i * 50, good, s0(3, 90 + i * 1.2));
+  ok(!r.ready, 'le segment fixe dérive lentement (36° en 1,5 s) : pas immobile');
+  // consignes selon la situation
+  const gate = (still, ready) => ({ still, ready, progress: ready ? 1 : 0.5 });
+  eq(startCue(T, 'R', { issues: ['lost'] }, gate(false, false), true).say, null, 'corps perdu : pas de voix (le placement s\'en occupe)');
+  eq(startCue(T, 'R', { issues: ['wrongSide'] }, gate(false, false), true).key, 'side', 'mauvais côté : consigne d\'orientation');
+  if (FR) ok(startCue(T, 'R', { issues: ['wrongSide'] }, gate(false, false), true).say.startsWith('Tourne ton côté droit'), 'dite : « Tourne ton côté droit vers le téléphone »');
+  eq(startCue(T, 'R', { issues: ['startHigh'] }, gate(false, false), true).say, startInstr(T), 'hors plage : on redit la consigne de départ');
+  eq(startCue(T, 'R', { issues: [] }, gate(false, false), true).key, 'still', 'dans la plage mais bouge : reste immobile');
+  eq(startCue(T, 'R', { issues: [] }, gate(true, false), true).say, null, 'dans la plage, stable : on attend en silence');
+  const go = startCue(T, 'R', { issues: [] }, gate(true, true), true);
+  ok(go.key === 'go' && go.say.includes(goInstr(T, 'R')), '« Bien, maintenant » + consigne du mouvement');
+  if (FR) ok(go.say.startsWith('Bien. Maintenant, lève le bras tendu'), 'épaule : « Bien. Maintenant, lève le bras tendu… »');
+}
+
+console.log('Position de départ — voix');
+{
+  let v = new Voicer({ minGap: 2500, repeatMs: 9000 });
+  ok(v.offer('a', 'Bonjour', 0), 'première consigne dite');
+  ok(!v.offer('a', 'Bonjour', 3000), 'la même consigne n\'est pas répétée');
+  ok(!v.offer('b', 'Autre', 1000), 'une autre consigne attend 2,5 s');
+  ok(!v.offer('b', 'Autre', 2400), '… toujours pas à 2,4 s');
+  ok(v.offer('b', 'Autre', 2500), '… dite à 2,5 s');
+  ok(!v.offer('b', 'Autre', 9000), 'pas de répétition avant 9 s');
+  ok(v.offer('b', 'Autre', 12000), 'rappel de la même consigne après 9 s');
+  ok(!v.offer('c', '', 30000), 'texte vide : rien');
+  v = new Voicer(); v.offer('long', 'x'.repeat(100), 0);
+  ok(!v.offer('n', 'Suite', 5000) && v.offer('n', 'Suite', 6200), 'phrase longue : on attend la fin estimée (pas de chevauchement)');
+  v = new Voicer(); v.offer('k', 'Deux', 0, { gap: 300 });
+  ok(!v.offer('k2', 'Un', 200) && v.offer('k2', 'Un', 300), 'décompte : intervalle court');
+  v = new Voicer({ muted: true }); ok(v.offer('a', 'texte', 0) && v.offer('b', 'texte', 0), 'voix coupée : aucune attente');
+  v = new Voicer(); v.mark('res', 'Noté', 1000); ok(!v.idle(1500) && v.idle(3600), 'mark : bloque les consignes suivantes 2,5 s');
 }
 
 console.log(fails ? `\n${fails} ÉCHEC(S)` : '\nTout est vert.');

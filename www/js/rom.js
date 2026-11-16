@@ -346,8 +346,8 @@ export const dirWord = (sd) => t(sd === 'R' ? 'rom_dirR' : 'rom_dirL');
 export function sideBig(T, sd) {
   const st = T && T.start;
   if (!T || !T.sided || !sd || !st || !st.part) return null;
-  const [part, g] = st.part;
-  const text = part === 'head' ? t('rom_bigHead', { d: dirWord(sd).toUpperCase() }) : `${t('rom_p_' + part)} ${sideWord(sd, g).toUpperCase()}`;
+  const part = st.part[0]; // le genre grammatical de la partie dépend de la langue : clé rom_pg_<partie> (« m » / « f »)
+  const text = part === 'head' ? t('rom_bigHead', { d: dirWord(sd).toUpperCase() }) : t('rom_bigPart', { p: t('rom_p_' + part), s: sideWord(sd, t('rom_pg_' + part)).toUpperCase() });
   return { text, side: sd, color: SIDE_COLOR[sd] };
 }
 /** Orientation du patient selon le test, le côté et le miroir.

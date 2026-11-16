@@ -53,6 +53,7 @@ try {
     const fs_ = await mp.FilesetResolver.forVisionTasks('/vendor/mediapipe/wasm');
     const pl = await mp.PoseLandmarker.createFromOptions(fs_, { baseOptions: { modelAssetPath: '/models/pose_landmarker_lite.task', delegate: 'CPU' }, runningMode: 'IMAGE', numPoses: 1 });
     const R = await import('/js/data/romtests.js');
+    let ROM = null; try { ROM = await import('/js/rom.js'); } catch (e) { ROM = null; }
     const res = {};
     for (const name of photos) {
       const im = new Image(); im.src = `/media/${name}.jpg`; await im.decode();
@@ -70,6 +71,8 @@ try {
         if (!lm) { res[name][vn] = null; continue; }
         const f = { lm, w: c.width, h: c.height }, o = {};
         for (const side of ['L', 'R']) for (const id of ['kn_flex', 'hip_flex', 'el_flex']) { const m = R.measure(id, f, side); if (m && m.vis >= 0.6) o[`${id}_${side}`] = m.deg; }
+        // position de départ : côté tourné vers la caméra et vue, déduits de la vraie pose (doivent résister à la rotation et au cadrage)
+        if (ROM) { const sm = ROM.sampleOf(R.TESTS.kn_flex, 'R', lm, c.width, c.height); o._near = ROM.nearSide(sm); o._side = sm.ratio != null && sm.ratio <= 0.45; }
         res[name][vn] = o;
       }
     }
@@ -81,13 +84,16 @@ try {
     for (const [vn, o] of Object.entries(vs)) {
       if (vn === 'original') continue;
       if (!o) { console.log(`  ${name}/${vn} : pose non détectée (ignoré)`); continue; }
+      if (base._near !== undefined) {
+        checked++; if (o._near !== base._near || o._side !== base._side) { fails++; console.log(`  ÉCHEC ${name}/${vn} départ : côté vers la caméra ${o._near} / profil ${o._side} contre ${base._near} / ${base._side}`); } else console.log(`  ok  ${name}/${vn} départ : côté vers la caméra ${o._near}, profil ${o._side}`);
+      }
       for (const k of Object.keys(base)) {
-        if (o[k] == null) continue;
+        if (k.startsWith('_') || o[k] == null) continue;
         checked++; const d = Math.abs(o[k] - base[k]), tol = k.startsWith('el_') ? TOL_ARM : TOL;
         if (d > tol) { fails++; console.log(`  ÉCHEC ${name}/${vn} ${k} : ${o[k].toFixed(1)}° contre ${base[k].toFixed(1)}° (écart ${d.toFixed(1)}° > ${tol}°)`); } else console.log(`  ok  ${name}/${vn} ${k} : ${o[k].toFixed(1)}° (original ${base[k].toFixed(1)}°)`);
       }
     }
-    console.log(`  ${name} original :`, Object.entries(base).map(([k, v]) => `${k}=${v.toFixed(0)}°`).join(' '));
+    console.log(`  ${name} original :`, Object.entries(base).filter(([k]) => !k.startsWith('_')).map(([k, v]) => `${k}=${v.toFixed(0)}°`).join(' '));
   }
   if (!checked) { fails++; console.log('  ÉCHEC : aucune comparaison possible'); }
 } finally { if (browser) await browser.close(); server.close(); }
