@@ -18,7 +18,7 @@ const advance = (ms) => {
   T = end;
 };
 
-const store = { 'mobilis.settings': JSON.stringify({ geminiKey: 'k', voice: 'gemini' }) };
+const store = { 'mobilis.settings': JSON.stringify({ geminiKey: 'k', voice: 'gemini', imageConsent: true }) };
 globalThis.localStorage = { getItem: (k) => store[k] ?? null, setItem(k, v) { store[k] = v; } };
 globalThis.window = globalThis;
 globalThis.document = { documentElement: {}, addEventListener() {}, createElement: () => ({ getContext: () => ({}), width: 0, height: 0 }) };

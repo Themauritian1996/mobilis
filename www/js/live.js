@@ -5,7 +5,7 @@
 // 2) Repli : une image analysée par Gemini (generateContent) sur les mêmes évènements, lue par la voix de l'appareil.
 // Nécessite la clé Gemini personnelle (Profil → Coach IA). Les images vont à Google ; Mobilis n'en garde aucune.
 import { CONFIG } from './config.js';
-import { settings, aiKey, aiCount, PROXY_KEY } from './store.js';
+import { settings, aiKey, aiCount, PROXY_KEY, imageConsent } from './store.js';
 import { aiLangInfo, getAiLang } from './i18n.js';
 import { speakAI, geminiDirect, setLiveTalking } from './coach.js';
 import { planeText, fineKind } from './ai-coach.js';
@@ -66,6 +66,7 @@ export function startLiveCoach(o) {
   primeAudio();
 
   const frame = (w = 512) => {
+    if (!imageConsent()) return null; // consentement explicite requis avant d'envoyer une image
     if (o.frame) return o.frame(w); // image annotée (squelette) fournie par la séance
     const v = o.video; if (!v.videoWidth) return null;
     cv.width = w; cv.height = Math.round((v.videoHeight / v.videoWidth) * w);

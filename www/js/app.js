@@ -9,11 +9,13 @@ import { programEnded } from './longterm.js';
 import { setPartialPolicy } from './pose.js';
 import { coachComment, speakRich, cueText } from './coach.js';
 import { state, setRender, render, go, profile, sessions, todaySession, nextExercise, updateProfile, syncProgress, inTrial, navRole } from './state.js';
-import { esc, icon, IC, toast, stopFigs, mountFigs, figSvg, figureBlock, nav, applyTheme, lvlBar, sheet, shareText, copyText, langPicker, ds, ring } from './ui.js';
+import { esc, icon, IC, toast, stopFigs, mountFigs, figSvg, figureBlock, nav, applyTheme, lvlBar, sheet, shareText, copyText, langPicker, ds, ring, confirmSheet, saveFile, watchSwitches } from './ui.js';
+import { viewHistory, rangeSeg, getRange } from './history.js';
+import { rangeWeeks, inRange } from './longterm.js';
 import { viewOnboard, viewCodeEntry, viewRxImport, checkRxUpdate, layName, medName } from './onboarding.js';
 import { viewTrain, doseText } from './train.js';
 import { viewSession } from './session.js';
-import { viewCalendar, appointments, refreshReminders } from './calendar.js';
+import { viewCalendar, appointments, refreshReminders, armWebReminder } from './calendar.js';
 import { viewClinic, viewRxEditor, viewTestStart } from './clinic.js';
 import { viewProm, viewPromHistory, homeCardProm, bindHomeCardProm } from './questionnaires.js';
 import { viewRom, viewRomHistory, homeCardRom, bindHomeCardRom } from './rom.js';
@@ -38,6 +40,7 @@ async function boot() {
   try { RPT = await import('./report.js'); } catch (_) { RPT = null; }
   await setLang(getLang());
   applyTheme();
+  watchSwitches($app); // chaque interrupteur reçoit un nom accessible, quel que soit l'écran
   try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme); } catch (_) {}
   await store.initAuth(async (u) => {
     state.user = u;
@@ -69,16 +72,17 @@ function route() {
   const [name, arg, arg2] = r.split('/');
   if (name !== 'train' && name !== 'rx') badgesAfter(); // après une séance, un questionnaire, une mesure ou un rapport : nouveaux badges
   if (name === 'rx' && arg) {
-    try { localStorage.setItem('mobilis.pendingRx', arg); } catch (_) {}
+    store.setPendingRx(arg);
     // Le lien porte la langue choisie par le clinicien (#/rx/CODE/es)
     let chosen = false; try { chosen = !!sessionStorage.getItem('mobilis.langChosen'); } catch (_) {}
     if (arg2 && arg2 !== getLang() && langInfo(arg2).id === arg2 && !chosen) { setLang(arg2).then(render); return; }
     if (state.user) return viewRxImport(arg);
   }
   if (!state.user) return viewAuth();
-  let pending = null; try { pending = localStorage.getItem('mobilis.pendingRx'); } catch (_) {}
+  const pending = store.getPendingRx();
   if (pending && name !== 'rx') return go('#/rx/' + pending.split('/')[0]);
   if (name === 'code') return viewCodeEntry();
+  if (name === 'history' && profile()?.role) return viewHistory();
   const prof = profile();
   if (!prof?.role || name === 'onboard' || (prof.role === 'patient' && !prof.pathology)) return viewOnboard();
   if (name === 'clinic' && arg === 'new') return viewRxEditor(null);
@@ -114,14 +118,14 @@ document.addEventListener('click', (e) => {
 // ---------- Connexion ----------
 function viewAuth() {
   const fbOn = firebaseEnabled();
-  let pending = null; try { pending = localStorage.getItem('mobilis.pendingRx'); } catch (_) {}
+  const pending = store.getPendingRx();
   $app.innerHTML = `<section class="screen auth">
     <div class="row between"><div class="brand-lg">${icon('logo', 34)} Mobilis</div>
       ${langPicker()}</div>
     <div class="auth-stage"><svg class="hero-fig" data-fig="squat" data-static="0" data-keys="0" data-anat="0"></svg></div>
     <h1>${t('heroTitle')}</h1><p class="tagline">${t('tagline')}</p>
     <ul class="vprops"><li><span class="vp-ic">${icon('cam', 20)}</span><span>${ds('vpCam')}</span></li><li><span class="vp-ic">${icon('trend', 20)}</span><span>${ds('vpPlan')}</span></li><li><span class="vp-ic">${icon('stetho', 20)}</span><span>${ds('vpClin')}</span></li></ul>
-    ${pending ? `<div class="banner pos" style="margin-bottom:12px">${icon('stetho', 20)}<div>${t('pendingRx')}</div></div>` : ''}
+    ${pending ? `<div class="banner pos" style="margin-bottom:12px">${icon('stetho', 20)}<div>${t('pendingRx')} <button class="link" data-a="dropRx">${t('rxDismiss')}</button></div></div>` : ''}
     <div class="stack">
       ${fbOn ? `<button class="btn" data-a="google"><svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.8 1.1 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3 0 5.8 1.1 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>${t('googleBtn')}</button>
       <button class="btn ghost" data-a="emailToggle">${t('emailBtn')}</button>
@@ -140,6 +144,7 @@ function viewAuth() {
   mountFigs($app);
   const q = (s) => $app.querySelector(s);
   const err = (e) => { const p = q('#err'); if (p) { p.hidden = false; p.textContent = t('authErr') + (e.code || e.message); } };
+  const dr = q('[data-a="dropRx"]'); if (dr) dr.onclick = () => { store.clearPendingRx(); viewAuth(); };
   q('[data-a="local"]').onclick = () => store.signInLocal(async (u) => { state.user = u; state.data = await store.loadData(); render(); });
   if (!fbOn) return;
   q('[data-a="google"]').onclick = () => store.signInGoogle().catch(err);
@@ -192,7 +197,7 @@ function viewHome() {
   const isPatientView = prof.role !== 'clinician';
 
   $app.innerHTML = `<section class="screen">${trialBar()}
-    <div class="hello"><div class="avatar">${esc((prof.name || '?')[0].toUpperCase())}</div><div class="grow"><span class="eyebrow">${new Date().toLocaleDateString(locale(), { weekday: 'long', day: 'numeric', month: 'long' })}</span><div class="hello-name">${t('hello')} ${esc(prof.name)}</div></div>
+    <div class="hello"><div class="avatar">${esc((prof.name || '?')[0].toUpperCase())}</div><div class="grow"><span class="eyebrow">${new Date().toLocaleDateString(locale(), { weekday: 'long', day: 'numeric', month: 'long' })}</span><h1 class="hello-name">${t('hello')} ${esc(prof.name)}</h1></div>
       <span class="chip streak" title="${t('streak')}" aria-label="${t('streak')} ${P.streak(prof, sessions())}">${icon('flame', 16)} ${P.streak(prof, sessions())}</span></div>
 
     <div class="card today hero">
@@ -317,7 +322,7 @@ function lineChart(rows, series, { max = 10, h = 150, label = (r) => 'S' + r.wee
   return s + '</svg>';
 }
 function barChart(rows) {
-  const W = 320, H = 120, pad = 18, n = Math.max(1, rows.length), bw = Math.min(26, (W - pad * 2) / n - 8);
+  const W = 320, H = 120, pad = 18, n = Math.max(1, rows.length), bw = Math.max(2, Math.min(26, (W - pad * 2) / n - (n > 20 ? 2 : 8))), every = Math.ceil(n / 10);
   const max = Math.max(...rows.map((r) => Math.max(r.sessions, r.planned)), 1);
   const y = (v) => H - 20 - (v / max) * (H - 32);
   let s = `<svg viewBox="0 0 ${W} ${H}" role="img"><line class="ax base" x1="${pad}" x2="${W - 8}" y1="${y(0)}" y2="${y(0)}"/>`;
@@ -325,23 +330,26 @@ function barChart(rows) {
     const cx = pad + ((i + 0.5) * (W - pad * 2)) / n;
     s += `<rect x="${cx - bw / 2}" y="${y(r.planned)}" width="${bw}" height="${y(0) - y(r.planned)}" rx="5" fill="var(--surface-2)"/>`;
     if (r.sessions) s += `<rect x="${cx - bw / 2}" y="${y(Math.min(r.sessions, max))}" width="${bw}" height="${y(0) - y(Math.min(r.sessions, max))}" rx="5" fill="${r.sessions >= r.planned ? 'var(--pos)' : 'var(--brand)'}"/>`;
-    s += `<text x="${cx}" y="${H - 4}" text-anchor="middle">S${r.week}</text>`;
+    if (i % every === 0 || i === n - 1) s += `<text x="${cx}" y="${H - 4}" text-anchor="middle">S${r.week}</text>`;
   });
   return s + '</svg>';
 }
 
 function viewProgress() {
   const prof = profile();
-  const rows = P.weeklyStats(prof, sessions()).slice(-8);
+  const range = getRange(); // 4 semaines / 3 mois / tout
+  const rows = P.weeklyStats(prof, sessions()).slice(-rangeWeeks(range));
   const has = sessions().length > 0;
   const prog = P.todaysProgram(prof);
-  const hist = sessions().slice(-10).reverse();
-  const j = (state.data.journal || []).slice(-14);
+  const inR = sessions().filter((x) => inRange(x.date, range));
+  const hist = inR.slice(-10).reverse();
+  const j = (state.data.journal || []).filter((e) => inRange(e.ts || new Date(e.day + 'T12:00').getTime(), range));
   $app.innerHTML = `<section class="screen"><div class="topbar"><h1>${t('progress')}</h1><span class="chip">${t('week')} ${P.weekNumber(prof)} · ${t('phase')} ${prof.phase || 1}</span></div>
     <button class="btn ghost" data-go="#/report">${icon('doc', 18)} ${t('reportBtn')}</button>
-    <div class="list linklist" style="margin-top:12px">${[['#/proms', t('pmTitle'), 'clip'], ['#/amplitude', t('ig_amplitude'), 'ruler'], ['#/badges', t('bdgTitle'), 'medal'], ...(prof.protocol ? [['#/protocole', t('pr_title'), 'shield']] : []), ...(RPT?.viewPatientReport ? [['#/rapport', t('reportTitle'), 'doc']] : [])]
+    <div class="list linklist" style="margin-top:12px">${[['#/history', t('histTitle'), 'clock'], ['#/proms', t('pmTitle'), 'clip'], ['#/amplitude', t('ig_amplitude'), 'ruler'], ['#/badges', t('bdgTitle'), 'medal'], ...(prof.protocol ? [['#/protocole', t('pr_title'), 'shield']] : []), ...(RPT?.viewPatientReport ? [['#/rapport', t('reportTitle'), 'doc']] : [])]
       .map(([h, l, ic]) => `<button class="toggle" data-go="${h}"><span class="li-ic">${icon(ic, 18)}</span><span class="grow"><b>${esc(l)}</b></span><span class="chev" aria-hidden="true">${icon('chev', 18)}</span></button>`).join('')}</div>
     ${!has ? `<div class="card empty" style="margin-top:12px"><div class="empty-ic">${icon('chart', 24)}</div>${t('noData')}</div>` : `
+    <div style="margin-top:14px">${rangeSeg(range)}</div>
     <h2>${t('weekly')}</h2><div class="card chart">${lineChart(rows, [
       { get: (r) => r.pain, color: 'var(--neg)' },
       { get: (r) => (r.quality != null ? r.quality * 10 : null), color: 'var(--pos)' },
@@ -351,8 +359,9 @@ function viewProgress() {
     <h2>${t('weekReport')}</h2><div class="card"><p id="wr" class="muted small" style="margin:0 0 10px">${t('weekReportD')}</p><button class="btn sm ghost" data-a="wr">${icon('spark', 16)} ${t('genReport')}</button></div>`}
     ${j.length > 1 ? `<h2>${t('dailyLog')}</h2><div class="card chart">${lineChart(j, [{ get: (r) => r.pain, color: 'var(--neg)' }], { label: (r) => r.day.slice(8) })}</div>` : ''}
     <h2>${t('levels')}</h2><div class="list">${prog.map((x) => `<div class="toggle"><span class="small"><b>${esc(tr(EXERCISES[x.id].name))}</b></span>${lvlBar(x.level)}</div>`).join('')}</div>
-    ${hist.length ? `<h2>${t('history')}</h2><div class="list">${hist.map((s) => `<div class="toggle"><span><b>${new Date(s.date).toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'short' })}</b><br><small class="muted">${s.items.map((i) => `${esc(tr(EXERCISES[i.id]?.name))} · ${i.pain}/10${i.change > 0 ? ' ↑' : i.change < 0 ? ' ↓' : ''}${i.note ? `<br><span style="color:var(--ink)">« ${esc(i.note)} »</span>` : ''}`).join('<br>')}</small></span></div>`).join('')}</div>` : ''}
+    ${hist.length ? `<div class="sec-head"><h2>${t('history')}</h2><button class="link small" data-go="#/history">${t('histSeeAll')}</button></div><div class="list">${hist.map((s) => `<div class="toggle"><span><b>${new Date(s.date).toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'short' })}</b><br><small class="muted">${s.items.map((i) => `${esc(tr(EXERCISES[i.id]?.name))} · ${i.pain}/10${i.change > 0 ? ' ↑' : i.change < 0 ? ' ↓' : ''}${i.note ? `<br><span style="color:var(--ink)">« ${esc(i.note)} »</span>` : ''}`).join('<br>')}</small></span></div>`).join('')}</div>` : ''}
   </section>${nav('progress', navRole())}`;
+  $app.querySelectorAll('[data-range]').forEach((b) => (b.onclick = () => { state.range = b.dataset.range; const y = scrollY; viewProgress(); scrollTo(0, y); }));
   const b = $app.querySelector('[data-a="wr"]');
   if (b) b.onclick = async () => {
     const cur = rows[rows.length - 1], prev = rows[rows.length - 2];
@@ -454,7 +463,7 @@ function viewAdjust() {
     const id = b.dataset.skip, p = profile(), to = P.todayOver(p), has = to.skip.includes(id);
     await updateProfile({ todayOver: { date: to.date, items: to.items, skip: has ? to.skip.filter((z) => z !== id) : [...to.skip, id] } }); again();
   }));
-  $app.querySelector('[data-a="redo"]').onclick = () => { state.ob = null; go('#/onboard'); };
+  $app.querySelector('[data-a="redo"]').onclick = () => { state.ob = null; state.obTest = false; state.obChange = true; go('#/onboard'); }; // « Changer de problème » : directement au diagnostic, sans repasser par le nom
 }
 
 // ---------- Profil ----------

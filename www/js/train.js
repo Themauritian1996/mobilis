@@ -49,7 +49,7 @@ export function viewTrain(id, cleanup) {
   let totalSets = sideMode === 'both' ? baseSets * 2 : baseSets;
   const curSide = () => (!uni ? null : sideMode === 'both' ? (T.set % 2 === 0 ? 'L' : 'R') : sideMode);
   const setIdx = () => (sideMode === 'both' ? Math.floor(T.set / 2) : T.set);
-  const T = { set: 0, sets: [], stream: null, raf: 0, tracker: null, mode: ex.track ? 'camera' : 'guided', facing: store.settings().camera, active: false, guidedTimer: null, selfView: store.settings().selfView !== false, guides: store.settings().guides !== false, liveAI: !!store.settings().liveAI && liveAvailable(), live: null, liveState: 'off' };
+  const T = { set: 0, sets: [], stream: null, raf: 0, tracker: null, mode: ex.track ? 'camera' : 'guided', facing: store.settings().camera, active: false, guidedTimer: null, selfView: store.settings().selfView !== false, guides: store.settings().guides !== false, liveAI: !!store.settings().liveAI && liveAvailable(), live: null, liveState: 'off', closed: false, camGen: 0, tok: 0, saved: false, discard: false };
   const planeFor = (i) => planes[i % planes.length];
   const holdTarget = dose.type === 'hold' ? dose.hold : 0;
 
@@ -128,15 +128,58 @@ export function viewTrain(id, cleanup) {
   const onVis = () => { if (document.visibilityState === 'visible') keepAwake(); else if (T.active && !T.paused) setPause(true); };
   document.addEventListener('visibilitychange', onVis); keepAwake();
   function close() {
+    if (T.closed) return;
+    T.closed = true; T.tok++; T.camGen++; // annule l'ouverture de la caméra et le compte à rebours en cours
     document.removeEventListener('visibilitychange', onVis); try { wake && wake.release(); } catch (_) {}
     T.active = false; cancelAnimationFrame(T.raf); clearInterval(T.guidedTimer); clearInterval(T.restTimer);
     try { stopLive(); stopPlacementListeners(); } catch (e) { console.error('close', e); }
     if (T.stream) T.stream.getTracks().forEach((tk) => tk.stop());
     stopSpeech();
     root.remove();
+    if (!T.saved && !T.discard) autosavePartial(); // sorti autrement que par « Abandonner » : on garde les séries terminées
   }
   cleanup.push(close);
-  $('[data-t="close"]').onclick = () => go('#/home');
+  // Séries réellement faites (une série à 0 répétition / 0 s ne compte pas, sauf saisie manuelle)
+  const validSets = () => T.sets.filter((x) => !x.empty && (x.manual || (x.mode === 'hold' ? x.holdSec > 0 : x.reps > 0)));
+  const inProgress = () => {
+    if (!T.active) return false;
+    if (T.mode === 'camera') return (T.tracker?.reps || 0) > 0 || (T.tracker?.holdSec || 0) > 0.5;
+    const gd = T.guidedEl ? T.guidedEl() : { el: 0, reps: 0 };
+    return dose.type === 'hold' ? gd.el > 0 : gd.reps > 0;
+  };
+  // Enregistrement automatique des séries terminées quand on quitte sans confirmation possible (retour système, changement d'écran)
+  async function autosavePartial() {
+    try {
+      const sets = validSets(); if (!sets.length) return;
+      const sess = todaySession(true);
+      const prev = sess.items.find((i) => i.id === id);
+      if (prev && !prev.partial) return; // un exercice déjà terminé aujourd'hui n'est pas écrasé
+      const it = { id, level, sets, partial: true, ts: Date.now() };
+      sess.items = sess.items.filter((i) => i.id !== id).concat(it);
+      await store.saveSession(sess);
+      state.data = await store.loadData();
+      syncProgress();
+    } catch (e) { console.warn('autosave', e); }
+  }
+  function confirmQuit() {
+    if (root.querySelector('.quit-sheet') || root.querySelector('.sheet-bg')) return;
+    if (T.saved || (!validSets().length && !inProgress())) return go('#/home');
+    const frozen = T.active && !T.paused; if (frozen) T.paused = true; // le compteur s'arrête pendant la question
+    const bg = document.createElement('div'); bg.className = 'sheet-bg quit-sheet';
+    bg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="quit-h"><div class="grab"></div><h3 id="quit-h">${t('quitTitle')}</h3><p class="muted" style="margin:6px 0 14px">${t('quitBody')}</p>
+      <div class="stack" style="gap:8px"><button class="btn" data-q="save">${t('quitSave')}</button><button class="btn soft" data-q="continue">${t('quitContinue')}</button><button class="btn ghost" data-q="discard">${t('quitDiscard')}</button></div></div>`;
+    root.appendChild(bg);
+    const resume = () => { bg.remove(); if (frozen) { T.paused = false; if (T.tracker) T.tracker.lastT = 0; } };
+    bg.querySelector('[data-q="continue"]').onclick = resume;
+    bg.addEventListener('click', (e) => { if (e.target === bg) resume(); });
+    bg.querySelector('[data-q="discard"]').onclick = () => { T.discard = true; go('#/home'); };
+    bg.querySelector('[data-q="save"]').onclick = () => {
+      bg.remove();
+      if (inProgress()) { T.paused = false; T.mode === 'camera' ? endSet() : endGuided(); } // la série en cours est terminée, puis bilan
+      else { clearInterval(T.restTimer); T.restTimer = 0; T.active = false; center(''); feedbackSheet(); }
+    };
+  }
+  $('[data-t="close"]').onclick = confirmQuit;
 
   // Vidéo selfie (on/off) : l'image du patient en direct ; l'analyse continue même si elle est masquée.
   function paintVideoBtn() {
@@ -145,7 +188,7 @@ export function viewTrain(id, cleanup) {
     b.setAttribute('aria-pressed', String(T.selfView)); b.setAttribute('aria-label', t(T.selfView ? 'videoOff' : 'videoOn')); b.title = b.getAttribute('aria-label');
     b.classList.toggle('dim', !T.selfView);
     video.classList.toggle('off', !T.selfView);
-    $('[data-t="flip"]').hidden = !T.stream || !T.selfView;
+    $('[data-t="flip"]').hidden = !T.stream && T.mode !== 'camera'; // aussi quand la vidéo selfie est masquée
     $('.vid-off').hidden = !(T.stream && !T.selfView && T.mode === 'camera' && T.active);
     const sw = root.querySelector('[data-t="selfview"]'); if (sw) { sw.classList.toggle('on', T.selfView); sw.setAttribute('aria-checked', String(T.selfView)); }
   }
@@ -463,7 +506,7 @@ export function viewTrain(id, cleanup) {
     if (T.live) { T.live.stop(); T.live = null; } T.liveState = 'off'; paintAI();
     return was;
   }
-  const afterLive = (was, fn) => (was ? setTimeout(fn, 90) : fn()); // laisse finir le fondu avant de parler : jamais deux voix
+  const afterLive = (was, fn) => { const f = () => { if (!T.closed) fn(); }; return was ? setTimeout(f, 90) : f(); }; // laisse finir le fondu avant de parler : jamais deux voix
   function setLiveAI(on) {
     if (on && !liveAvailable()) { toast(t('liveNeedKey'), 5000); return; }
     primeAudio();
@@ -527,15 +570,21 @@ export function viewTrain(id, cleanup) {
   const eqNote = () => { const m = missing(id, haveList(prof)); return m.length ? `<div class="banner neg small" style="margin:4px 0 8px">${icon('shield', 18)}<div>${m.map((e) => `<b>${esc(tr(EQUIP[e]))}</b> → ${t('sub_' + e)}`).join('<br>')}</div></div>` : ''; };
   const liveRow = () => `<div class="toggle selfrow"><span><b>${icon('spark', 16)} ${t('liveAI')}</b><br><small class="muted">${t(liveAvailable() ? 'liveAID' : 'liveNeedKey')}</small></span><button class="switch ${T.liveAI ? 'on' : ''}" data-t="liveai" role="switch" aria-checked="${T.liveAI}" aria-label="${t('liveAI')}"></button></div>`;
   const selfRow = (d) => `<div class="toggle selfrow"><span><b>${icon('eye', 16)} ${t('selfView')}</b><br><small class="muted">${t(d)}</small></span><button class="switch ${T.selfView ? 'on' : ''}" data-t="selfview" role="switch" aria-checked="${T.selfView}" aria-label="${t('selfView')}"></button></div>`;
-  $('[data-t="guided"]').onclick = () => { T.mode = 'guided'; stopCam(); setup(); };
+  $('[data-t="guided"]').onclick = () => { T.tok++; T.mode = 'guided'; stopCam(); setup(); };
   $('[data-t="flip"]').onclick = async () => {
     T.facing = T.facing === 'user' ? 'environment' : 'user'; store.saveSettings({ camera: T.facing });
-    if (T.stream) { stopCam(); try { await openCam(); } catch (e) { console.warn(e); toast(t('mirrorErr'), 4000); } }
+    if (T.stream) { stopCam(); try { await openCam(); } catch (e) { if (T.closed) return; console.warn(e); toast(t('mirrorErr'), 4000); } }
   };
-  function stopCam() { stopLive(); if (T.stream) T.stream.getTracks().forEach((tk) => tk.stop()); T.stream = null; video.srcObject = null; video.hidden = true; V.fw = 0; clearOverlay(); paintVideoBtn(); }
+  function stopCam() { T.camGen++; stopLive(); if (T.stream) T.stream.getTracks().forEach((tk) => tk.stop()); T.stream = null; video.srcObject = null; video.hidden = true; V.fw = 0; clearOverlay(); paintVideoBtn(); }
+  // Retourne false si la séance a été fermée (ou la caméra arrêtée) pendant l'ouverture : le flux est alors coupé aussitôt
   async function openCam() {
-    T.stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: T.facing, width: { ideal: 960 }, height: { ideal: 720 } } });
-    video.srcObject = T.stream; await video.play();
+    const gen = T.camGen;
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: T.facing, width: { ideal: 960 }, height: { ideal: 720 } } });
+    if (T.closed || gen !== T.camGen) { stream.getTracks().forEach((tk) => tk.stop()); return false; }
+    T.stream = stream;
+    video.srcObject = stream;
+    try { await video.play(); } catch (e) { if (T.closed || gen !== T.camGen) { stream.getTracks().forEach((tk) => tk.stop()); if (T.stream === stream) T.stream = null; return false; } throw e; }
+    if (T.closed || gen !== T.camGen) { stream.getTracks().forEach((tk) => tk.stop()); if (T.stream === stream) T.stream = null; return false; }
     video.hidden = false;
     // caméra réellement ouverte (un téléphone peut donner l'autre caméra que celle demandée) : le miroir suit la vraie caméra
     let fm = null; try { fm = T.stream.getVideoTracks()[0]?.getSettings?.().facingMode || null; } catch (_) {}
@@ -543,10 +592,12 @@ export function viewTrain(id, cleanup) {
     video.classList.toggle('mirror', T.mirror);
     resetTrack();
     paintVideoBtn();
+    return true;
   }
   // Mode guidé avec vidéo : le patient se voit en miroir, le schéma passe en vignette
   async function mirrorOn() {
-    try { if (!T.stream) await openCam(); } catch (e) { console.warn(e); toast(e && e.name === 'NotAllowedError' ? t('camDenied') : t('mirrorErr'), 4000); T.selfView = false; }
+    try { if (!T.stream && !(await openCam())) return; } catch (e) { if (T.closed) return; console.warn(e); toast(e && e.name === 'NotAllowedError' ? t('camDenied') : t('mirrorErr'), 4000); T.selfView = false; }
+    if (T.closed) return;
     guidedLayout(); startLive(); if (T.stream && T.active) guidedPose();
   }
   function guidedLayout() {
@@ -558,16 +609,20 @@ export function viewTrain(id, cleanup) {
 
   async function startCamera() {
     $('.setup').hidden = true; center(`<div><div class="spinner"></div>${t('loadingModel')}</div>`);
+    const tok = ++T.tok, gone = () => T.closed || tok !== T.tok;
     try {
-      if (!T.stream) await openCam();
+      if (!T.stream && !(await openCam())) { if (!T.closed && tok === T.tok) { center(''); T.mode = 'guided'; setup(); } return; }
       await (handEx ? loadHands() : loadPose());
+      if (gone()) return;
     } catch (e) {
+      if (gone()) return;
       console.error(e); center(''); stopCam();
       toast(e && e.name === 'NotAllowedError' ? t('camDenied') : t('modelErr'), 4500);
       T.mode = 'guided'; return setup();
     }
     const willPlace = placementWanted();
-    if (!willPlace) { for (const n of [3, 2, 1]) { center(`<div class="bignum">${n}</div>`); speak(String(n), { interrupt: true }); await sleep(900); } center(''); speak(cueText('go')); }
+    if (!willPlace) { for (const n of [3, 2, 1]) { if (gone()) return; center(`<div class="bignum">${n}</div>`); speak(String(n), { interrupt: true }); await sleep(900); } if (gone()) return; center(''); speak(cueText('go')); }
+    if (gone()) return;
     runSet();
     if (willPlace) startPlacement(); // l'assistant de placement remplace le compte à rebours : on compte (calibration) quand le cadrage est bon
   }
@@ -731,8 +786,9 @@ export function viewTrain(id, cleanup) {
     T.active = false; const was = stopLive(); cancelAnimationFrame(T.raf); clearOverlay(); showCue('');
     const sum = T.tracker.summary();
     const pl = planeFor(setIdx());
-    T.sets.push({ side: curSide(), plane: pl, mode: sum.mode, reps: sum.reps, full: sum.full, partial: sum.partial, holdSec: sum.holdSec, quality: sum.quality, faults: sum.faults });
-    afterLive(was, () => { speak(cueText('setDone'), { interrupt: true }); summarySheet({ ...sum, plane: pl }); }); // d'abord la voix en direct s'éteint, ensuite seulement bilan et voix
+    const empty = sum.mode === 'hold' ? !sum.holdSec : !sum.reps;
+    T.sets.push({ side: curSide(), plane: pl, mode: sum.mode, reps: sum.reps, full: sum.full, partial: sum.partial, holdSec: sum.holdSec, quality: sum.quality, faults: sum.faults, ...(empty ? { empty: true } : {}) });
+    afterLive(was, () => { if (empty) { speak(t('noRepsMsg'), { interrupt: true }); return emptySheet({ ...sum, plane: pl }); } speak(cueText('setDone'), { interrupt: true }); summarySheet({ ...sum, plane: pl }); }); // d'abord la voix en direct s'éteint, ensuite seulement bilan et voix
   }
 
   function startGuided() {
@@ -766,8 +822,9 @@ export function viewTrain(id, cleanup) {
     T.active = false; const was = stopLive(); clearInterval(T.guidedTimer); center(''); $('.mini-fig').hidden = true;
     const { el, reps } = T.guidedEl();
     const sum = dose.type === 'hold' ? { mode: 'hold', holdSec: el, reps: 0, full: 0, partial: 0, quality: null, faults: {} } : { mode: 'reps', reps, full: reps, partial: 0, quality: null, faults: {} };
-    T.sets.push({ side: curSide(), plane: 'guided', ...sum });
-    afterLive(was, () => { speak(cueText('setDone'), { interrupt: true }); summarySheet({ ...sum, plane: 'guided' }); });
+    const empty = dose.type === 'hold' ? !sum.holdSec : !sum.reps;
+    T.sets.push({ side: curSide(), plane: 'guided', ...sum, ...(empty ? { empty: true } : {}) });
+    afterLive(was, () => { if (empty) { speak(t('noRepsMsg'), { interrupt: true }); return emptySheet({ ...sum, plane: 'guided' }); } speak(cueText('setDone'), { interrupt: true }); summarySheet({ ...sum, plane: 'guided' }); });
   }
 
   // Repos entre les séries (réglable dans l'aperçu de la séance)
@@ -785,15 +842,43 @@ export function viewTrain(id, cleanup) {
       if (left <= 0) done();
     }, 1000);
   }
+  // Série sans aucune répétition / seconde détectée : on ne la compte pas ; saisie manuelle ou nouvel essai
+  function emptySheet(sum) {
+    $('.bottom').hidden = true;
+    const hold = sum.mode === 'hold', others = validSets().length > 0;
+    const bg = document.createElement('div'); bg.className = 'sheet-bg';
+    bg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true"><div class="grab"></div><span class="eyebrow">${t('set')} ${T.set + 1}/${totalSets}</span><h3 style="margin-top:4px">${t('noRepsTitle')}</h3>
+      <p style="margin:8px 0 16px">${t('noRepsMsg')}</p>
+      <div class="stack" style="gap:8px"><button class="btn" data-e="manual">${t('noRepsManual')}</button><button class="btn soft" data-e="redo">${icon('flip', 16)} ${t('redoSet')}</button><button class="btn ghost" data-e="leave">${t(others ? 'finishEx' : 'noRepsLeave')}</button></div></div>`;
+    root.appendChild(bg);
+    bg.querySelector('[data-e="redo"]').onclick = () => { bg.remove(); T.sets.pop(); setup(); };
+    bg.querySelector('[data-e="leave"]').onclick = () => { bg.remove(); T.sets.pop(); if (others) feedbackSheet(); else { T.discard = true; go('#/home'); } };
+    bg.querySelector('[data-e="manual"]').onclick = () => {
+      let n = hold ? holdTarget : dose.reps; const max = hold ? 600 : 99, step = hold && holdTarget >= 20 ? 5 : 1;
+      const sh = bg.querySelector('.sheet');
+      sh.innerHTML = `<div class="grab"></div><h3>${t('noRepsManual')}</h3><p class="muted small" style="margin:6px 0 14px">${t(hold ? 'manualHoldLbl' : 'manualRepsLbl')}</p>
+        <div class="toggle"><span>${t(hold ? 'manualHoldLbl' : 'manualRepsLbl')}</span><div class="stepper"><button data-m="-1" aria-label="−">−</button><b class="tnum" id="mval">${n}</b><button data-m="1" aria-label="+">+</button></div></div>
+        <button class="btn" data-m="ok" style="margin-top:14px">${t('manualOk')}</button>`;
+      const paint = () => { sh.querySelector('#mval').textContent = n; };
+      sh.querySelectorAll('[data-m="-1"],[data-m="1"]').forEach((b) => (b.onclick = () => { n = Math.max(1, Math.min(max, n + step * +b.dataset.m)); paint(); }));
+      sh.querySelector('[data-m="ok"]').onclick = () => {
+        bg.remove();
+        const ls = T.sets[T.sets.length - 1];
+        const m = hold ? { mode: 'hold', holdSec: n, reps: 0, full: 0, partial: 0, quality: null, faults: {} } : { mode: 'reps', reps: n, full: n, partial: 0, holdSec: 0, quality: null, faults: {} };
+        if (ls) { Object.assign(ls, m, { manual: true }); delete ls.empty; }
+        summarySheet({ ...sum, ...m, manual: true });
+      };
+    };
+  }
   function summarySheet(sum) {
     $('.bottom').hidden = true;
     const last = T.set + 1 >= totalSets;
     const bg = document.createElement('div'); bg.className = 'sheet-bg';
     // Mouvement conforme à la démonstration (part du temps), puis remise à zéro pour la série suivante
-    const moveOk = T.mm?.usable && T.mm.totalTime > 3 ? Math.round((1 - T.mm.wrongShare) * 100) : null;
+    const moveOk = !sum.manual && T.mm?.usable && T.mm.totalTime > 3 ? Math.round((1 - T.mm.wrongShare) * 100) : null;
     if (T.mm) T.mm.resetStats();
     if (moveOk != null && moveOk < 70) { sum.faults = { ...(sum.faults || {}), wrongMove: Math.max(1, sum.faults?.wrongMove || 0) }; if (sum.quality != null) sum.quality = Math.min(sum.quality, 0.4); }
-    const ls = T.sets[T.sets.length - 1]; if (ls) { ls.faults = sum.faults; ls.quality = sum.quality; ls.moveOk = moveOk; }
+    const ls = T.sets[T.sets.length - 1]; if (ls) { ls.faults = sum.faults; ls.quality = sum.quality; ls.moveOk = moveOk; if (sum.manual) ls.manual = true; }
     const faults = Object.entries(sum.faults || {}).sort((a, b) => b[1] - a[1]);
     const reps = (sum.reps_detail || []).slice(-12);
     const data = {
@@ -802,10 +887,15 @@ export function viewTrain(id, cleanup) {
       faults: Object.fromEntries(faults.map(([k, v]) => [k, Math.round(v)])), painLimit: path.painMax, set: T.set + 1, totalSets,
       movementMatchesDemoPct: moveOk, perRep: reps.map((r) => ({ n: r.n, rangePct: r.meas?.romPct, sec: r.dur, faults: r.faults })),
       liveCoachRemarks: (T.aiNotes || []).slice(-4),
+      ...(sum.plane === 'guided' || sum.manual ? { techniqueNotAnalysed: true } : {}),
     };
-    const local = moveOk != null && moveOk < 70 ? `${t('mv_wrongSet')} ${t('mv_seeDemo')}` : localComment(data);
+    // Pas de « belle exécution » quand la technique n'a pas été analysée (mode guidé, saisie manuelle) ou qu'aucune répétition n'était complète
+    const noTech = sum.plane === 'guided' || !!sum.manual, noFull = sum.mode !== 'hold' && sum.reps > 0 && !sum.full;
+    const local = moveOk != null && moveOk < 70 ? `${t('mv_wrongSet')} ${t('mv_seeDemo')}`
+      : noTech ? (sum.mode === 'hold' ? t('lcGuidedHold', { n: sum.holdSec }) : t('lcGuidedReps'))
+      : noFull && !faults.length ? `${t('lcReps', { full: 0, reps: sum.reps })} ${t('lcNoFull')}` : localComment(data);
     const hasAI = aiAvailable();
-    bg.innerHTML = `<div class="sheet"><div class="grab"></div><span class="eyebrow">${t('set')} ${T.set + 1}/${totalSets}</span><h3 style="margin-top:4px">${t('setSummary')}</h3>
+    bg.innerHTML = `<div class="sheet"><div class="grab"></div><span class="eyebrow">${t('set')} ${T.set + 1}/${totalSets}${sum.manual ? ` · ${t('manualTag')}` : ''}</span><h3 style="margin-top:4px">${t('setSummary')}</h3>
       <div class="list" style="margin:12px 0"><div class="kpis">${sum.mode === 'hold'
         ? `<div><b>${sum.holdSec}s</b><span>${t('holdTime')}</span></div>`
         : `<div><b>${sum.full}</b><span>${t('fullReps')}</span></div><div><b>${sum.partial}</b><span>${t('partialReps')}</span></div>`}
@@ -881,16 +971,19 @@ export function viewTrain(id, cleanup) {
     async function save() {
       if (saving) return;
       saving = true;
+      const sets = validSets();
+      if (!sets.length) { T.discard = true; return go('#/home'); } // rien de réellement fait : ni niveau ni série du jour
+      T.saved = true;
       if (dict && micState === 'listening') dict.stop();
       const noteTxt = (fb.note || '').trim();
-      const it = { id, level, sets: T.sets, pain: fb.pain, difficulty: fb.difficulty, ts: Date.now() };
+      const it = { id, level, sets, pain: fb.pain, difficulty: fb.difficulty, ts: Date.now() };
       if (noteTxt) it.note = noteTxt;
       if (needCheckin) sess.checkin = fb.checkin;
       const adj = P.adjustLevel(prof, it, all, sess.checkin);
       it.change = adj.change;
       it.reason = adj.reason;
       const prev = sess.items.find((i) => i.id === id);
-      if (prev) it.redo = (prev.redo || 0) + 1; // exercice refait le même jour : on garde le dernier essai
+      if (prev && !prev.partial) it.redo = (prev.redo || 0) + 1; // exercice refait le même jour : on garde le dernier essai
       sess.items = sess.items.filter((i) => i.id !== id).concat(it);
       await store.saveSession(sess);
       await store.saveProfile({ ...profile(), levels: { ...(profile().levels || {}), [id]: adj.level } });

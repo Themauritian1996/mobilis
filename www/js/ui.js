@@ -2,7 +2,8 @@
 import { EXERCISES } from './data/exercises.js';
 import { EX_ANATOMY, STRUCTURES } from './data/anatomy.js';
 import { renderFigure } from './figure.js';
-import { t, tr, LANGS, getLang } from './i18n.js';
+import { t, tr, LANGS, getLang, locale } from './i18n.js';
+import { weekStartFor, weekOrder as wOrder } from './longterm.js';
 import * as store from './store.js';
 
 export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -115,13 +116,101 @@ document.addEventListener('click', (e) => {
 });
 
 // ---------- Feuille modale ----------
-export function sheet(html, { parent = document.body, onClose } = {}) {
+// Accessibilité : nom du dialogue (aria-labelledby sur le premier titre), focus placé dans la feuille et rendu à la fermeture,
+// Tab piégé dans la feuille, Échap ferme (sauf onClose === false, feuille à décision obligatoire).
+const FOCUSABLE = 'a[href],button:not([disabled]),input:not([disabled]):not([type=hidden]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+let sheetSeq = 0;
+export function sheet(html, { parent = document.body, onClose, label } = {}) {
   const bg = document.createElement('div'); bg.className = 'sheet-bg';
   bg.innerHTML = `<div class="sheet" role="dialog" aria-modal="true"><div class="grab"></div>${html}</div>`;
-  bg.addEventListener('click', (e) => { if (e.target === bg && onClose !== false) { bg.remove(); onClose && onClose(); } });
+  const box = bg.firstElementChild;
+  const h = box.querySelector('h3,h2,h1');
+  if (label) box.setAttribute('aria-label', label);
+  else if (h) { h.id = h.id || `sheet-t${++sheetSeq}`; box.setAttribute('aria-labelledby', h.id); }
+  const opener = document.activeElement;
+  const dismiss = () => { if (onClose === false) return; bg.remove(); onClose && onClose(); };
+  const onKey = (e) => {
+    if (!bg.isConnected) { document.removeEventListener('keydown', onKey, true); return; }
+    // seule la feuille la plus récente réagit
+    const all = document.querySelectorAll('.sheet-bg'); if (all[all.length - 1] !== bg) return;
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); dismiss(); return; }
+    if (e.key !== 'Tab') return;
+    const f = [...box.querySelectorAll(FOCUSABLE)].filter((x) => x.offsetParent !== null || x === document.activeElement);
+    if (!f.length) { e.preventDefault(); box.focus(); return; }
+    const first = f[0], last = f[f.length - 1];
+    if (!box.contains(document.activeElement)) { e.preventDefault(); first.focus(); }
+    else if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  };
+  box.tabIndex = -1;
+  const rm = bg.remove.bind(bg);
+  bg.remove = () => { document.removeEventListener('keydown', onKey, true); rm(); try { if (opener && opener.isConnected && opener.focus) opener.focus({ preventScroll: true }); } catch (_) {} };
+  document.addEventListener('keydown', onKey, true);
+  bg.addEventListener('click', (e) => { if (e.target === bg) dismiss(); });
   parent.appendChild(bg);
   mountFigs(bg);
+  // focus sur le premier champ / bouton de la feuille (pas sur « fermer » si un autre contrôle existe)
+  try { (box.querySelector('input:not([type=hidden]),select,textarea') || box.querySelector('button') || box).focus({ preventScroll: true }); } catch (_) {}
   return bg;
+}
+// Confirmation modale : true si l'utilisateur confirme. Échap / clic à côté = annuler.
+export function confirmSheet({ title, text = '', ok, cancel, danger = false }) {
+  return new Promise((resolve) => {
+    let done = false; const fin = (v) => { if (!done) { done = true; resolve(v); } };
+    const bg = sheet(`<h3>${esc(title)}</h3>${text ? `<p class="muted small" style="margin:6px 0 14px;white-space:pre-line">${esc(text)}</p>` : ''}
+      <div class="row" style="margin-top:14px"><button class="btn ghost" data-cf="no">${esc(cancel || t('cancel'))}</button><button class="btn ${danger ? 'danger' : ''}" data-cf="yes">${esc(ok || t('ok'))}</button></div>`, { onClose: () => fin(false) });
+    bg.querySelector('[data-cf="no"]').onclick = () => { bg.remove(); fin(false); };
+    bg.querySelector('[data-cf="yes"]').onclick = () => { bg.remove(); fin(true); };
+    if (danger) bg.querySelector('[data-cf="no"]').focus();
+  });
+}
+
+// ---------- Fichiers : enregistrer / partager ----------
+const blobB64 = (blob) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1] || ''); r.onerror = () => rej(r.error); r.readAsDataURL(blob); });
+/** APK : Filesystem (cache) + feuille de partage Android (un blob: ne se télécharge pas dans la WebView). Web : téléchargement.
+ *  → 'native' | 'download' | 'cancelled' ; lève une erreur si l'écriture native échoue. */
+export async function saveFile(data, fileName, mime = 'application/octet-stream', { title = 'Mobilis' } = {}) {
+  const blob = data instanceof Blob ? data : new Blob([data], { type: mime });
+  if (store.isNative()) {
+    const { Filesystem, Directory, Share } = await store.cap();
+    const saved = await Filesystem.writeFile({ path: fileName, data: await blobB64(blob), directory: Directory.Cache });
+    try { await Share.share({ title, files: [saved.uri], dialogTitle: title }); return 'native'; }
+    catch (e) { return /cancel/i.test(String(e?.message || e)) ? 'cancelled' : 'native'; }
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = fileName; a.rel = 'noopener';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
+  return 'download';
+}
+
+// ---------- Semaine ----------
+/** 0 = la semaine commence le dimanche, 1 = lundi (réglage « auto » : selon la langue). */
+export const weekStartDay = () => weekStartFor(store.settings().weekStart, locale());
+export const weekOrder = () => wOrder(weekStartDay());
+
+// ---------- Interrupteurs accessibles ----------
+// Chaque .switch reçoit role="switch" et un nom (aria-labelledby → le libellé voisin de la ligne .toggle), quel que soit le module qui l'a dessiné.
+let swSeq = 0;
+export function labelSwitches(root = document) {
+  root.querySelectorAll('.switch').forEach((b) => {
+    if (!b.hasAttribute('role')) b.setAttribute('role', 'switch');
+    if (!b.hasAttribute('aria-checked')) b.setAttribute('aria-checked', String(b.classList.contains('on')));
+    if (b.hasAttribute('aria-label') || b.hasAttribute('aria-labelledby')) return;
+    const row = b.closest('.toggle,.row,.field,label') || b.parentElement;
+    const lab = row && [...row.children].find((c) => c !== b && c.textContent.trim() && !c.querySelector('.switch'));
+    if (!lab) return;
+    const tgt = lab.querySelector('b') || lab;
+    tgt.id = tgt.id || `sw-l${++swSeq}`; b.setAttribute('aria-labelledby', tgt.id);
+  });
+}
+let swObs = null;
+export function watchSwitches(host) {
+  if (swObs || typeof MutationObserver === 'undefined' || !host) return;
+  let q = 0;
+  swObs = new MutationObserver(() => { if (q) return; q = requestAnimationFrame(() => { q = 0; labelSwitches(host); }); });
+  swObs.observe(host, { childList: true, subtree: true });
+  labelSwitches(host);
 }
 
 export async function copyText(text) {
@@ -151,6 +240,10 @@ export function applyTheme() {
   else document.documentElement.removeAttribute('data-theme');
   const dark = th === 'dark' || (th !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#0b111b' : '#f3f5f8');
+  // Taille du texte (100 / 115 / 130 %) et contraste élevé
+  const st = store.settings(), de = document.documentElement;
+  if ([115, 130].includes(+st.textSize)) de.setAttribute('data-text-size', String(st.textSize)); else de.removeAttribute('data-text-size');
+  if (st.contrast) de.setAttribute('data-contrast', 'high'); else de.removeAttribute('data-contrast');
 }
 
 // Textes du design 1.14 : repli local tant que les clés ne sont pas fusionnées dans i18n.js (voir i18n-new/design.json)

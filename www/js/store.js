@@ -61,9 +61,46 @@ export function applySharedAI(rx) {
   saveSettings({ sharedAI: sh });
   return sh;
 }
-const DEFAULT_SETTINGS = { voice: 'local', countAloud: true, geminiKey: '', sendFrame: false, camera: 'user', theme: 'auto', anatomy: false, selfView: true, guides: true, vibrate: true, liveAI: false };
+// imageConsent : null = jamais demandé, true / false = choix du patient (aucune image n'est envoyée à Gemini sans true)
+// voiceRate 0,8–1,3 · cueLevel 'all' | 'essential' · textSize 100 | 115 | 130 · weekStart 'auto' | 0 | 1 · webRemind : rappel du navigateur
+const DEFAULT_SETTINGS = { voice: 'local', countAloud: true, geminiKey: '', sendFrame: false, camera: 'user', theme: 'auto', anatomy: false, selfView: true, guides: true, vibrate: true, liveAI: false,
+  imageConsent: null, voiceRate: 1, cueLevel: 'all', textSize: 100, contrast: false, weekStart: 'auto', webRemind: false };
 export const settings = () => ({ ...DEFAULT_SETTINGS, ...LS.get('mobilis.settings', {}) });
 export const saveSettings = (patch) => LS.set('mobilis.settings', { ...settings(), ...patch });
+// Consentement explicite pour envoyer une image de la caméra à Gemini (Loi 25 / RGPD) : sans « true », aucune image ne quitte l'appareil
+export const imageConsent = (s = settings()) => s.imageConsent === true;
+export const setImageConsent = (v) => saveSettings({ imageConsent: !!v, ...(v ? {} : { sendFrame: false, liveAI: false }) });
+export const clampRate = (v) => { const n = +v; return Number.isFinite(n) ? Math.max(0.8, Math.min(1.3, Math.round(n * 20) / 20)) : 1; };
+// Efface la clé Gemini personnelle de cet appareil
+export const purgeApiKey = () => saveSettings({ geminiKey: '' });
+
+// ---------- Code clinicien en attente ----------
+// #/rx/CODE mémorise le code pour finir l'import après la connexion. Un code introuvable ou injoignable doit toujours être effacé :
+// sinon toutes les routes y redirigent (l'app serait bloquée).
+const PENDING = 'mobilis.pendingRx';
+export const getPendingRx = () => { try { return localStorage.getItem(PENDING); } catch (_) { return null; } };
+export const setPendingRx = (c) => { try { localStorage.setItem(PENDING, c); } catch (_) {} };
+export const clearPendingRx = () => { try { localStorage.removeItem(PENDING); } catch (_) {} };
+const NET_CODES = new Set(['unavailable', 'deadline-exceeded', 'failed-precondition', 'network-request-failed', 'resource-exhausted', 'cancelled']);
+export function isNetworkError(e) {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return true;
+  const c = String(e?.code || '').replace(/^firestore\//, '');
+  if (NET_CODES.has(c)) return true;
+  return e instanceof TypeError || /network|offline|fetch|timeout|failed to load|importing a module/i.test(String(e?.message || ''));
+}
+/** → { rx } | { error: 'notfound' | 'network' } ; en cas d'échec, le code en attente est effacé. */
+export async function lookupRx(code, getter = getRx, timeoutMs = 12000) {
+  let tm;
+  try {
+    const rx = await Promise.race([getter(code), new Promise((_, rej) => { tm = setTimeout(() => rej(Object.assign(new Error('timeout'), { code: 'deadline-exceeded' })), timeoutMs); })]);
+    clearTimeout(tm);
+    if (rx) return { rx };
+    clearPendingRx(); return { error: 'notfound' };
+  } catch (e) {
+    clearTimeout(tm);
+    clearPendingRx(); return { error: isNetworkError(e) ? 'network' : 'notfound', cause: e };
+  }
+}
 
 // ---------- Plateforme ----------
 export const isNative = () => !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
@@ -238,8 +275,46 @@ export async function importData(text, { replaceProfile = false } = {}) {
   }
   return { sessions: cache.sessions.length - before, journal: bk.journal.length, profile: !!cache.profile };
 }
+// Efface TOUT ce que l'app garde sur cet appareil : données, réglages (clé Gemini personnelle, accès IA partagé du clinicien),
+// programmes préparés par le clinicien (myRx), langue du coach IA, compteur d'appels IA, code en attente, rappels.
+export const LOCAL_KEYS = ['mobilis.settings', 'mobilis.myRx', 'mobilis.aiLang', 'mobilis.aiUse', 'mobilis.pendingRx', 'mobilis.remindDay'];
 export function eraseLocal() {
   LS.del(key()); cache = { profile: null, sessions: [], journal: [] };
+  for (const k of LOCAL_KEYS) LS.del(k);
+  try { sessionStorage.removeItem('mobilis.rxCheck'); } catch (_) {}
+}
+// Compte en ligne : supprime profil, séances, journal, suivi partagé avec le clinicien (et les programmes que ce compte a créés), puis efface l'appareil.
+// Retourne le nombre de documents supprimés. Lève une erreur si le réseau échoue (rien n'est alors effacé localement).
+export async function deleteCloudData() {
+  if (!isCloud()) { eraseLocal(); return 0; }
+  const { db, m } = await loadFirebase();
+  let n = 0;
+  const code = cache?.profile?.rxCode;
+  if (code) { try { await m.deleteDoc(m.doc(db, 'rx', code, 'progress', user.uid)); n++; } catch (e) { if (isNetworkError(e)) throw e; } }
+  const qs = await m.getDocs(m.collection(db, 'users', user.uid, 'sessions'));
+  for (const d of qs.docs) { await m.deleteDoc(d.ref); n++; }
+  try {
+    const mine = await m.getDocs(m.query(m.collection(db, 'rx'), m.where('by', '==', user.uid)));
+    for (const d of mine.docs) {
+      try { const ps = await m.getDocs(m.collection(db, 'rx', d.id, 'progress')); for (const p of ps.docs) { await m.deleteDoc(p.ref); n++; } } catch (_) {}
+      await m.deleteDoc(d.ref); n++;
+    }
+  } catch (e) { if (isNetworkError(e)) throw e; }
+  await m.deleteDoc(m.doc(db, 'users', user.uid)); n++;
+  eraseLocal();
+  return n;
+}
+// Supprime une séance / une entrée du journal (appareil + compte)
+export async function deleteSession(id) {
+  cache = cache || { profile: null, sessions: [], journal: [] };
+  cache.sessions = cache.sessions.filter((s) => s.id !== id);
+  LS.set(key(), cache);
+  if (isCloud()) { try { const { db, m } = await loadFirebase(); await m.deleteDoc(m.doc(db, 'users', user.uid, 'sessions', id)); } catch (e) { console.warn(e); } }
+}
+export async function deleteJournal(day) {
+  cache.journal = (cache.journal || []).filter((j) => j.day !== day);
+  LS.set(key(), cache);
+  await saveUserDoc({ journal: cache.journal });
 }
 
 // ---------- Prescriptions du clinicien ----------
@@ -298,6 +373,21 @@ export async function getRx(codeOrPacked) {
   return snap.exists() ? snap.data() : null;
 }
 
+// Gestion des programmes : archiver (sans changer la version, donc sans notifier les patients), supprimer, dupliquer
+const writeLocalRx = (list) => { try { localStorage.setItem(LOCAL_RX, JSON.stringify(list)); } catch (_) {} };
+export async function setRxArchived(rx, archived) {
+  if (rx.code && isCloud()) { const { db, m } = await loadFirebase(); await m.setDoc(m.doc(db, 'rx', rx.code), { archived: !!archived }, { merge: true }); return; }
+  writeLocalRx(localRxList().map((x) => (x.localId === rx.localId ? { ...x, archived: !!archived } : x)));
+}
+export async function deleteRx(rx) {
+  if (rx.code && isCloud()) { const { db, m } = await loadFirebase(); await m.deleteDoc(m.doc(db, 'rx', rx.code)); return; }
+  writeLocalRx(localRxList().filter((x) => x.localId !== rx.localId));
+}
+// Copie d'un programme (nouveau code ou nouveau lien) : jamais envoyée avant que le clinicien la partage
+export async function duplicateRx(rx, suffix = '') {
+  const { code, localId, packed, version, created, updated, by, archived, patients, ...rest } = rx;
+  return saveRx({ ...rest, label: ((rx.label || '') + suffix).trim(), version: 0, created: null });
+}
 export const getLocalRx = (id) => localRxList().find((x) => x.localId === id) || null;
 export async function listMyRx() {
   if (!isCloud()) return localRxList().map((x) => ({ ...x, patients: [] }));

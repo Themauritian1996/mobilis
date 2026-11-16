@@ -4,7 +4,7 @@
 import { t, tr, locale } from './i18n.js';
 import * as store from './store.js';
 import { profile, updateProfile, syncProgress } from './state.js';
-import { esc, icon, toast, sheet } from './ui.js';
+import { esc, icon, toast, sheet, confirmSheet } from './ui.js';
 import * as M from './data/proms.js';
 
 export { score, due, trend, summaryPart, suggestFor, validateLicense, INSTRUMENTS, customToDef } from './data/proms.js';
@@ -149,7 +149,13 @@ export function viewProm($app, id) {
     nx.onclick = next;
     const sk = root.querySelector('[data-skip]'); if (sk) sk.onclick = () => { st.a[st.i] = null; next(); };
   };
-  const prev = () => { if (st.i > 0) { st.i--; drawAsk(); } else location.hash = '#/home'; };
+  // Quitter : si des réponses sont déjà données, on demande avant de les perdre
+  const answered = () => st.a.some((v) => v != null);
+  const leave = async () => {
+    if (answered() && !(await confirmSheet({ title: t('pmQuitTitle'), text: t('pmQuitD'), ok: t('pmQuitYes'), cancel: t('pmQuitStay'), danger: true }))) return;
+    location.hash = '#/home';
+  };
+  const prev = () => { if (st.i > 0) { st.i--; drawAsk(); } else leave(); };
   const next = () => {
     if (st.i < def.items.length - 1) { st.i++; drawAsk(); } else finish();
   };
@@ -194,8 +200,17 @@ export function viewProm($app, id) {
     const nextKey = rtl ? 'ArrowLeft' : 'ArrowRight', prevKey = rtl ? 'ArrowRight' : 'ArrowLeft';
     if (e.key === 'Enter' || e.key === nextKey) { const n = root.querySelector('[data-next]'); if (n && !n.disabled && !(e.key === 'Enter' && e.target.closest('button'))) { e.preventDefault(); n.click(); } }
     else if (e.key === prevKey && e.target.type !== 'range') { e.preventDefault(); root.querySelector('[data-prev]')?.click(); }
-    else if (/^[0-9]$/.test(e.key)) { root.querySelector(`[data-v="${e.key}"]`)?.click(); }
-    else if (e.key === 'Escape') location.hash = '#/home';
+    else if (/^[0-9]$/.test(e.key)) pressDigit(e.key);
+    else if (e.key === 'Escape') { if (!document.querySelector('.sheet-bg')) leave(); }
+  };
+  // Chiffres : sur une échelle 0–10, « 1 » suivi de « 0 » en moins d'une seconde = 10 ; sinon le chiffre seul vaut sa valeur (« 1 » = 1).
+  // Les touches 2–9 sont immédiates ; « 0 » seul = 0.
+  let buf = null;
+  const pressDigit = (d) => {
+    const el = (v) => root.querySelector(`[data-v="${v}"]`);
+    if (buf && buf.d === '1' && d === '0' && Date.now() - buf.at < 1000 && el(10)) { buf = null; el(10).click(); return; }
+    buf = d === '1' && el(10) ? { d, at: Date.now() } : null;
+    el(d)?.click();
   };
   document.addEventListener('keydown', onKey);
   keyOff = () => document.removeEventListener('keydown', onKey);

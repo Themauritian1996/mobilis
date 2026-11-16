@@ -1013,5 +1013,21 @@
 "rom_pctSpoken": "百分之{n}",
 "rom_ready": "我准备好了",
 "rom_chkStart": "起始",
-"rom_chkStill": "不动"
+"rom_chkStill": "不动",
+"quitTitle": "要退出这个练习吗？",
+"quitBody": "你已经完成了练习的一部分。你想怎么做？",
+"quitSave": "保存已完成的部分",
+"quitDiscard": "放弃",
+"quitContinue": "继续",
+"noRepsTitle": "未检测到动作",
+"noRepsMsg": "未检测到重复动作——改为手动输入，还是重试？",
+"noRepsManual": "手动输入",
+"noRepsLeave": "不保存并退出",
+"manualRepsLbl": "完成的次数",
+"manualHoldLbl": "保持的秒数",
+"manualOk": "确认",
+"manualTag": "手动输入",
+"lcNoFull": "这一组没有完整幅度的动作：试着再加大一点幅度。",
+"lcGuidedReps": "引导模式：没有摄像头，应用无法评估你的动作质量。请保持缓慢、受控的动作。",
+"lcGuidedHold": "引导保持已完成（{n} 秒）。没有摄像头，应用不评估动作质量。"
 }

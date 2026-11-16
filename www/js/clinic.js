@@ -1,17 +1,18 @@
 // Mode clinicien : préparer un programme, l'envoyer par code / QR / lien, suivre et ajuster la progression du patient.
-import { t, tp, tr, getLang, locale, LANGS, langInfo } from './i18n.js';
+import { t, tp, tr, getLang, locale, LANGS, langInfo, dowNarrow } from './i18n.js';
 import { REGIONS, PATHOLOGIES } from './data/pathologies.js';
 import { EXERCISES, EQUIP } from './data/exercises.js';
 import { EQUIP_IDS, missing, alternatives } from './equip.js';
 import { CONFIG } from './config.js';
 import * as store from './store.js';
 import { state, go, profile } from './state.js';
-import { esc, icon, IC, toast, nav, mountFigs, figSvg, sheet, copyText, shareText, ds } from './ui.js';
+import { esc, icon, IC, toast, nav, mountFigs, figSvg, sheet, copyText, shareText, ds, confirmSheet, saveFile, weekOrder } from './ui.js';
+import { patientCsv, toggleDay, canToggleDay } from './longterm.js';
 import { layName, startTrial } from './onboarding.js';
 import * as P from './program.js';
 import { doseText } from './train.js';
 import { rxSectionProm, clinicPanelProm } from './questionnaires.js';
-import { rxSectionRom, clinicPanelRom } from './rom.js';
+import { rxSectionRom, clinicPanelRom, suggestFor, TESTS } from './rom.js';
 import { rxSectionProtocol } from './protocols-ui.js';
 
 // report.js (rapports PDF) : chargé à la demande, l'interface reste utilisable s'il manque
@@ -65,7 +66,7 @@ export async function viewClinic() {
   const allPts = list.flatMap((rx) => (rx.patients || []).map((p) => ({ p, max: painMaxOf(rx) })));
   const watch = allPts.filter(({ p, max }) => p.flare || (p.pain7 != null && p.pain7 > max) || (p.planned && p.sessions7 / p.planned < 0.5)).length;
   const strip = `<div class="statstrip"><div><b>${list.length}</b><span>${ds('dsRx')}</span></div><div><b>${allPts.length}</b><span>${ds('dsFollow')}</span></div><div class="${watch ? 'watch' : ''}"><b>${watch}</b><span>${ds('dsWatch')}</span></div></div>`;
-  box.innerHTML = strip + list.map((rx) => {
+  const card = (rx) => {
     const pts = rx.patients || [];
     const painMax = PATHOLOGIES.find((x) => x.id === rx.pathology)?.painMax ?? 4;
     const cols = `<div class="pt-cols"><span>${t('patient')}</span><span>${t('sessions7')}</span><span>${t('avgPain')}</span><span>${t('quality')}</span></div>`;
@@ -79,11 +80,14 @@ export async function viewClinic() {
           <div class="pt-x">${p.protocol ? `<div class="toggle"><span class="small"><b>${esc(t('ig_protoWeek', { n: p.protocol.week, a: p.protocol.phase, b: p.protocol.phases }))}</b>${p.protocol.preop ? '' : p.protocol.blocked ? ` · <span class="neg">${t('pr_blocked')}</span>` : ''}</span></div>` : ''}
           ${exProgress(p, rx)}
           ${(p.prom?.length || p.rom?.length) ? `<details class="clin-more"><summary class="small">${t('ig_clinMore')}</summary>${clinicPanelProm(p)}${p.rom?.length ? `<h2>${t('rom_secTitle')}</h2>${clinicPanelRom(p)}` : ''}</details>` : ''}
-          <div data-pdf="${esc(p.uid || p.updated)}"></div>
+          <div class="row wrap" style="gap:8px;margin:6px 0"><button class="btn sm ghost" data-csv="${esc(p.uid || p.updated)}">${icon('doc', 14)} ${t('csvExport')}</button><span data-pdf="${esc(p.uid || p.updated)}"></span></div>
           ${p.notes?.length ? `<div class="pt-notes"><b class="small">${t('patientComments')}</b>${p.notes.slice(0, 3).map((n) => `<div class="small"><span class="muted">${fmtDate(n.date)} · ${esc(tr(EXERCISES[n.ex]?.name))}${n.pain != null ? ' · ' + n.pain + '/10' : ''}</span><br>« ${esc(n.text)} »</div>`).join('')}</div>` : ''}</div></div>`;
       }).join('')}</div>` : (rx.code ? `<p class="rx-wait">${t('waitingPatient')}</p>` : '')}
-      <div class="rx-actions"><button class="btn sm ghost grow" data-share="${rxRef(rx)}">${icon('share', 16)} ${t('sendCode')}</button><button class="btn sm ghost grow" data-test="${rxRef(rx)}">${icon('play', 14)} ${t('testRx')}</button><button class="btn sm grow" data-go="#/clinic/rx/${rxRef(rx)}">${t('adjust')}</button></div></article>`;
-  }).join('');
+      <div class="rx-actions"><button class="btn sm ghost grow" data-share="${rxRef(rx)}">${icon('share', 16)} ${t('sendCode')}</button><button class="btn sm ghost grow" data-test="${rxRef(rx)}">${icon('play', 14)} ${t('testRx')}</button><button class="btn sm grow" data-go="#/clinic/rx/${rxRef(rx)}">${t('adjust')}</button></div>
+      <div class="rx-actions rx-manage"><button class="btn sm ghost grow" data-dup="${rxRef(rx)}">${t('rxDup')}</button><button class="btn sm ghost grow" data-arc="${rxRef(rx)}">${t(rx.archived ? 'rxUnarchive' : 'rxArchive')}</button><button class="btn sm ghost danger grow" data-rmrx="${rxRef(rx)}">${t('delete')}</button></div></article>`;
+  };
+  const act = list.filter((x) => !x.archived), arch = list.filter((x) => x.archived);
+  box.innerHTML = strip + act.map(card).join('') + (arch.length ? `<details class="rx-archived" style="margin-top:14px"><summary class="small">${t('rxShowArchived')} (${arch.length})</summary>${arch.map(card).join('')}</details>` : '');
   // Bouton PDF du rapport (report.js) sur chaque fiche patient
   loadReport().then((R) => {
     if (!R?.clinicPdfButton) return;
@@ -95,6 +99,26 @@ export async function viewClinic() {
   const find = (ref) => list.find((x) => rxRef(x) === ref);
   box.querySelectorAll('[data-share]').forEach((b) => (b.onclick = () => { const rx = find(b.dataset.share); shareSheet(rx.code, linkOf(rx), null, { keyInLink: !rx.code && rx.ai?.mode === 'key' }); }));
   box.querySelectorAll('[data-test]').forEach((b) => (b.onclick = () => startTrial(find(b.dataset.test))));
+  // Dupliquer / archiver / supprimer un programme
+  box.querySelectorAll('[data-dup]').forEach((b) => (b.onclick = async () => {
+    try { await store.duplicateRx(find(b.dataset.dup), ' ·2'); toast(t('rxDupDone')); viewClinic(); } catch (e) { console.warn(e); toast(t('rxSaveErr'), 4000); }
+  }));
+  box.querySelectorAll('[data-arc]').forEach((b) => (b.onclick = async () => {
+    const rx = find(b.dataset.arc);
+    try { await store.setRxArchived(rx, !rx.archived); toast(t('saved')); viewClinic(); } catch (e) { console.warn(e); toast(t('rxSaveErr'), 4000); }
+  }));
+  box.querySelectorAll('[data-rmrx]').forEach((b) => (b.onclick = async () => {
+    const rx = find(b.dataset.rmrx);
+    if (!(await confirmSheet({ title: t('rxDelAsk'), text: t('rxDelAskD'), ok: t('delete'), danger: true }))) return;
+    try { await store.deleteRx(rx); toast(t('rxDeleted')); viewClinic(); } catch (e) { console.warn(e); toast(t('rxSaveErr'), 4000); }
+  }));
+  // Export CSV du résumé d'un patient
+  box.querySelectorAll('[data-csv]').forEach((b) => (b.onclick = async () => {
+    const p = list.flatMap((rx) => rx.patients || []).find((x) => String(x.uid || x.updated) === b.dataset.csv); if (!p) return;
+    const csv = patientCsv(p, { nameOf: (id) => tr(EXERCISES[id]?.name) || id });
+    const nm = String(p.name || 'patient').normalize('NFD').replace(/[^\w]+/g, '-').replace(/^-|-$/g, '').toLowerCase() || 'patient';
+    try { await saveFile(csv, `mobilis-${nm}-${P.todayKey()}.csv`, 'text/csv', { title: 'Mobilis CSV' }); toast(t('fileReady')); } catch (e) { console.warn(e); toast(t('fileErr'), 4000); }
+  }));
 }
 
 // Progression par exercice (niveau, dernière difficulté et douleur, tendance), compacte et repliée
@@ -201,7 +225,8 @@ export async function viewRxEditor(code) {
     <h2>${t('patientEquip')}</h2><p class="small muted" style="margin:-4px 0 8px">${t('patientEquipD')}</p>
     <div class="pills">${EQUIP_IDS.map((e) => `<button class="pill ${!f.equip || f.equip.includes(e) ? 'on' : ''}" data-peq="${e}">${esc(tr(EQUIP[e]))}</button>`).join('')}</div>
     <h2>${t('patientSide')}</h2><div class="seg">${['L', 'R', 'both'].map((v) => `<button data-pside="${v}" class="${(f.side || 'both') === v ? 'on' : ''}">${t(v === 'L' ? 'sideLeft' : v === 'R' ? 'sideRight' : 'sideBoth')}</button>`).join('')}</div>
-    <h2>${t('trainDays')}</h2><div class="seg">${[2, 3, 4, 5, 6].map((n) => `<button data-pw="${n}" class="${f.days.length === n ? 'on' : ''}">${n}×</button>`).join('')}</div>
+    <h2>${t('trainDays')}</h2><div class="seg">${[1, 2, 3, 4, 5, 6, 7].map((n) => `<button data-pw="${n}" class="${f.days.length === n ? 'on' : ''}">${n}×</button>`).join('')}</div>
+    <div class="field" style="margin-top:10px"><span>${t('rxCustomDays')}</span><div class="days" role="group" aria-label="${t('rxCustomDays')}">${weekOrder().map((d) => `<button data-wd="${d}" class="${f.days.includes(d) ? 'on' : ''}" aria-pressed="${f.days.includes(d)}">${dowNarrow()[d]}</button>`).join('')}</div></div>
     <div class="list" style="margin-top:14px"><div class="toggle"><span><b>${t('autoProg')}</b><br><small class="muted">${t('autoProgD')}</small></span><button class="switch ${f.auto ? 'on' : ''}" id="auto" role="switch" aria-checked="${f.auto}"></button></div></div>
     <label class="field" style="margin-top:14px"><span>${t('notesForPatient')}</span><textarea class="input" id="nt" placeholder="${t('notesPh')}">${esc(f.notes)}</textarea></label>
     <label class="field"><span>${t('nextVisit')}</span><input class="input" type="date" id="nv" value="${esc(f.nextVisit)}"></label>
@@ -212,10 +237,15 @@ export async function viewRxEditor(code) {
     <div class="desk-only">${nav('clinic', prof.role)}</div>`;
   mountFigs($app());
   Object.values(secs).forEach((x) => { try { x?.bind?.($app()); } catch (e) { console.warn(e); } });
+  if (path) romByRegion($app(), f);
   const q = (s) => $app().querySelector(s), qa = (s) => $app().querySelectorAll(s);
   q('#cn').oninput = (e) => { f.clinician = e.target.value; };
   q('#lb').oninput = (e) => { f.label = e.target.value; };
-  qa('[data-r]').forEach((b) => (b.onclick = () => { f.region = b.dataset.r; f.pathology = null; f.ids = []; draw(); }));
+  qa('[data-r]').forEach((b) => (b.onclick = async () => {
+    if (b.dataset.r === f.region) return;
+    if (f.ids.length && !(await confirmSheet({ title: t('region'), text: t('rxRegionWarn'), ok: t('ok') }))) return; // la liste d'exercices serait effacée
+    f.region = b.dataset.r; f.pathology = null; f.ids = []; draw();
+  }));
   qa('[data-p]').forEach((b) => (b.onclick = () => scroll(() => { f.pathology = b.dataset.p; f.ids = [...PATHOLOGIES.find((p) => p.id === f.pathology).phases[f.phase]]; })));
   qa('[data-ph]').forEach((b) => (b.onclick = () => scroll(() => { f.phase = +b.dataset.ph; f.ids = [...path.phases[f.phase]]; })));
   qa('[data-lv]').forEach((b) => (b.onclick = () => scroll(() => {
@@ -240,7 +270,8 @@ export async function viewRxEditor(code) {
   qa('[data-peq]').forEach((b) => (b.onclick = () => scroll(() => { const cur = f.equip || [...EQUIP_IDS]; const e = b.dataset.peq; f.equip = cur.includes(e) ? cur.filter((x) => x !== e) : [...cur, e]; })));
   qa('[data-pside]').forEach((b) => (b.onclick = () => scroll(() => { f.side = b.dataset.pside; })));
   qa('[data-rep]').forEach((b) => (b.onclick = (e) => { e.stopPropagation(); scroll(() => { const i = f.ids.indexOf(b.dataset.rep); if (i >= 0) { f.ids[i] = b.dataset.to; f.levels[b.dataset.to] = f.levels[b.dataset.rep] || 2; delete f.dose[b.dataset.rep]; } }); }));
-  qa('[data-pw]').forEach((b) => (b.onclick = () => scroll(() => { f.days = { 2: [1, 4], 3: [1, 3, 5], 4: [1, 2, 4, 5], 5: [1, 2, 3, 4, 5], 6: [1, 2, 3, 4, 5, 6] }[+b.dataset.pw]; })));
+  qa('[data-pw]').forEach((b) => (b.onclick = () => scroll(() => { f.days = { 1: [3], 2: [1, 4], 3: [1, 3, 5], 4: [1, 2, 4, 5], 5: [1, 2, 3, 4, 5], 6: [1, 2, 3, 4, 5, 6], 7: [0, 1, 2, 3, 4, 5, 6] }[+b.dataset.pw]; })));
+  qa('[data-wd]').forEach((b) => (b.onclick = () => { const d = +b.dataset.wd; if (!canToggleDay(f.days, d)) return toast(t('calLastDay')); scroll(() => { f.days = toggleDay(f.days, d); }); }));
   const aiOn = q('#ai-on');
   if (aiOn) aiOn.onclick = () => scroll(() => { f.ai = f.ai ? null : { ...(store.settings().clinAI || { mode: 'proxy', proxy: '', token: '', key: '', until: '', cap: 40 }) }; });
   qa('[data-aim]').forEach((b) => (b.onclick = () => scroll(() => { f.ai.mode = b.dataset.aim; })));
@@ -275,6 +306,28 @@ export async function viewRxEditor(code) {
       await shareSheet(res.code, res.link, () => go('#/clinic'), { keyInLink: res.keyInLink });
       toast(t('rxCreated'));
     } catch (e) { console.warn(e); toast(t('rxSaveErr') + ' ' + (e.code || e.message), 5000); q('#save').disabled = false; }
+  };
+}
+
+// Amplitudes : les tests de la région du programme d'abord ; les autres sont repliés. « Suggérer » suit la région (jamais l'épaule par défaut).
+function romByRegion(root, f) {
+  const sec = root.querySelector('[data-rom-sec]'); if (!sec) return;
+  const list = sec.querySelector('.list'); if (!list) return;
+  const rows = [...list.querySelectorAll('.rom-row')];
+  const rowTest = (r) => r.querySelector('[data-rom-t]')?.dataset.romT;
+  const near = (id) => TESTS[id]?.region === f.region || suggestFor({ pathology: f.pathology, region: f.region }).some((x) => x.test === id);
+  const keep = rows.filter((r) => near(rowTest(r)) || r.querySelector('.pill.on'));
+  const rest = rows.filter((r) => !keep.includes(r));
+  if (rest.length && keep.length) {
+    const d = document.createElement('details'); d.style.marginTop = '8px';
+    d.innerHTML = `<summary class="small muted">${esc(t('romOther'))} (${rest.length})</summary><div class="list" style="margin-top:6px"></div>`;
+    rest.forEach((r) => d.querySelector('.list').appendChild(r));
+    list.appendChild(d);
+  }
+  const sug = sec.querySelector('[data-rom-sug]');
+  if (sug) sug.onclick = () => {
+    const items = suggestFor({ pathology: f.pathology, region: f.region }), keys = new Set(items.map((x) => `${x.test}_${x.side || '-'}`));
+    sec.querySelectorAll('[data-rom-t]').forEach((b) => { const v = keys.has(`${b.dataset.romT}_${b.dataset.romS || '-'}`); b.classList.toggle('on', v); b.setAttribute('aria-pressed', String(v)); });
   };
 }
 

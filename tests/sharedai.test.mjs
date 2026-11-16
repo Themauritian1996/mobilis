@@ -11,7 +11,7 @@ globalThis.CustomEvent = class { constructor(type) { this.type = type; } };
 
 const S = await import('../www/js/store.js');
 const C = await import('../www/js/coach.js');
-const setS = (o) => { mem['mobilis.settings'] = JSON.stringify(o); };
+const setS = (o) => { mem['mobilis.settings'] = JSON.stringify({ imageConsent: true, ...o }); };
 const day = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const plus = (n) => day(new Date(Date.now() + n * 86400000));
 let n = 0; const ok = (m) => { n++; };

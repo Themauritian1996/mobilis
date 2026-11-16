@@ -1013,5 +1013,21 @@
 "rom_pctSpoken": "{n} por cento",
 "rom_ready": "Estou pronto",
 "rom_chkStart": "Início",
-"rom_chkStill": "Parado"
+"rom_chkStill": "Parado",
+"quitTitle": "Sair deste exercício?",
+"quitBody": "Já fizeste uma parte do exercício. O que queres fazer?",
+"quitSave": "Guardar o que fiz",
+"quitDiscard": "Descartar",
+"quitContinue": "Continuar",
+"noRepsTitle": "Nada detetado",
+"noRepsMsg": "Não foram detetadas repetições — passar à introdução manual ou tentar de novo?",
+"noRepsManual": "Introdução manual",
+"noRepsLeave": "Sair sem guardar",
+"manualRepsLbl": "Repetições feitas",
+"manualHoldLbl": "Segundos mantidos",
+"manualOk": "Confirmar",
+"manualTag": "introduzido à mão",
+"lcNoFull": "Nenhuma repetição completa nesta série: procura um pouco mais de amplitude.",
+"lcGuidedReps": "Modo guiado: sem câmara a app não consegue avaliar a tua técnica. Mantém um movimento lento e controlado.",
+"lcGuidedHold": "Manutenção guiada concluída ({n} s). Sem câmara, a app não avalia a técnica."
 }

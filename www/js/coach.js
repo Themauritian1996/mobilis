@@ -1,7 +1,7 @@
 // Coach vocal : consignes instantanées (voix de l'appareil) + commentaires de fin de série par Gemini.
 import { CONFIG, coachUrl } from './config.js';
 import { CUES, getLang, getAiLang, aiLangInfo, tr, t, tp, langInfo } from './i18n.js';
-import { settings, aiKey, aiProxy, aiCount, aiCapReached, sharedAIActive, PROXY_KEY } from './store.js';
+import { settings, aiKey, aiProxy, aiCount, aiCapReached, sharedAIActive, PROXY_KEY, imageConsent, clampRate } from './store.js';
 import { primeAudio, stopAll, playRich } from './audio.js';
 
 // ---------- Voix de l'appareil (latence quasi nulle, idéal pour corriger en direct) ----------
@@ -43,7 +43,7 @@ export function speak(text, { interrupt = false, force = false, lang } = {}) {
   if (isNative()) {
     tts().then((T) => {
       if (!T) return;
-      T.speak({ text, lang: langInfo(lang).voice[0], rate: 1.0, pitch: 1.0, volume: 1.0, category: 'playback', queueStrategy: interrupt ? 0 : 1 }).catch((e) => console.warn('tts', e));
+      T.speak({ text, lang: langInfo(lang).voice[0], rate: clampRate(settings().voiceRate), pitch: 1.0, volume: 1.0, category: 'playback', queueStrategy: interrupt ? 0 : 1 }).catch((e) => console.warn('tts', e));
     });
     return;
   }
@@ -53,7 +53,7 @@ export function speak(text, { interrupt = false, force = false, lang } = {}) {
     const u = new SpeechSynthesisUtterance(text);
     u.lang = langInfo(lang).voice[0];
     const v = pickVoice(lang); if (v) u.voice = v;
-    u.rate = 1.05;
+    u.rate = clampRate(settings().voiceRate) * 1.05;
     speechSynthesis.speak(u);
   } catch (_) {}
 }
@@ -65,10 +65,15 @@ export const speakAI = (text, o = {}) => speak(text, { ...o, lang: getAiLang() }
 const lastSaid = {}; let lastAny = 0;
 // Pendant que le coach IA en direct parle, les consignes locales se taisent (sauf le comptage).
 export const setLiveTalking = (v) => { liveTalking = v; if (v) stopDeviceVoice(); };
+// Verbosité : « essential » = mise en place, corrections et fin de série ; sans encouragements ni conseils de finesse, et corrections moins fréquentes
+export const NON_ESSENTIAL_CUES = new Set(['good', 'great', 'depth', 'slow', 'lastRep']);
+export const cueAllowed = (key, level = settings().cueLevel) => level !== 'essential' || !NON_ESSENTIAL_CUES.has(key);
 export function cue(key) {
   const now = Date.now();
   if (liveTalking) return false;
-  if (now - lastAny < 2200 || now - (lastSaid[key] || 0) < 5000) return false;
+  if (!cueAllowed(key)) return false;
+  const gap = settings().cueLevel === 'essential' ? 9000 : 5000;
+  if (now - lastAny < 2200 || now - (lastSaid[key] || 0) < gap) return false;
   lastAny = now; lastSaid[key] = now;
   speak(tr(CUES[key]));
   return true;
@@ -125,7 +130,11 @@ export function parseJSON(txt) {
   if (a >= 0 && b > a) return JSON.parse(txt.slice(a, b + 1));
   throw new Error('json');
 }
+// Aucune image de la caméra ne part vers Gemini sans le consentement explicite du patient (réglage imageConsent)
+export const isImagePart = (p) => !!(p && ((p.inline_data && /^image\//.test(p.inline_data.mime_type || '')) || (p.inlineData && /^image\//.test(p.inlineData.mimeType || ''))));
+export const stripImages = (parts, ok = imageConsent()) => (ok ? parts : (parts || []).filter((p) => !isImagePart(p)));
 export async function gemini({ key = aiKey(), sys, parts, maxTokens = 180, temperature = 0.5, schema = null, timeout = 8000, fast = true, _retry = false }) {
+  parts = stripImages(parts);
   if (!_retry) aiCount();
   const chain = modelChain(fast);
   const model = chain[0] || CONFIG.geminiModel;
@@ -162,6 +171,7 @@ async function callProxy(body) {
 async function ask(kind, d, imageB64) {
   const key = aiKey();
   if (!navigator.onLine) throw new Error('offline');
+  if (!imageConsent()) imageB64 = null;
   if (key) {
     const parts = [{ text: JSON.stringify(d) }];
     if (imageB64) parts.push({ inline_data: { mime_type: 'image/jpeg', data: imageB64 } });
@@ -334,6 +344,7 @@ export async function speakRich(text, { lang = getAiLang() } = {}) {
 
 // Capture d'une image réduite (pour le commentaire visuel facultatif)
 export function grabFrame(video, mirror) {
+  if (!imageConsent()) return null;
   try {
     const w = 384, h = Math.round((video.videoHeight / video.videoWidth) * w) || 288;
     const c = document.createElement('canvas'); c.width = w; c.height = h;

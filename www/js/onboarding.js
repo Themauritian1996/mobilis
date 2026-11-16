@@ -7,7 +7,8 @@ import { EXERCISES } from './data/exercises.js';
 import * as P from './program.js';
 import * as store from './store.js';
 import { state, go, render, profile, updateProfile } from './state.js';
-import { esc, icon, mountFigs, figSvg, toast, langPicker } from './ui.js';
+import { esc, icon, mountFigs, figSvg, toast, langPicker, weekOrder } from './ui.js';
+import { canToggleDay, toggleDay } from './longterm.js';
 import { doseText } from './train.js';
 import { rxExtrasProm } from './questionnaires.js';
 import { rxExtrasRom } from './rom.js';
@@ -19,7 +20,7 @@ const DAY = 86400000;
 export const layName = (id) => tr(LAY[id]?.name) || tr(PATHOLOGIES.find((p) => p.id === id)?.name);
 export const medName = (id) => tr(PATHOLOGIES.find((p) => p.id === id)?.name);
 const DOW = dowNarrow;
-export const daysPicker = (sel) => `<div class="days" role="group" aria-label="${t('trainDays')}">${[1, 2, 3, 4, 5, 6, 0].map((d) => `<button data-day="${d}" class="${sel.includes(d) ? 'on' : ''}" aria-pressed="${sel.includes(d)}">${DOW()[d]}</button>`).join('')}</div>`;
+export const daysPicker = (sel) => `<div class="days" role="group" aria-label="${t('trainDays')}">${weekOrder().map((d) => `<button data-day="${d}" class="${sel.includes(d) ? 'on' : ''}" aria-pressed="${sel.includes(d)}">${DOW()[d]}</button>`).join('')}</div>`;
 
 // Carte du corps (les points ouvrent la région)
 const BODY_DOTS = {
@@ -47,18 +48,18 @@ function shell(body, { back = true, cta = '', canNext = true, progress = 0 } = {
     <div class="sticky-cta"><div>${cta || `<button class="btn" data-ob="next" ${canNext ? '' : 'disabled'}>${t('next')}</button>`}</div></div></section>`;
   mountFigs($app());
   const c = $app().querySelector('[data-ob="cancel"]');
-  if (c) c.onclick = () => { state.ob = null; state.obTest = false; go('#/home'); };
+  if (c) c.onclick = () => { state.ob = null; state.obTest = false; state.obChange = false; go('#/home'); };
 }
 
 export function viewOnboard() {
   const prev = profile();
   const o = state.ob || (state.ob = {
-    step: state.obTest ? 'diag' : 'name', hist: [], name: prev?.name || state.user?.name || '', role: prev?.role || 'patient', text: '', matches: null, region: prev?.region || null,
+    step: state.obTest || state.obChange ? 'diag' : 'name', hist: [], name: prev?.name || state.user?.name || '', role: prev?.role || 'patient', text: '', matches: null, region: prev?.region || null,
     answers: {}, pathology: null, start: {}, painBase: prev?.painBase ?? 3, irritability: prev?.irritability || 'med',
     days: prev?.days || [1, 3, 5], flags: new Set(), noFlag: false,
   });
   const to = (s) => { o.hist.push(o.step); o.step = s; viewOnboard(); };
-  const back = () => { o.step = o.hist.pop() || (state.obTest ? 'diag' : 'name'); viewOnboard(); };
+  const back = () => { o.step = o.hist.pop() || (state.obTest || state.obChange ? 'diag' : 'name'); viewOnboard(); };
   const q = (s) => $app().querySelector(s), qa = (s) => $app().querySelectorAll(s);
   const bind = () => {
     const b = q('[data-ob="back"]'); if (b) b.onclick = back;
@@ -163,7 +164,7 @@ export function viewOnboard() {
     bind();
     qa('[data-s]').forEach((x) => (x.onclick = () => { o.start[x.dataset.s] = x.dataset.v; if (x.dataset.s === 'prior' && x.dataset.v === 'no') delete o.start.how; const y = window.scrollY; viewOnboard(); window.scrollTo(0, y); }));
     qa('[data-irr]').forEach((x) => (x.onclick = () => { o.irritability = x.dataset.irr; const y = window.scrollY; viewOnboard(); window.scrollTo(0, y); }));
-    qa('[data-day]').forEach((x) => (x.onclick = () => { const d = +x.dataset.day; o.days = o.days.includes(d) ? o.days.filter((z) => z !== d) : [...o.days, d]; const y = window.scrollY; viewOnboard(); window.scrollTo(0, y); }));
+    qa('[data-day]').forEach((x) => (x.onclick = () => { const d = +x.dataset.day; if (!canToggleDay(o.days, d)) return toast(t('calLastDay')); o.days = toggleDay(o.days, d); const y = window.scrollY; viewOnboard(); window.scrollTo(0, y); }));
     const pain = q('#pain'); pain.oninput = () => { o.painBase = +pain.value; q('#pv').textContent = pain.value; };
     q('[data-ob="next"]').onclick = () => to('flags');
     return;
@@ -192,7 +193,7 @@ export function viewOnboard() {
       startDate: Date.now() - sp.weeksDone * 7 * DAY, joinedAt: prev?.joinedAt || Date.now(), lang: getLang(), triage: { text: o.text, answers: o.answers, start: o.start },
       plan: null, lockPhase: false,
     };
-    await store.saveProfile(p); state.data = await store.loadData(); state.ob = null;
+    await store.saveProfile(p); state.data = await store.loadData(); state.ob = null; state.obChange = false;
     if (state.obTest) { state.obTest = false; toast(t('trialStarted'), 3500); }
     go('#/home');
   };
@@ -256,14 +257,20 @@ export async function startTrial(rx) {
 }
 
 export async function viewRxImport(code) {
-  $app().innerHTML = `<section class="screen"><div class="topbar"><h1>${t('rxTitle')}</h1></div><div class="card muted">${t('loading')}</div></section>`;
-  let rx = null;
-  try { rx = await store.getRx(code); } catch (e) { console.warn(e); }
+  $app().innerHTML = `<section class="screen"><div class="topbar"><h1>${t('rxTitle')}</h1></div><div class="card muted">${t('loading')}</div><button class="btn ghost" data-a="cancelRx" style="margin-top:12px">${t('cancel')}</button></section>`;
+  const cx = $app().querySelector('[data-a="cancelRx"]'); if (cx) cx.onclick = () => { store.clearPendingRx(); go('#/home'); };
+  // Échec (code introuvable ou réseau) : le code en attente est effacé (sinon toutes les routes y redirigent) et on peut toujours partir
+  const { rx, error } = await store.lookupRx(code);
+  if (!location.hash.startsWith('#/rx/')) return; // l'utilisateur est parti pendant la recherche
   if (!rx) {
-    $app().innerHTML = `<section class="screen"><div class="topbar"><button class="icon-btn" data-go="#/code">${icon('back', 20)}</button><h1>${t('rxTitle')}</h1></div><div class="banner neg">${icon('shield', 20)}<div>${t('rxNotFound')}</div></div></section>`;
+    const net = error === 'network';
+    $app().innerHTML = `<section class="screen"><div class="topbar"><button class="icon-btn" data-go="${profile()?.pathology ? '#/home' : '#/code'}" aria-label="${t('back')}">${icon('back', 20)}</button><h1>${t('rxTitle')}</h1></div>
+      <div class="banner neg" role="alert">${icon('shield', 20)}<div>${net ? t('rxNoNet') : t('rxNotFound')}</div></div>
+      <div class="stack" style="margin-top:14px">${net ? `<button class="btn" data-a="retry">${t('retry')}</button>` : `<button class="btn" data-go="#/code">${t('enterCode')}</button>`}
+        <button class="btn ghost" data-go="#/home">${t('home')}</button></div></section>`;
+    const rt = $app().querySelector('[data-a="retry"]'); if (rt) rt.onclick = () => { store.setPendingRx(code); viewRxImport(code); };
     return;
   }
-  try { localStorage.removeItem('mobilis.pendingRx'); } catch (_) {}
   // Langue choisie par le clinicien, sauf si le patient en a choisi une autre sur cet écran
   let chosen = false; try { chosen = !!sessionStorage.getItem('mobilis.langChosen'); } catch (_) {}
   if (rx.lang && isLang(rx.lang) && rx.lang !== getLang() && !chosen) await setLang(rx.lang);
@@ -289,7 +296,7 @@ export async function viewRxImport(code) {
     mountFigs($app());
     const q = (s) => $app().querySelector(s);
     q('#nm').oninput = (e) => { o.name = e.target.value; q('#next').disabled = !o.name.trim() || !o.days.length; };
-    $app().querySelectorAll('[data-day]').forEach((x) => (x.onclick = () => { const d = +x.dataset.day; o.days = o.days.includes(d) ? o.days.filter((z) => z !== d) : [...o.days, d]; draw(); }));
+    $app().querySelectorAll('[data-day]').forEach((x) => (x.onclick = () => { const d = +x.dataset.day; if (!canToggleDay(o.days, d)) return toast(t('calLastDay')); o.days = toggleDay(o.days, d); draw(); }));
     const sh = q('#share'); if (sh) sh.onclick = () => { o.share = !o.share; draw(); };
     q('#next').onclick = () => { o.step = 'flags'; draw(); };
   };

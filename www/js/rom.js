@@ -483,7 +483,7 @@ export async function viewRom($app, testId, side, cleanup) {
   let coach = null; try { coach = await import('./coach.js'); } catch (_) { coach = null; }
   if (!location.hash.startsWith('#/rom/')) return;
   const prof = profile() || {};
-  const S = { stage: 'intro', stream: null, raf: 0, active: false, facing: store.settings().camera, mirror: true, trials: [], det: null, tilt: null, place: null, luma: null, lumaT: 0, handPrev: null, cur: null, hand: false, closed: false, saved: false, start: null, cd: { a: false, b: false } };
+  const S = { stage: 'intro', stream: null, raf: 0, active: false, facing: store.settings().camera, mirror: true, trials: [], det: null, tilt: null, place: null, luma: null, lumaT: 0, handPrev: null, cur: null, hand: false, closed: false, camGen: 0, saved: false, start: null, cd: { a: false, b: false } };
   const muted = store.settings().voice === 'off';
   const voicer = new Voicer({ muted });
   const say = (txt, o) => { try { if (coach && txt) coach.speak(txt, o); } catch (_) {} };
@@ -512,7 +512,7 @@ export async function viewRom($app, testId, side, cleanup) {
 
   // ----- fermeture (caméra arrêtée, écouteurs retirés) -----
   function close() {
-    if (S.closed) return; S.closed = true; S.active = false;
+    if (S.closed) return; S.closed = true; S.active = false; S.camGen++;
     cancelAnimationFrame(S.raf); clearTimeout(S.place?.timer); clearTimeout(S.start?.timer);
     try { if (S.onOri) window.removeEventListener('deviceorientation', S.onOri); } catch (_) {}
     try { document.removeEventListener('visibilitychange', onVis); } catch (_) {}
@@ -593,16 +593,23 @@ export async function viewRom($app, testId, side, cleanup) {
   }
 
   // ----- caméra -----
+  // false : l'écran a été fermé (ou la caméra arrêtée) pendant l'ouverture → le flux est coupé tout de suite (jamais de caméra restée allumée)
   async function openCam() {
-    S.stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: S.facing, width: { ideal: 960 }, height: { ideal: 720 } } });
-    video.srcObject = S.stream; await video.play(); video.hidden = false;
+    const gen = S.camGen, dead = () => S.closed || gen !== S.camGen;
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: S.facing, width: { ideal: 960 }, height: { ideal: 720 } } });
+    if (dead()) { stream.getTracks().forEach((tk) => tk.stop()); return false; }
+    S.stream = stream; video.srcObject = stream;
+    try { await video.play(); } catch (e) { if (dead()) { stream.getTracks().forEach((tk) => tk.stop()); if (S.stream === stream) S.stream = null; return false; } throw e; }
+    if (dead()) { stream.getTracks().forEach((tk) => tk.stop()); if (S.stream === stream) S.stream = null; return false; }
+    video.hidden = false;
     let fm = null; try { fm = S.stream.getVideoTracks()[0]?.getSettings?.().facingMode || null; } catch (_) {}
     S.mirror = (fm === 'user' || fm === 'environment' ? fm : S.facing) === 'user';
     video.classList.toggle('mirror', S.mirror); video.classList.toggle('off', store.settings().selfView === false);
     smooth.reset(); hsmooth.reset(); guard.reset();
+    return true;
   }
-  function stopCam() { if (S.stream) S.stream.getTracks().forEach((tk) => tk.stop()); S.stream = null; video.srcObject = null; video.hidden = true; V.fw = 0; g.clearRect(0, 0, canvas.width, canvas.height); }
-  $('[data-r="flip"]').onclick = async () => { S.facing = S.facing === 'user' ? 'environment' : 'user'; store.saveSettings({ camera: S.facing }); if (S.stream) { stopCam(); try { await openCam(); } catch (e) { toast(t('mirrorErr'), 4000); } } if (!$('.rom-sidebig').hidden) paintSide($('.rom-sidebig').classList.contains('compact') ? 'compact' : 'full'); };
+  function stopCam() { S.camGen++; if (S.stream) S.stream.getTracks().forEach((tk) => tk.stop()); S.stream = null; video.srcObject = null; video.hidden = true; V.fw = 0; g.clearRect(0, 0, canvas.width, canvas.height); }
+  $('[data-r="flip"]').onclick = async () => { S.facing = S.facing === 'user' ? 'environment' : 'user'; store.saveSettings({ camera: S.facing }); if (S.stream) { stopCam(); try { await openCam(); } catch (e) { if (S.closed) return; toast(t('mirrorErr'), 4000); } } if (!$('.rom-sidebig').hidden) paintSide($('.rom-sidebig').classList.contains('compact') ? 'compact' : 'full'); };
   $('[data-r="close"]').onclick = leave;
 
   // ----- écran d'introduction -----
@@ -620,10 +627,12 @@ export async function viewRom($app, testId, side, cleanup) {
   async function startCamera() {
     setup(''); center(`<div><div class="spinner"></div>${esc(t('loadingModel'))}</div>`);
     try {
-      if (!S.stream) await openCam();
+      if (!S.stream && !(await openCam())) { if (!S.closed) { center(''); showIntro(); } return; }
       lmk = await loadPose();
       if (T.needsHand) { try { await loadHands(); S.hand = true; } catch (e) { console.warn('hands', e); S.hand = false; } }
+      if (S.closed) return;
     } catch (e) {
+      if (S.closed) return;
       console.error(e); center(''); stopCam();
       toast(e && e.name === 'NotAllowedError' ? t('camDenied') : t('modelErr'), 4500);
       return showIntro();
