@@ -5,7 +5,7 @@
 // Il répond en JSON (correction choisie + confiance). L'app valide la réponse contre les mesures avant de la dire,
 // et prononce la consigne validée (pas un texte libre), ce qui garantit une correction anatomiquement juste.
 import { gemini, parseJSON } from './coach.js';
-import { settings } from './store.js';
+import { settings, aiKey } from './store.js';
 import { CUES, tr, aiLangInfo } from './i18n.js';
 import { METRIC_INFO } from './pose.js';
 
@@ -115,7 +115,7 @@ function describe(meas, ctx) {
  * onResult({ text, kind, cue, seen }) ; onState('live' | 'error' | 'off')
  */
 export function createPreciseCoach(ctx, { onResult, onState }) {
-  const key = settings().geminiKey;
+  const key = aiKey();
   const allowed = allowedFor(ctx.ex, ctx.plane, ctx.mode);
   const ids = [...allowed.cues, ...allowed.keys.map((k) => k.id)];
   const sys = sysPrompt(ctx);

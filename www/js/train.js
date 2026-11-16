@@ -291,7 +291,7 @@ export function viewTrain(id, cleanup) {
   // Désactivé dans les tests de bout en bout : adresse avec « noplace » (…/index.html?noplace#/train/…) ou window.__noPlacement = true.
   const placementWanted = () => T.mode === 'camera' && !!ex.track && !PLACED.has(id) && !/noplace/.test(location.href) && !window.__noPlacement;
   const placeText = (k) => (k.startsWith('wrongHand') ? t(k) : t('pl_' + k));
-  const placeKey = () => store.settings().geminiKey;
+  const placeKey = () => store.aiKey();
   const lumaCv = document.createElement('canvas');
   // Luminance (0–255) sur une image réduite à 64 px : moyenne, centre (boîte du sujet, sinon milieu) et bords (hors sujet)
   function sampleLuma(box) {

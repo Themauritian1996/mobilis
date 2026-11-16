@@ -1,7 +1,7 @@
 // Coach vocal : consignes instantanées (voix de l'appareil) + commentaires de fin de série par Gemini.
 import { CONFIG, coachUrl } from './config.js';
 import { CUES, getLang, getAiLang, aiLangInfo, tr, t, tp, langInfo } from './i18n.js';
-import { settings } from './store.js';
+import { settings, aiKey } from './store.js';
 import { primeAudio, stopAll, playRich } from './audio.js';
 
 // ---------- Voix de l'appareil (latence quasi nulle, idéal pour corriger en direct) ----------
@@ -92,7 +92,7 @@ const SYS = {
 };
 const REG = { fr: ' Address the patient informally with "tu"/"ton", never "vous".', es: ' Use informal "tú", never "usted".', pt: ' Use informal "você", never "o senhor/a senhora".' };
 export const langLine = () => `Always answer in ${aiLangInfo().label}.${REG[getAiLang()] || ' Use a warm, informal register.'}`;
-export const aiAvailable = () => !!(settings().geminiKey || CONFIG.coachEndpoint);
+export const aiAvailable = () => !!(aiKey() || CONFIG.coachEndpoint);
 
 // Appel Gemini direct (clé personnelle). Rapide par défaut : modèle « lite », réflexion minimale, limite de temps stricte.
 // Les modèles récents (3.x) n'acceptent plus « thinkingBudget: 0 » mais « thinkingLevel: minimal » ; les plus anciens l'inverse.
@@ -112,7 +112,7 @@ export function parseJSON(txt) {
   if (a >= 0 && b > a) return JSON.parse(txt.slice(a, b + 1));
   throw new Error('json');
 }
-export async function gemini({ key = settings().geminiKey, sys, parts, maxTokens = 180, temperature = 0.5, schema = null, timeout = 8000, fast = true }) {
+export async function gemini({ key = aiKey(), sys, parts, maxTokens = 180, temperature = 0.5, schema = null, timeout = 8000, fast = true }) {
   const chain = modelChain(fast);
   const model = chain[0] || CONFIG.geminiModel;
   const gen = { temperature, maxOutputTokens: maxTokens + 400 };
@@ -149,7 +149,7 @@ async function callProxy(body) {
 }
 
 async function ask(kind, d, imageB64) {
-  const key = settings().geminiKey;
+  const key = aiKey();
   if (!navigator.onLine) throw new Error('offline');
   if (key) {
     const parts = [{ text: JSON.stringify(d) }];
@@ -281,7 +281,7 @@ export async function startDictation({ onText, onState }) {
 const blobB64 = (blob) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.onerror = rej; r.readAsDataURL(blob); });
 async function transcribe(b64, mime) {
   const sys = `Transcribe the patient's spoken comment verbatim. The patient most likely speaks ${aiLangInfo().label} or ${langInfo().label} (they may mix languages). Output only the transcription, no quotes, no notes.`;
-  const key = settings().geminiKey;
+  const key = aiKey();
   if (key) return gemini({ key, sys, parts: [{ inline_data: { mime_type: mime, data: b64 } }], maxTokens: 400, timeout: 20000 });
   return callProxy({ kind: 'transcribe', audio: b64, mime });
 }
@@ -298,10 +298,10 @@ export async function speakRich(text, { lang = getAiLang() } = {}) {
     const voiceName = lang === 'fr' ? 'Aoede' : 'Kore';
     const body = { contents: [{ parts: [{ text }] }], generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } } } };
     let r;
-    if (s.geminiKey) {
+    if (aiKey()) {
       for (const m of (CONFIG.geminiTtsModels || []).filter((x) => !flags.dead.has(x))) {
         r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': s.geminiKey }, body: JSON.stringify(body),
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': aiKey() }, body: JSON.stringify(body),
         });
         if (r.ok || ![400, 403, 404].includes(r.status)) break;
         flags.dead.add(m);
