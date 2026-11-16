@@ -237,6 +237,7 @@ function viewHome() {
   </section>${nav('home', navRole())}`;
   mountFigs($app);
   bindTrialBar();
+  consentMaybe();
   bindHomeCardProm($app, go); bindHomeCardRom($app, go); RPT?.bindHomeCardReport?.($app, go);
   $app.querySelectorAll('[data-jp]').forEach((b) => (b.onclick = async () => { await store.saveJournal({ day: today, pain: +b.dataset.jp, ts: Date.now() }); state.data = await store.loadData(); toast(t('saved')); render(); }));
   const fl = $app.querySelector('[data-a="flare"]');
@@ -248,6 +249,14 @@ function viewHome() {
   };
   const fo = $app.querySelector('[data-a="flareOff"]');
   if (fo) fo.onclick = async () => { await updateProfile({ flareUntil: 0 }); render(); };
+}
+
+// Réglages d'avant la 1.15 : si l'envoi d'images à l'IA était activé sans consentement enregistré, on le demande (une fois par session)
+function consentMaybe() {
+  const st = store.settings();
+  if (st.imageConsent != null || !(st.sendFrame || st.liveAI) || !(store.aiKey() || firebaseEnabled())) return;
+  try { if (sessionStorage.getItem('mobilis.consentAsked')) return; sessionStorage.setItem('mobilis.consentAsked', '1'); } catch (_) {}
+  askImageConsent().then(() => { if (/^#?\/?(home)?$/.test(location.hash)) render(); });
 }
 
 // Bandeau « mode test patient » (clinicien)
@@ -475,6 +484,10 @@ const aiPref = () => { try { return localStorage.getItem('mobilis.aiLang') || 'a
 const tk = (k, fb) => { const v = t(k); return v === k ? tr(fb) : v; };
 const AI_LANG_TXT = { fr: 'Langue du coach IA', en: 'AI coach language' }, AI_AUTO = { fr: 'Comme l\'app', en: 'Same as the app' };
 const PARTIAL_TXT = { fr: 'Compter les répétitions partielles', en: 'Count partial reps' }, PARTIAL_D = { fr: 'Une répétition moins ample compte quand même (dès ~35 % du mouvement), marquée « partielle ».', en: 'A smaller rep still counts (from ~35% of the range), marked "partial".' };
+// Feuille de consentement avant tout envoi d'image à l'IA (Gemini). → true si accepté
+function askImageConsent() {
+  return confirmSheet({ title: t('consentTitle'), text: t('consentText'), ok: t('consentYes'), cancel: t('consentNo') }).then((ok) => { store.setImageConsent(ok); return ok; });
+}
 function viewProfile() {
   const prof = profile(); const st = store.settings(); const u = state.user;
   const sh = store.sharedAIInfo();
@@ -492,6 +505,14 @@ function viewProfile() {
       <div class="toggle"><span>${t('selfViewSetting')}<br><small class="muted">${t('selfViewSettingD')}</small></span>${sw('selfView', st.selfView !== false)}</div>
       <div class="toggle"><span>${t('guidesSetting')}<br><small class="muted">${t('guidesSettingD')}</small></span>${sw('guides', st.guides !== false)}</div>
       <div class="toggle"><span>${t('anatomyDefault')}</span>${sw('anatomy', st.anatomy)}</div>
+      <div class="toggle" style="display:block"><span>${t('camDefault')}</span><div class="seg" style="margin-top:8px">${['user', 'environment'].map((v) => `<button data-cam="${v}" aria-pressed="${st.camera === v}" class="${st.camera === v ? 'on' : ''}">${t(v === 'user' ? 'camUser' : 'camEnv')}</button>`).join('')}</div></div>
+    </div>
+    <h2>${t('settingsA11y')}</h2><div class="list">
+      <div class="toggle" style="display:block"><label for="vrate">${t('voiceRate')} <b class="tnum" id="vrate-v">${(+st.voiceRate || 1).toFixed(2).replace(/0$/, '')}×</b></label><input type="range" id="vrate" min="0.8" max="1.3" step="0.05" value="${+st.voiceRate || 1}" style="margin-top:8px"></div>
+      <div class="toggle" style="display:block"><span>${t('cueLevel')}<br><small class="muted">${t('cueLevelD')}</small></span><div class="seg" style="margin-top:8px">${['all', 'essential'].map((v) => `<button data-cue="${v}" aria-pressed="${(st.cueLevel || 'all') === v}" class="${(st.cueLevel || 'all') === v ? 'on' : ''}">${t(v === 'all' ? 'cueAll' : 'cueEssential')}</button>`).join('')}</div></div>
+      <div class="toggle" style="display:block"><span>${t('textSize')}</span><div class="seg" style="margin-top:8px">${[100, 115, 130].map((v) => `<button data-tsize="${v}" aria-pressed="${+st.textSize === v}" class="${+st.textSize === v ? 'on' : ''}">${v} %</button>`).join('')}</div></div>
+      <div class="toggle"><span>${t('contrast')}<br><small class="muted">${t('contrastD')}</small></span>${sw('contrast', !!st.contrast)}</div>
+      <div class="toggle" style="display:block"><span>${t('weekStart')}</span><div class="seg" style="margin-top:8px">${[['auto', 'wsAuto'], [1, 'wsMon'], [0, 'wsSun']].map(([v, k]) => `<button data-ws="${v}" aria-pressed="${String(st.weekStart) === String(v)}" class="${String(st.weekStart) === String(v) ? 'on' : ''}">${t(k)}</button>`).join('')}</div></div>
     </div>
     <h2>${t('aiCoach')}</h2><div class="card">
       ${sh && !st.geminiKey ? `<div class="banner pos" id="ai-shared">${icon('spark', 20)}<div><b>${t('aiProvided')}${sh.from ? ' (' + esc(sh.from) + ')' : ''}${sh.until ? ' ' + t('aiProvidedUntil') + ' ' + esc(new Date(sh.until + 'T12:00').toLocaleDateString(locale(), { day: 'numeric', month: 'long', year: 'numeric' })) : ''}</b><br><small>${t('aiProvidedD')}${sh.cap ? ` · ${sh.used}/${sh.cap} ${t('aiProvidedUsed')}` : ''}</small>${sh.capped ? `<br><small class="neg">${t('aiCapNote')}</small>` : ''}${sh.mode === 'proxy' ? `<br><small>${t('aiProxyNoLive')}</small>` : ''}</div></div>` : ''}
@@ -501,6 +522,8 @@ function viewProfile() {
       ${sh && !st.geminiKey ? '</details>' : ''}
       <div class="toggle" style="padding:12px 0 0"><span>${tk('aiLang', AI_LANG_TXT)}</span><select class="input lang-select" id="ailang" aria-label="${tk('aiLang', AI_LANG_TXT)}"><option value="auto" ${(aiPref()) === 'auto' ? 'selected' : ''}>${tk('aiLangAuto', AI_AUTO)}</option>${LANGS.map((l) => `<option value="${l.id}" ${aiPref() === l.id ? 'selected' : ''}>${l.name}</option>`).join('')}</select></div>
       <div class="toggle" style="padding:12px 0 0"><span><span>${tk('countPartial', PARTIAL_TXT)}</span><br><small class="muted">${tk('countPartialD', PARTIAL_D)}</small></span>${sw('countPartial', st.countPartial !== false)}</div>
+      <div class="toggle" style="padding:12px 0 0"><span><span>${t('consentSetting')}</span><br><small class="muted">${t('consentSettingD')}</small></span>${sw('imageConsent', store.imageConsent(st))}</div>
+      ${st.geminiKey ? `<button class="btn sm ghost danger" data-a="purgeKey" style="margin-top:12px">${t('purgeKey')}</button>` : ''}
       <div class="toggle" style="padding:12px 0 0"><span><span>${t('sendFrame')}</span><br><small class="muted">${t('sendFrameD')}</small></span>${sw('sendFrame', st.sendFrame)}</div>
       <div class="toggle" style="padding:12px 0 0"><span><span>${t('liveAI')}</span><br><small class="muted">${t(store.aiKey() ? 'liveAID' : 'liveNeedKey')}</small></span>${sw('liveAI', !!st.liveAI)}</div>
       <div class="toggle" style="display:block;padding:12px 0 0"><span>${t('aiMode')}<br><small class="muted">${t('aiModeD')}</small></span><div class="seg" style="margin-top:8px">${['precise', 'live'].map((v) => `<button data-aimode="${v}" class="${(st.aiMode || 'precise') === v ? 'on' : ''}">${t(v === 'precise' ? 'aiModePrecise' : 'aiModeLive')}</button>`).join('')}</div></div>
@@ -509,15 +532,39 @@ function viewProfile() {
     <h2>${t('about')}</h2><div class="card small"><p style="margin-top:0">${t('aboutD')}</p><p class="muted" style="margin-bottom:0">${t('disclaimer')}</p></div>
     <h2>${t('bkTitle')}</h2><div class="card small"><p style="margin-top:0">${t('bkD')}</p><input type="file" id="bk-file" accept=".json,application/json" hidden><button class="btn ghost" data-a="import">${t('bkImport')}</button></div>
     <div class="stack" style="margin-top:16px"><button class="btn ghost" data-a="export">${t('exportData')}</button>
-      ${u.local ? `<button class="btn danger" data-a="erase">${t('deleteLocal')}</button>` : ''}
+      <button class="btn danger" data-a="erase">${t('deleteLocal')}</button>
+      ${store.isCloud() ? `<button class="btn danger" data-a="cloudDel">${t('cloudDelBtn')}</button>` : ''}
       <button class="btn ghost" data-a="out">${t('signOut')}</button></div>
   </section>${nav('profile', navRole())}`;
   const q = (s) => $app.querySelector(s);
   bindTrialBar();
   $app.querySelectorAll('[data-theme-set]').forEach((b) => (b.onclick = () => { store.saveSettings({ theme: b.dataset.themeSet }); applyTheme(); viewProfile(); }));
-  $app.querySelectorAll('[data-aimode]').forEach((b) => (b.onclick = () => { store.saveSettings({ aiMode: b.dataset.aimode }); viewProfile(); }));
+  $app.querySelectorAll('[data-aimode]').forEach((b) => (b.onclick = async () => {
+    if (b.dataset.aimode === 'live' && !store.imageConsent() && !(await askImageConsent())) return viewProfile();
+    store.saveSettings({ aiMode: b.dataset.aimode }); viewProfile();
+  }));
   $app.querySelectorAll('[data-voice]').forEach((b) => (b.onclick = () => { store.saveSettings({ voice: b.dataset.voice }); viewProfile(); if (b.dataset.voice !== 'off') speakRich(cueText('good'), { lang: getLang() }); }));
-  $app.querySelectorAll('[data-sw]').forEach((b) => (b.onclick = () => { const k = b.dataset.sw; store.saveSettings({ [k]: k === 'countPartial' ? store.settings().countPartial === false : !store.settings()[k] }); viewProfile(); }));
+  // Avant d'envoyer la moindre image à l'IA : consentement explicite (feuille), mémorisé et retirable ici
+  $app.querySelectorAll('[data-sw]').forEach((b) => (b.onclick = async () => {
+    const k = b.dataset.sw, cur = store.settings();
+    if (k === 'imageConsent') {
+      if (store.imageConsent(cur)) store.setImageConsent(false); else await askImageConsent();
+      return viewProfile();
+    }
+    if (k === 'contrast') { store.saveSettings({ contrast: !cur.contrast }); applyTheme(); return viewProfile(); }
+    const next = k === 'countPartial' ? cur.countPartial === false : !cur[k];
+    if (next && (k === 'sendFrame' || k === 'liveAI') && !store.imageConsent(cur) && !(await askImageConsent())) return viewProfile();
+    store.saveSettings({ [k]: next }); viewProfile();
+  }));
+  $app.querySelectorAll('[data-cam]').forEach((b) => (b.onclick = () => { store.saveSettings({ camera: b.dataset.cam }); viewProfile(); }));
+  $app.querySelectorAll('[data-cue]').forEach((b) => (b.onclick = () => { store.saveSettings({ cueLevel: b.dataset.cue }); viewProfile(); }));
+  $app.querySelectorAll('[data-tsize]').forEach((b) => (b.onclick = () => { store.saveSettings({ textSize: +b.dataset.tsize }); applyTheme(); viewProfile(); }));
+  $app.querySelectorAll('[data-ws]').forEach((b) => (b.onclick = () => { store.saveSettings({ weekStart: b.dataset.ws === 'auto' ? 'auto' : +b.dataset.ws }); viewProfile(); }));
+  const vr = q('#vrate');
+  vr.oninput = () => { q('#vrate-v').textContent = (+vr.value).toFixed(2).replace(/0$/, '') + '×'; };
+  vr.onchange = () => { store.saveSettings({ voiceRate: store.clampRate(vr.value) }); if (store.settings().voice !== 'off') speakRich(cueText('good'), { lang: getLang() }); };
+  const pk = q('[data-a="purgeKey"]');
+  if (pk) pk.onclick = async () => { if (await confirmSheet({ title: t('purgeKeyQ'), ok: t('purgeKey'), danger: true })) { store.purgeApiKey(); toast(t('purgeDone')); viewProfile(); } };
   q('#ailang').onchange = () => { setAiLang(q('#ailang').value); toast(t('saved')); };
   q('#gk').onchange = () => { store.saveSettings({ geminiKey: q('#gk').value.trim() }); toast(t('saved')); };
   q('[data-a="role"]').onclick = async () => {
@@ -525,9 +572,10 @@ function viewProfile() {
     await updateProfile({ role, trial: false });
     go(role === 'clinician' ? '#/clinic' : prof.pathology ? '#/home' : '#/onboard');
   };
-  q('[data-a="export"]').onclick = () => {
-    const blob = new Blob([store.exportData()], { type: 'application/json' });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `mobilis-${P.todayKey()}.json`; a.click();
+  // APK : Filesystem + feuille de partage (un lien blob: ne se télécharge pas dans la WebView) ; web : téléchargement
+  q('[data-a="export"]').onclick = async () => {
+    try { const r = await saveFile(store.exportData(), `mobilis-${P.todayKey()}.json`, 'application/json', { title: t('exportData') }); if (r !== 'cancelled') toast(t('fileReady')); }
+    catch (e) { console.warn(e); toast(t('fileErr'), 4000); }
   };
   q('[data-a="import"]').onclick = () => q('#bk-file').click();
   q('#bk-file').onchange = async (e) => {
@@ -538,10 +586,20 @@ function viewProfile() {
     } catch (err) { console.warn(err); toast(t('bkBad'), 4000); }
   };
   const er = q('[data-a="erase"]');
-  if (er) er.onclick = () => {
-    const bg = sheet(`<h3>${t('confirmDelete')}</h3><div class="row" style="margin-top:14px"><button class="btn ghost" id="no">${t('cancel')}</button><button class="btn danger" id="yes">${t('deleteLocal')}</button></div>`);
-    bg.querySelector('#no').onclick = () => bg.remove();
-    bg.querySelector('#yes').onclick = async () => { store.eraseLocal(); bg.remove(); await store.signOut((u2) => { state.user = u2; state.data = null; }); go('#/'); };
+  if (er) er.onclick = async () => {
+    if (!(await confirmSheet({ title: t('eraseTitle'), text: t('eraseText'), ok: t('eraseBtn'), danger: true }))) return;
+    store.eraseLocal(); applyTheme();
+    await store.signOut((u2) => { state.user = u2; state.data = null; }); go('#/');
+  };
+  // Compte en ligne : suppression des données du serveur (droit à l'effacement), double confirmation
+  const cd = q('[data-a="cloudDel"]');
+  if (cd) cd.onclick = async () => {
+    if (!(await confirmSheet({ title: t('cloudDelT1'), text: t('cloudDelD'), ok: t('cloudDelBtn'), danger: true }))) return;
+    if (!(await confirmSheet({ title: t('cloudDelT2'), text: t('cloudDelD2'), ok: t('eraseBtn'), danger: true }))) return;
+    cd.disabled = true;
+    try { await store.deleteCloudData(); } catch (e) { console.warn(e); cd.disabled = false; return toast(t('cloudDelErr'), 5000); }
+    applyTheme(); toast(t('cloudDelDone'), 4000);
+    await store.signOut((u2) => { state.user = u2; state.data = null; }); go('#/');
   };
   q('[data-a="out"]').onclick = () => store.signOut((u2) => { state.user = u2; state.data = null; go('#/'); });
 }

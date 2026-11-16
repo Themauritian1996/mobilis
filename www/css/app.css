@@ -712,3 +712,26 @@ pre { font-family: inherit; }
 .pt-cols span, .statstrip span, .kpis span { overflow-wrap: normal; hyphens: auto; }
 .row.between > .small.muted { flex: none; }
 html.wide .nav .fab span { white-space: normal; text-align: start; }
+
+/* ---------- 1.15 : réglages d'accessibilité, historique, cibles tactiles ---------- */
+.hello .hello-name { margin: 0; }
+/* Taille du texte : toutes les tailles sont en rem, donc elles suivent la racine */
+html[data-text-size="115"] { font-size: 115%; }
+html[data-text-size="130"] { font-size: 130%; }
+/* Contraste élevé : texte secondaire, bordures et états plus marqués (clair puis sombre) */
+:root[data-contrast="high"] { --ink: #000; --ink-2: #0b1624; --muted: #2c3947; --line: #6b7787; --line-strong: #1d2733; --brand: #1a37b8; --pos: #0a5c33; --neg: #a8201b; --warn: #6e4100; }
+:root[data-contrast="high"][data-theme="dark"] { --ink: #fff; --ink-2: #f1f5fa; --muted: #d3dbe6; --line: #8d9bb0; --line-strong: #c4cfdd; --brand: #b9c6ff; --pos: #6ee3a6; --neg: #ff9b92; --warn: #ffd07a; }
+@media (prefers-color-scheme: dark) { :root[data-contrast="high"]:not([data-theme="light"]):not([data-theme="dark"]) { --ink: #fff; --ink-2: #f1f5fa; --muted: #d3dbe6; --line: #8d9bb0; --line-strong: #c4cfdd; --brand: #b9c6ff; --pos: #6ee3a6; --neg: #ff9b92; --warn: #ffd07a; } }
+:root[data-contrast="high"] .card, :root[data-contrast="high"] .list { border-color: var(--line-strong); }
+:root[data-contrast="high"] .btn.ghost, :root[data-contrast="high"] .pill, :root[data-contrast="high"] .input { border-width: 2px; }
+/* Cibles tactiles d'au moins 44 px pour les puces et boutons compacts */
+button.chip, a.chip, .chip[role="button"] { min-height: 44px; padding-block: 8px; }
+.sheet button.btn.sm, .hist-act .btn.sm { min-height: 44px; }
+.sheet-bg .sheet:focus { outline: none; }
+/* Historique */
+.hist-row { display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; padding: 12px 14px; border-top: 1px solid var(--line); }
+.hist-row:first-child { border-top: 0; }
+.hist-act { display: flex; gap: 6px; flex: none; flex-wrap: wrap; justify-content: flex-end; }
+.btn.danger.ghost, .btn.ghost.danger { color: var(--neg); border-color: color-mix(in srgb, var(--neg) 45%, var(--line)); background: transparent; }
+.rx-manage { margin-top: 8px; }
+input[type="range"] { width: 100%; min-height: 44px; }

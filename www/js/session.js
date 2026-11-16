@@ -31,6 +31,8 @@ export function viewSession() {
   const floor = active.some((x) => (EXERCISES[x.id].equip || []).includes('mat'));
   const open = state.sessOpen || null;
   const week = P.weekNumber(prof);
+  const pst = P.protocolStatus(prof); // post-op : un seul compteur (semaine après la chirurgie), pas deux
+  const weekLbl = pst ? `${t('pr_week', { n: pst.week })} · ${t('pr_phase', { n: pst.phaseIndex + 1, m: pst.phaseCount })}` : `${t('week')} ${week} · ${t('phase')} ${prof.phase || 1}`;
 
   const row = (x) => {
     const ex = EXERCISES[x.id], d = x.dose, isDone = done.has(x.id), isOpen = open === x.id;
@@ -64,14 +66,14 @@ export function viewSession() {
       ${hold ? st('hold', t('holdLbl'), d.hold, ' ' + t('sec')) : st('reps', t('repsLbl'), d.reps)}
       ${hold && d.reps > 1 ? st('reps', t('holdRepsLbl'), d.reps) : ''}
       ${st('rest', t('restLbl'), d.rest, ' ' + t('sec'))}
-      <div class="toggle"><span>${t('sessKeep')}<br><small class="muted">${t('sessKeepD')}</small></span><button class="switch ${x.kept ? 'on' : ''}" data-keep role="switch" aria-checked="${x.kept}"></button></div>
+      <div class="toggle"><span>${t('sessKeep')}<br><small class="muted">${t('sessKeepD')}</small></span><button class="switch ${x.kept ? 'on' : ''}" data-keep role="switch" aria-checked="${!!x.kept}" aria-label="${esc(t('sessKeep'))}"></button></div>
       <div class="row" style="padding:10px 12px 12px;gap:8px"><button class="btn sm ghost grow" data-reset>${t('sessReset')}</button><button class="btn sm ghost grow" data-skip>${t(x.skipped ? 'sessUnskip' : 'sessSkip')}</button><button class="btn sm ghost grow" data-go="#/ex/${x.id}">${icon('demo', 14)} ${t('sessSee')}</button></div>
     </div>`;
   };
 
   $app().innerHTML = `<section class="screen"><div class="topbar"><button class="icon-btn" data-go="#/home" aria-label="${t('back')}">${icon('back', 20)}</button><h1>${t('sessTitle')}</h1></div>
     <div class="card">
-      <span class="eyebrow">${t('week')} ${week} · ${t('phase')} ${prof.phase || 1}</span>
+      <span class="eyebrow">${weekLbl}</span>
       <h3 style="margin:6px 0 10px">${esc(layName(prof.pathology))}</h3>
       <div class="kpis"><div><b>${todo.length}</b><span>${t('exercises')}</span></div><div><b>~${mins(total)}</b><span>min</span></div><div><b>≤ ${path?.painMax ?? 4}</b><span>${t('sessPainMax')}</span></div></div>
     </div>

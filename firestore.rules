@@ -13,10 +13,13 @@ service cloud.firestore {
       allow get: if true;
       allow list: if request.auth != null && resource.data.by == request.auth.uid;
       allow create: if request.auth != null && request.resource.data.by == request.auth.uid;
-      allow update, delete: if request.auth != null && resource.data.by == request.auth.uid && request.resource.data.by == request.auth.uid;
+      allow update: if request.auth != null && resource.data.by == request.auth.uid && request.resource.data.by == request.auth.uid;
+      allow delete: if request.auth != null && resource.data.by == request.auth.uid;
       // Suivi que le patient choisit de partager : visible par lui et par le clinicien auteur
       match /progress/{pid} {
-        allow create, update: if request.auth != null && request.auth.uid == pid;
+        allow create, update, delete: if request.auth != null && request.auth.uid == pid;
+        // Le clinicien auteur peut supprimer le suivi quand il supprime le programme
+        allow delete: if request.auth != null && get(/databases/$(database)/documents/rx/$(code)).data.by == request.auth.uid;
         allow read: if request.auth != null && (request.auth.uid == pid || get(/databases/$(database)/documents/rx/$(code)).data.by == request.auth.uid);
       }
     }

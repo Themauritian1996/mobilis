@@ -8,6 +8,7 @@ import { esc, icon, toast, nav, sheet, saveFile, weekStartDay, weekOrder } from 
 import { canToggleDay, toggleDay, removeAt, buildIcs } from './longterm.js';
 import { EXERCISES } from './data/exercises.js';
 import { daysPicker } from './onboarding.js';
+import { pastSessionSheet } from './history.js';
 
 const DAY = 86400000;
 const key = P.todayKey;
@@ -58,6 +59,7 @@ export function viewCalendar() {
   const actions = [];
   if (!daySessions.length) {
     if (si.planned && si.k <= key()) actions.push(`<button class="btn sm" data-act="quickstart">${t('calDoNow')}</button>`);
+    if (si.k <= key()) actions.push(`<button class="btn sm ghost" id="calLog">${t('histAddPast')}</button>`);
     if (si.planned) actions.push(`<button class="btn sm ghost" id="calMove">${t('calMove')}</button>`, `<button class="btn sm ghost" id="calRest">${t('calRestBtn')}</button>`);
     else if (si.k >= key()) actions.push(`<button class="btn sm ghost" id="calAdd">${icon('plus', 14)} ${t('calAddSession')}</button>`);
   }
@@ -140,6 +142,7 @@ export function viewCalendar() {
   qa('[data-ex]').forEach((b) => (b.onclick = () => go('#/ex/' + b.dataset.ex)));
   const bRest = q('#calRest'); if (bRest) bRest.onclick = () => apply('rest');
   const bAdd = q('#calAdd'); if (bAdd) bAdd.onclick = () => apply('add');
+  const bLog = q('#calLog'); if (bLog) bLog.onclick = () => pastSessionSheet(C.sel, () => viewCalendar());
   const bUndo = q('#calUndo'); if (bUndo) bUndo.onclick = () => apply('undo');
   const bMove = q('#calMove');
   if (bMove) bMove.onclick = () => {

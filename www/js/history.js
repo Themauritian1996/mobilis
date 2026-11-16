@@ -149,7 +149,7 @@ function editPromSheet(r) {
 }
 
 // Saisie d'une séance faite sans l'app (ou oubliée) : date passée, exercices cochés, douleur, note
-export function pastSessionSheet(defaultDay) {
+export function pastSessionSheet(defaultDay, onDone) {
   const prof = profile();
   const prog = P.todaysProgram(prof);
   const yest = new Date(); yest.setDate(yest.getDate() - 1);
@@ -173,6 +173,7 @@ export function pastSessionSheet(defaultDay) {
     const pv = bg.querySelector('#pp').value, pain = pv === '' ? null : Math.max(0, Math.min(10, Math.round(+pv))), note = bg.querySelector('#pn').value.trim();
     const s = makeManualSession({ day, items: picked.map((x) => ({ id: x.id, level: x.level, sets: x.dose.sets, reps: x.dose.type === 'hold' ? 0 : x.dose.reps, pain, note })) });
     bg.remove(); await store.saveSession(s); await refresh(); toast(t('saved')); state.hist = state.hist || { tab: 'sessions', more: 0 }; state.hist.tab = 'sessions';
+    if (onDone) return onDone();
     if (location.hash === '#/history') viewHistory(); else go('#/history');
   };
 }

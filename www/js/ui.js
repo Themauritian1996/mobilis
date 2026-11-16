@@ -49,6 +49,7 @@ export const IC = {
   trend: I('<path d="M3 17l6-6 4 4 8-8M15 7h6v6"/>'),
   medal: I('<circle cx="12" cy="9" r="6"/><path d="M8.5 14 7 22l5-3 5 3-1.5-8"/>'),
   ruler: I('<path d="M3 17 17 3l4 4L7 21z"/><path d="m7 13 2 2M10 10l2 2M13 7l2 2"/>'),
+  clock: I('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
   clip: I('<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9zM9 12h6M9 16h4"/>'),
 };
 export const icon = (name, size = 18, extra = '') => IC[name].replace('<svg', `<svg width="${size}" height="${size}" ${extra}`);
