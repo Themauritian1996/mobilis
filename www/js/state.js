@@ -18,7 +18,7 @@ export function todaySession(create = false) {
 export function nextExercise() {
   if (!profile()) return null;
   const prog = P.todaysProgram(profile());
-  const done = new Set((todaySession()?.items || []).map((i) => i.id));
+  const done = new Set((todaySession()?.items || []).filter((i) => !i.partial).map((i) => i.id));
   return prog.find((x) => !done.has(x.id)) || null;
 }
 export async function updateProfile(patch) {

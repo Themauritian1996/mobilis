@@ -19,7 +19,7 @@ export function viewSession() {
   if (!prof?.pathology) return go('#/home');
   const layName = (id) => tr(LAY[id]?.name) || tr(P.pathologyById(id)?.name);
   const items = P.todaysProgram(prof, { withSkipped: true });
-  const done = new Set((todaySession()?.items || []).map((i) => i.id));
+  const done = new Set((todaySession()?.items || []).filter((i) => !i.partial).map((i) => i.id));
   const active = items.filter((x) => !x.skipped);
   const todo = active.filter((x) => !done.has(x.id));
   const path = P.pathologyById(prof.pathology);

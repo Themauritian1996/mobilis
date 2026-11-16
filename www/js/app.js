@@ -180,7 +180,7 @@ function viewHome() {
   weeklyMaybe(); checkRxUpdate(); refreshReminders(prof);
   const week = P.weekNumber(prof); const phase = prof.phase || 1;
   const prog = P.todaysProgram(prof); const s = todaySession();
-  const done = new Set((s?.items || []).map((i) => i.id));
+  const done = new Set((s?.items || []).filter((i) => !i.partial).map((i) => i.id));
   const nDone = prog.filter((x) => done.has(x.id)).length;
   const pct = prog.length ? Math.round((nDone / prog.length) * 100) : 0;
   const ws = P.weeklyStats(prof, sessions()).slice(-1)[0] || {};
@@ -201,7 +201,7 @@ function viewHome() {
       <span class="chip streak" title="${t('streak')}" aria-label="${t('streak')} ${P.streak(prof, sessions())}">${icon('flame', 16)} ${P.streak(prof, sessions())}</span></div>
 
     <div class="card today hero">
-      <div class="hero-top"><div class="grow"><span class="hero-kicker">${t('week')} ${week} · ${t('phase')} ${phase} · ${t('phaseName' + phase)}</span><h3>${esc(layName(prof.pathology))}</h3><span class="hero-sub">${tp('dsDone', prog.length, { a: nDone, b: prog.length })}</span></div>${ring(pct, `${t('today')} ${pct} %`)}</div>
+      <div class="hero-top"><div class="grow">${P.protocolActive?.(prof) ? '' : `<span class="hero-kicker">${t('week')} ${week} · ${t('phase')} ${phase} · ${t('phaseName' + phase)}</span>`}<h3>${esc(layName(prof.pathology))}</h3><span class="hero-sub">${tp('dsDone', prog.length, { a: nDone, b: prog.length })}</span></div>${ring(pct, `${t('today')} ${pct} %`)}</div>
       ${flare ? `<div class="banner neg">${icon('flame', 20)}<div><b>${t('flareOn')}</b><br>${t('flareOnD')} <button class="link" data-a="flareOff">${t('flareEnd')}</button></div></div>` : ''}
       ${programEnded(prof) ? `<div class="banner pos">${icon('check', 20)}<div><b>${t('progEndTitle')}</b><br>${t('progEndD')} <button class="link" data-go="#/code">${t('progEndBtn')}</button></div></div>` : ''}
       ${next ? `<button class="btn" data-go="#/session">${IC.play.replace('<svg', '<svg width="16" height="16"')} ${nDone ? t('continueSession') : isTrainDay ? t('startSession') : t('startExtra')}</button>` : `<button class="btn soft" data-go="#/session">${icon('check', 16)} ${t('sessionDone')} · ${t('redoSession')}</button>`}
@@ -368,7 +368,7 @@ function viewProgress() {
     <h2>${t('weekReport')}</h2><div class="card"><p id="wr" class="muted small" style="margin:0 0 10px">${t('weekReportD')}</p><button class="btn sm ghost" data-a="wr">${icon('spark', 16)} ${t('genReport')}</button></div>`}
     ${j.length > 1 ? `<h2>${t('dailyLog')}</h2><div class="card chart">${lineChart(j, [{ get: (r) => r.pain, color: 'var(--neg)' }], { label: (r) => r.day.slice(8) })}</div>` : ''}
     <h2>${t('levels')}</h2><div class="list">${prog.map((x) => `<div class="toggle"><span class="small"><b>${esc(tr(EXERCISES[x.id].name))}</b></span>${lvlBar(x.level)}</div>`).join('')}</div>
-    ${hist.length ? `<div class="sec-head"><h2>${t('history')}</h2><button class="link small" data-go="#/history">${t('histSeeAll')}</button></div><div class="list">${hist.map((s) => `<div class="toggle"><span><b>${new Date(s.date).toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'short' })}</b><br><small class="muted">${s.items.map((i) => `${esc(tr(EXERCISES[i.id]?.name))} · ${i.pain}/10${i.change > 0 ? ' ↑' : i.change < 0 ? ' ↓' : ''}${i.note ? `<br><span style="color:var(--ink)">« ${esc(i.note)} »</span>` : ''}`).join('<br>')}</small></span></div>`).join('')}</div>` : ''}
+    ${hist.length ? `<div class="sec-head"><h2>${t('history')}</h2><button class="link small" data-go="#/history">${t('histSeeAll')}</button></div><div class="list">${hist.map((s) => `<div class="toggle"><span><b>${new Date(s.date).toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'short' })}</b><br><small class="muted">${s.items.map((i) => `${esc(tr(EXERCISES[i.id]?.name))} ${i.pain != null ? ` · ${i.pain}/10` : ""}${i.partial ? ` · ${t("partialSaved")}` : ""}${i.change > 0 ? ' ↑' : i.change < 0 ? ' ↓' : ''}${i.note ? `<br><span style="color:var(--ink)">« ${esc(i.note)} »</span>` : ''}`).join('<br>')}</small></span></div>`).join('')}</div>` : ''}
   </section>${nav('progress', navRole())}`;
   $app.querySelectorAll('[data-range]').forEach((b) => (b.onclick = () => { state.range = b.dataset.range; const y = scrollY; viewProgress(); scrollTo(0, y); }));
   const b = $app.querySelector('[data-a="wr"]');
@@ -530,6 +530,7 @@ function viewProfile() {
     </div>
     <h2>${t('mode')}</h2><div class="list"><div class="toggle"><span><b>${prof.role === 'clinician' ? t('switchToPatient') : t('switchToClin')}</b><br><small class="muted">${t('switchD')}</small></span><button class="btn sm ghost" data-a="role">${t('change')}</button></div></div>
     <h2>${t('about')}</h2><div class="card small"><p style="margin-top:0">${t('aboutD')}</p><p class="muted" style="margin-bottom:0">${t('disclaimer')}</p></div>
+    ${store.isNative() ? '' : `<h2>${t('offTitle')}</h2><div class="card small"><p style="margin-top:0">${t('offD')}</p><button class="btn ghost" data-a="offline" id="off-btn">${t('offBtn')}</button></div>`}
     <h2>${t('bkTitle')}</h2><div class="card small"><p style="margin-top:0">${t('bkD')}</p><input type="file" id="bk-file" accept=".json,application/json" hidden><button class="btn ghost" data-a="import">${t('bkImport')}</button></div>
     <div class="stack" style="margin-top:16px"><button class="btn ghost" data-a="export">${t('exportData')}</button>
       <button class="btn danger" data-a="erase">${t('deleteLocal')}</button>
@@ -573,6 +574,19 @@ function viewProfile() {
     go(role === 'clinician' ? '#/clinic' : prof.pathology ? '#/home' : '#/onboard');
   };
   // APK : Filesystem + feuille de partage (un lien blob: ne se télécharge pas dans la WebView) ; web : téléchargement
+  const offB = q('#off-btn');
+  if (offB) {
+    import('./offline.js').then(async (O) => { try { const st = await O.offlineStatus(); if (st?.ready) { offB.textContent = t('offReady'); offB.disabled = true; } } catch (_) {} });
+    offB.onclick = async () => {
+      offB.disabled = true;
+      try {
+        const O = await import('./offline.js');
+        const st = await O.cacheModelsForOffline(({ done: d, total: n }) => { offB.textContent = `${t('offBtn')} · ${Math.round((d / (n || 1)) * 100)} %`; });
+        if (st && st.ready === false) throw new Error('incomplete');
+        offB.textContent = t('offReady'); toast(t('offReady'));
+      } catch (_) { offB.disabled = false; offB.textContent = t('offBtn'); toast(t('offFail')); }
+    };
+  }
   q('[data-a="export"]').onclick = async () => {
     try { const r = await saveFile(store.exportData(), `mobilis-${P.todayKey()}.json`, 'application/json', { title: t('exportData') }); if (r !== 'cancelled') toast(t('fileReady')); }
     catch (e) { console.warn(e); toast(t('fileErr'), 4000); }

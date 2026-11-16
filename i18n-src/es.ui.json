@@ -1126,5 +1126,11 @@
 "romOther": "Otras pruebas (otras regiones)",
 "histCloudNote": "Los cambios también se aplican a tu cuenta.",
 "seeHistoryHint": "Sesiones, diario, amplitudes, cuestionarios: editar, eliminar o añadir.",
-"settingsA11y": "Accesibilidad y voz"
+"settingsA11y": "Accesibilidad y voz",
+"partialSaved": "interrumpido",
+"offTitle": "Usar la cámara sin Internet",
+"offD": "Descarga una vez los modelos de seguimiento (≈ 15 MB) para hacer tus sesiones con cámara sin conexión.",
+"offBtn": "Descargar para usar sin conexión",
+"offReady": "Listo para usar sin conexión",
+"offFail": "No se pudo descargar, revisa tu conexión"
 }

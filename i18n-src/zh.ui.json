@@ -1126,5 +1126,11 @@
 "romOther": "其他测试（其他部位）",
 "histCloudNote": "修改也会同步到你的账号。",
 "seeHistoryHint": "训练、日志、活动度、问卷：编辑、删除或补录。",
-"settingsA11y": "无障碍与语音"
+"settingsA11y": "无障碍与语音",
+"partialSaved": "已中断",
+"offTitle": "无网络时使用摄像头",
+"offD": "下载一次跟踪模型（约 15 MB），即可离线进行摄像头训练。",
+"offBtn": "下载以离线使用",
+"offReady": "已可离线使用",
+"offFail": "下载失败，请检查网络连接"
 }

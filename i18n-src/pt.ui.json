@@ -1126,5 +1126,11 @@
 "romOther": "Outros testes (outras regiões)",
 "histCloudNote": "As alterações também se aplicam à tua conta.",
 "seeHistoryHint": "Sessões, diário, amplitudes, questionários: editar, excluir ou adicionar.",
-"settingsA11y": "Acessibilidade e voz"
+"settingsA11y": "Acessibilidade e voz",
+"partialSaved": "interrompido",
+"offTitle": "Usar a câmera sem Internet",
+"offD": "Baixe uma vez os modelos de rastreamento (≈ 15 MB) para fazer suas sessões com câmera offline.",
+"offBtn": "Baixar para uso offline",
+"offReady": "Pronto para uso offline",
+"offFail": "Não foi possível baixar, verifique sua conexão"
 }
