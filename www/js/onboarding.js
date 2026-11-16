@@ -240,7 +240,7 @@ function rxToProfile(rx, prev, extra = {}) {
     ...(prev || {}), role: prev?.role === 'clinician' ? 'clinician' : 'patient', region: rx.region, pathology: rx.pathology,
     phase: rx.phase, plan: { phase: rx.phase, ids: rx.ids }, levels: { ...(rx.levels || {}) }, baseLevel: 2, lockPhase: !rx.auto,
     irritability: prev?.irritability || 'med', painBase: prev?.painBase ?? 3, days: rx.days || prev?.days || [1, 3, 5], perWeek: (rx.days || prev?.days || [1, 3, 5]).length,
-    startDate: Date.now() - weeks * 7 * DAY, joinedAt: prev?.joinedAt || Date.now(), rxCode: rx.code || null, rxVersion: rx.version || 1, clinician: rx.clinician || '', rxNotes: rx.notes || '',
+    startDate: Date.now() - weeks * 7 * DAY, joinedAt: prev?.joinedAt || Date.now(), rxCode: rx.code || null, rxVersion: rx.version || 1, rxAt: Date.now(), clinician: rx.clinician || '', rxNotes: rx.notes || '',
     nextVisit: rx.nextVisit || prev?.nextVisit || null, lang: getLang(), flareUntil: 0,
     equipment: rx.equip || prev?.equipment || null, side: rx.side || prev?.side || null, ...rxExtras(rx, prev), ...protocolPathology(rx, prev), ...extra,
   };
@@ -296,6 +296,7 @@ export async function viewRxImport(code) {
   async function finish() {
     const p = rxToProfile({ ...rx, days: o.days }, prev, { name: o.name.trim(), shareProgress: o.share, trial: prev?.role === 'clinician' });
     await store.saveProfile(p); state.data = await store.loadData(); state.ob = null; state.rxo = null;
+    if (prev?.role !== 'clinician') store.applySharedAI(rx); // accès IA du clinicien (ou retrait s'il n'en partage plus)
     toast(t('rxAdded'));
     go('#/home');
   }
@@ -311,10 +312,12 @@ export async function checkRxUpdate() {
   sessionStorage.setItem('mobilis.rxCheck', String(Date.now()));
   try {
     const rx = await store.getRx(p.rxCode);
-    if (!rx || (rx.version || 1) <= (p.rxVersion || 1)) return;
+    if (!rx) { if (p.role !== 'clinician' && store.settings().sharedAI?.rxCode === p.rxCode) store.applySharedAI(null); return; } // programme supprimé : l'accès IA s'arrête
+    if ((rx.version || 1) <= (p.rxVersion || 1)) { if (p.role !== 'clinician' && rx.ai && !store.settings().sharedAI) store.applySharedAI(rx); return; }
     const days = rx.days?.length ? rx.days : p.days;
-    const np = await updateProfile({ phase: rx.phase, plan: { phase: rx.phase, ids: rx.ids }, levels: { ...(p.levels || {}), ...(rx.levels || {}) }, lockPhase: !rx.auto, rxVersion: rx.version, rxNotes: rx.notes || '', nextVisit: rx.nextVisit || p.nextVisit, clinician: rx.clinician || p.clinician,
+    const np = await updateProfile({ phase: rx.phase, plan: { phase: rx.phase, ids: rx.ids }, levels: { ...(p.levels || {}), ...(rx.levels || {}) }, lockPhase: !rx.auto, rxVersion: rx.version, rxAt: Date.now(), rxNotes: rx.notes || '', nextVisit: rx.nextVisit || p.nextVisit, clinician: rx.clinician || p.clinician,
       days, perWeek: days?.length || p.perWeek, equipment: rx.equip || p.equipment || null, side: rx.side || p.side || null, ...rxExtras(rx, p) });
+    if (np.role !== 'clinician') store.applySharedAI(rx); // ajout, changement ou retrait de l'accès IA
     if (np.remind?.on) { try { (await import('./calendar.js')).scheduleReminders(np); } catch (e) { console.warn(e); } }
     toast(t('rxUpdated'), 4000);
     render();

@@ -5,7 +5,7 @@
 // 2) Repli : une image analysée par Gemini (generateContent) sur les mêmes évènements, lue par la voix de l'appareil.
 // Nécessite la clé Gemini personnelle (Profil → Coach IA). Les images vont à Google ; Mobilis n'en garde aucune.
 import { CONFIG } from './config.js';
-import { settings, aiKey } from './store.js';
+import { settings, aiKey, aiCount, PROXY_KEY } from './store.js';
 import { aiLangInfo, getAiLang } from './i18n.js';
 import { speakAI, geminiDirect, setLiveTalking } from './coach.js';
 import { planeText, fineKind } from './ai-coach.js';
@@ -15,7 +15,10 @@ export { primeAudio };
 export const MIN_GAP = 3000, FALLBACK_MS = 8000, FIRST_MS = 2500, FRAME_MS = 1000;
 
 const WS = 'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent';
-export const liveAvailable = () => !!aiKey() && typeof WebSocket !== 'undefined';
+// Coach IA disponible (précis ou en direct) : une clé, ou l'accès partagé du clinicien (clé ou relais)
+export const liveAvailable = () => !!aiKey();
+// Le mode « direct » (WebSocket Gemini Live) exige une vraie clé : impossible par le relais HTTP → le coach précis le remplace
+export const liveSocketAvailable = () => !!aiKey() && aiKey() !== PROXY_KEY && typeof WebSocket !== 'undefined';
 
 const REGISTER = {
   fr: 'French (Canada): ALWAYS address the patient informally with "tu" / "ton" / "ta", NEVER "vous" (the app itself says "tu")',
@@ -54,6 +57,7 @@ Always speak ${speakLang()}. Warm and simple, no jargon.`;
  */
 export function startLiveCoach(o) {
   const key = aiKey();
+  aiCount(5); // une session Live compte pour 5 appels dans le plafond quotidien du clinicien
   let stopped = false, ws = null, frameTimer = 0, checkTimer = 0, modelIdx = 0, ready = false, busy = false, text = '', busyT = 0, evT = 0;
   let endTimer = 0, lastCheck = 0, snapTimer = 0, reconnects = 0, resumeHandle = null, setupFails = 0, noExtras = false;
   let events = [], lastHadIssue = true, sent = 0, snapSend = null, drop = false;

@@ -7,7 +7,7 @@ import { loadPose, detect, toPx, Tracker, drawSkeleton, FAULT_JOINTS, detectPlan
 import { speak, speakAI, stopSpeech, cue, cueText, countAloud, coachComment, localComment, coachReply, speakRich, grabFrame, startDictation, dictationMode, aiAvailable, geminiDirect } from './coach.js';
 import { state, go, profile, sessions, todaySession, nextExercise, syncProgress, updateProfile } from './state.js';
 import { esc, icon, IC, toast, mountFigs, figSvg, figureBlock, sleep } from './ui.js';
-import { startLiveCoach, liveAvailable, primeAudio } from './live.js';
+import { startLiveCoach, liveAvailable, liveSocketAvailable, primeAudio } from './live.js';
 import { isPlaying } from './audio.js';
 import { createPreciseCoach, fineKind } from './ai-coach.js';
 import { loadHands, detectHands, pickHand, handPx, drawHand, handInFrame, HandSideVote } from './hand.js';
@@ -232,7 +232,7 @@ export function viewTrain(id, cleanup) {
   }
   function startLive() {
     if (!T.liveAI || T.live || !T.stream || !T.active) return;
-    if ((store.settings().aiMode || 'precise') === 'live') {
+    if ((store.settings().aiMode || 'precise') === 'live' && liveSocketAvailable()) {
       T.liveStartT = performance.now(); T.liveLost = false; T.liveFaultT = performance.now(); T.liveSeen = T.lastSt; T.liveSeenT = T.liveStartT;
       T.live = startLiveCoach({
         video, mirror: isMirror(), context: liveCtx(), getState: liveState, frame: () => annotated(512),

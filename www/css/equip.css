@@ -1,0 +1,17 @@
+/* Matériel de remplacement (equipui.js) */
+.eq-help { margin: 12px 0; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); padding: 10px 12px; }
+.eq-help > summary { cursor: pointer; font-weight: 600; color: var(--ink); min-height: 44px; display: flex; align-items: center; }
+.eq-subs { list-style: none; margin: 8px 0; padding: 0; display: grid; gap: 10px; }
+.eq-subs li { background: var(--surface-2); border-radius: 12px; padding: 10px 12px; }
+.eq-sub-h { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 4px; }
+.eq-sub-h .btn { margin-left: auto; }
+.eq-mine { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 6px 0; color: var(--pos); }
+.eq-other { display: block; margin-top: 10px; }
+.eq-input { flex: 1; min-width: 0; min-height: 44px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); font: inherit; }
+.eq-help [data-eq-mic].on { background: var(--neg-soft); color: var(--neg); }
+.eq-verdict { margin-top: 10px; padding: 10px 12px; border-radius: 12px; border-left: 4px solid var(--line-strong); background: var(--surface-2); color: var(--ink); }
+.eq-verdict p { margin: 4px 0; }
+.eq-verdict.ok { border-color: var(--pos); background: var(--pos-soft); }
+.eq-verdict.caution { border-color: var(--warn); background: var(--warn-soft); }
+.eq-verdict.no { border-color: var(--neg); background: var(--neg-soft); }
+.eq-chip { max-width: 100%; white-space: normal; }

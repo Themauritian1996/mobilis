@@ -4,6 +4,7 @@ import { EXERCISES, EQUIP } from './data/exercises.js';
 import { REGIONS, PATHOLOGIES } from './data/pathologies.js';
 import * as store from './store.js';
 import * as P from './program.js';
+import { programEnded } from './longterm.js';
 import { setPartialPolicy } from './pose.js';
 import { coachComment, speakRich, cueText } from './coach.js';
 import { state, setRender, render, go, profile, sessions, todaySession, nextExercise, updateProfile, syncProgress, inTrial, navRole } from './state.js';
@@ -196,6 +197,7 @@ function viewHome() {
     <div class="card today hero">
       <div class="hero-top"><div class="grow"><span class="hero-kicker">${t('week')} ${week} · ${t('phase')} ${phase} · ${t('phaseName' + phase)}</span><h3>${esc(layName(prof.pathology))}</h3><span class="hero-sub">${tp('dsDone', prog.length, { a: nDone, b: prog.length })}</span></div>${ring(pct, `${t('today')} ${pct} %`)}</div>
       ${flare ? `<div class="banner neg">${icon('flame', 20)}<div><b>${t('flareOn')}</b><br>${t('flareOnD')} <button class="link" data-a="flareOff">${t('flareEnd')}</button></div></div>` : ''}
+      ${programEnded(prof) ? `<div class="banner pos">${icon('check', 20)}<div><b>${t('progEndTitle')}</b><br>${t('progEndD')} <button class="link" data-go="#/code">${t('progEndBtn')}</button></div></div>` : ''}
       ${next ? `<button class="btn" data-go="#/session">${IC.play.replace('<svg', '<svg width="16" height="16"')} ${nDone ? t('continueSession') : isTrainDay ? t('startSession') : t('startExtra')}</button>` : `<button class="btn soft" data-go="#/session">${icon('check', 16)} ${t('sessionDone')} · ${t('redoSession')}</button>`}
     </div>
 
@@ -463,6 +465,7 @@ const AI_LANG_TXT = { fr: 'Langue du coach IA', en: 'AI coach language' }, AI_AU
 const PARTIAL_TXT = { fr: 'Compter les répétitions partielles', en: 'Count partial reps' }, PARTIAL_D = { fr: 'Une répétition moins ample compte quand même (dès ~35 % du mouvement), marquée « partielle ».', en: 'A smaller rep still counts (from ~35% of the range), marked "partial".' };
 function viewProfile() {
   const prof = profile(); const st = store.settings(); const u = state.user;
+  const sh = store.sharedAIInfo();
   const sw = (k, on) => `<button class="switch ${on ? 'on' : ''}" data-sw="${k}" role="switch" aria-checked="${on}"></button>`;
   $app.innerHTML = `<section class="screen">${trialBar()}<div class="topbar"><h1>${t('profile')}</h1></div>
     <div class="card row profile-card"><div class="avatar">${esc((prof.name || '?')[0].toUpperCase())}</div><div class="grow"><b>${esc(prof.name)}</b><div class="small muted">${u.local ? t('localMode') : esc(u.email || '')}</div></div>
@@ -479,16 +482,20 @@ function viewProfile() {
       <div class="toggle"><span>${t('anatomyDefault')}</span>${sw('anatomy', st.anatomy)}</div>
     </div>
     <h2>${t('aiCoach')}</h2><div class="card">
+      ${sh && !st.geminiKey ? `<div class="banner pos" id="ai-shared">${icon('spark', 20)}<div><b>${t('aiProvided')}${sh.from ? ' (' + esc(sh.from) + ')' : ''}${sh.until ? ' ' + t('aiProvidedUntil') + ' ' + esc(new Date(sh.until + 'T12:00').toLocaleDateString(locale(), { day: 'numeric', month: 'long', year: 'numeric' })) : ''}</b><br><small>${t('aiProvidedD')}${sh.cap ? ` · ${sh.used}/${sh.cap} ${t('aiProvidedUsed')}` : ''}</small>${sh.capped ? `<br><small class="neg">${t('aiCapNote')}</small>` : ''}${sh.mode === 'proxy' ? `<br><small>${t('aiProxyNoLive')}</small>` : ''}</div></div>` : ''}
+      ${sh && !st.geminiKey ? '<details style="margin-bottom:8px"><summary class="small muted">' + t('geminiKey') + '</summary>' : ''}
       <label class="field"><span>${t('geminiKey')}</span><input class="input" id="gk" type="password" value="${esc(st.geminiKey)}" placeholder="AIza…" autocomplete="off"></label>
       <p class="note" style="margin-top:-6px">${t('geminiKeyD')}</p>
+      ${sh && !st.geminiKey ? '</details>' : ''}
       <div class="toggle" style="padding:12px 0 0"><span>${tk('aiLang', AI_LANG_TXT)}</span><select class="input lang-select" id="ailang" aria-label="${tk('aiLang', AI_LANG_TXT)}"><option value="auto" ${(aiPref()) === 'auto' ? 'selected' : ''}>${tk('aiLangAuto', AI_AUTO)}</option>${LANGS.map((l) => `<option value="${l.id}" ${aiPref() === l.id ? 'selected' : ''}>${l.name}</option>`).join('')}</select></div>
       <div class="toggle" style="padding:12px 0 0"><span><span>${tk('countPartial', PARTIAL_TXT)}</span><br><small class="muted">${tk('countPartialD', PARTIAL_D)}</small></span>${sw('countPartial', st.countPartial !== false)}</div>
       <div class="toggle" style="padding:12px 0 0"><span><span>${t('sendFrame')}</span><br><small class="muted">${t('sendFrameD')}</small></span>${sw('sendFrame', st.sendFrame)}</div>
-      <div class="toggle" style="padding:12px 0 0"><span><span>${t('liveAI')}</span><br><small class="muted">${t(st.geminiKey ? 'liveAID' : 'liveNeedKey')}</small></span>${sw('liveAI', !!st.liveAI)}</div>
+      <div class="toggle" style="padding:12px 0 0"><span><span>${t('liveAI')}</span><br><small class="muted">${t(store.aiKey() ? 'liveAID' : 'liveNeedKey')}</small></span>${sw('liveAI', !!st.liveAI)}</div>
       <div class="toggle" style="display:block;padding:12px 0 0"><span>${t('aiMode')}<br><small class="muted">${t('aiModeD')}</small></span><div class="seg" style="margin-top:8px">${['precise', 'live'].map((v) => `<button data-aimode="${v}" class="${(st.aiMode || 'precise') === v ? 'on' : ''}">${t(v === 'precise' ? 'aiModePrecise' : 'aiModeLive')}</button>`).join('')}</div></div>
     </div>
     <h2>${t('mode')}</h2><div class="list"><div class="toggle"><span><b>${prof.role === 'clinician' ? t('switchToPatient') : t('switchToClin')}</b><br><small class="muted">${t('switchD')}</small></span><button class="btn sm ghost" data-a="role">${t('change')}</button></div></div>
     <h2>${t('about')}</h2><div class="card small"><p style="margin-top:0">${t('aboutD')}</p><p class="muted" style="margin-bottom:0">${t('disclaimer')}</p></div>
+    <h2>${t('bkTitle')}</h2><div class="card small"><p style="margin-top:0">${t('bkD')}</p><input type="file" id="bk-file" accept=".json,application/json" hidden><button class="btn ghost" data-a="import">${t('bkImport')}</button></div>
     <div class="stack" style="margin-top:16px"><button class="btn ghost" data-a="export">${t('exportData')}</button>
       ${u.local ? `<button class="btn danger" data-a="erase">${t('deleteLocal')}</button>` : ''}
       <button class="btn ghost" data-a="out">${t('signOut')}</button></div>
@@ -510,6 +517,14 @@ function viewProfile() {
     const blob = new Blob([store.exportData()], { type: 'application/json' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `mobilis-${P.todayKey()}.json`; a.click();
   };
+  q('[data-a="import"]').onclick = () => q('#bk-file').click();
+  q('#bk-file').onchange = async (e) => {
+    const f = e.target.files?.[0]; if (!f) return;
+    try {
+      const r = await store.importData(await f.text(), { replaceProfile: !profile()?.pathology });
+      state.data = await store.loadData(); toast(t('bkOk', { n: r.sessions }), 4000); go('#/home');
+    } catch (err) { console.warn(err); toast(t('bkBad'), 4000); }
+  };
   const er = q('[data-a="erase"]');
   if (er) er.onclick = () => {
     const bg = sheet(`<h3>${t('confirmDelete')}</h3><div class="row" style="margin-top:14px"><button class="btn ghost" id="no">${t('cancel')}</button><button class="btn danger" id="yes">${t('deleteLocal')}</button></div>`);
@@ -519,4 +534,5 @@ function viewProfile() {
   q('[data-a="out"]').onclick = () => store.signOut((u2) => { state.user = u2; state.data = null; go('#/'); });
 }
 
+window.addEventListener('mobilis:aicap', () => toast(t('aiCapNote'), 5000));
 boot();

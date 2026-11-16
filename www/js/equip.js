@@ -2,6 +2,7 @@
 import { EXERCISES, EQUIP } from './data/exercises.js';
 import { EX_ANATOMY } from './data/anatomy.js';
 import { PATHOLOGIES } from './data/pathologies.js';
+import { t } from './i18n.js';
 
 export const EQUIP_IDS = Object.keys(EQUIP);
 // Matériel « de maison » qu'on suppose disponible tant que le patient n'a rien indiqué
@@ -29,4 +30,110 @@ export function alternatives(id, have, { exclude = [] } = {}) {
     .sort((a, b) => b.score - a.score)
     .slice(0, 3)
     .map((x) => x.id);
+}
+
+// ---------- Objets de remplacement : classement selon la charge visée ----------
+import { SUBSTITUTES, subsOf, moveOf, targetKg } from './data/substitutes.js';
+export { targetKg, moveOf };
+
+const mid = (kg) => (Array.isArray(kg) ? (kg[0] + kg[1]) / 2 : kg);
+// Rapport charge de l'objet / charge visée ; un objet réglable (sac à dos…) atteint la cible s'elle est dans sa plage
+function loadMatch(kg, target) {
+  if (target == null || !kg) return { ratio: null, match: 'na', useKg: null };
+  if (Array.isArray(kg)) {
+    if (target >= kg[0] && target <= kg[1]) return { ratio: 1, match: 'ok', useKg: target, adjustable: true };
+    const near = target < kg[0] ? kg[0] : kg[1];
+    const r = near / target; return { ratio: r, match: r < 0.6 ? 'light' : r > 1.6 ? 'heavy' : 'ok', useKg: near, adjustable: true };
+  }
+  const r = kg / target;
+  return { ratio: r, match: r < 0.6 ? 'light' : r > 1.6 ? 'heavy' : 'ok', useKg: kg };
+}
+// Remplacements classés pour un exercice : { sub, equip, kg, useKg, target, match, score } (meilleur d'abord).
+// Matériel visé : celui qui manque (selon `have`) ; sans liste du patient, tout le matériel de l'exercice.
+export function substitutesFor(exId, level = 3, have = null) {
+  const ex = EXERCISES[exId]; if (!ex) return [];
+  const equips = (have ? missing(exId, have) : ex.equip || []).filter((e) => subsOf(e).length);
+  const target = targetKg(exId, level);
+  const out = [];
+  equips.forEach((e, ei) => {
+    const mv = moveOf(exId, e);
+    subsOf(e).filter((s) => s.fits.includes(mv) || s.fits.includes('any')).forEach((s, i) => {
+      const m = loadMatch(s.kg, target);
+      const score = m.ratio == null ? 50 - i * 0.1 - ei : 100 - Math.abs(Math.log(m.ratio)) * 40 + (m.adjustable ? 5 : 0) - i * 0.01 - ei;
+      out.push({ sub: s, equip: e, kg: s.kg, useKg: m.useKg, target, match: m.match, score });
+    });
+  });
+  return out.sort((a, b) => b.score - a.score);
+}
+
+// ---------- Règle locale : mots-clés + poids estimé -> avis (sans IA) ----------
+const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+const LD = ['wrist', 'curl', 'raise', 'ankle', 'lever'];
+const KW = [
+  { k: 'unsafe', re: /couteau|knife|\bverre\b|glass|vitre|ciseaux|scissors|cutter|\btasse|\bmug\b|assiette|\bplate\b|porcelaine|ceramic|\bvase|lampe|\blamp|bouilloire|kettle|bouillant|boiling|\bchaud|\bhot\b|fer a repasser|laptop|ordinateur|animal|\bchat\b|\bcat\b|\bchien|\bdog\b|\bbebe|\bbaby|\benfant|\bchild/ },
+  { k: 'cast', re: /fonte|cast iron|enclume|anvil/, kg: 3, fits: ['lever', 'curl', 'raise'], haz: 'heavy' },
+  { k: 'dumbbell', re: /haltere|dumbbell|kettlebell|poids libre/, kg: 1, fits: LD },
+  { k: 'hammer', re: /marteau|hammer/, kg: 0.5, fits: ['lever'] },
+  { k: 'ladle', re: /louche|ladle|cuillere|spoon|spatule|spatula|fouet|whisk/, kg: 0.15, fits: ['lever'] },
+  { k: 'pan', re: /poele|frying|skillet|casserole|\bpan\b/, kg: 0.8, fits: ['lever'] },
+  { k: 'phone', re: /cellulaire|telephone|smartphone|iphone|\bphone|portable/, kg: 0.2, fits: ['wrist', 'curl', 'raise'] },
+  { k: 'bottle', re: /bouteille|bottle|gourde|flasque|bidon|jug|canette|soda/, kg: 1, fits: LD, vol: true },
+  { k: 'can', re: /conserve|boite de|tin can|\bcan\b/, kg: 0.4, fits: ['wrist', 'curl', 'raise'] },
+  { k: 'sock', re: /chaussette.*(riz|rice|sable|sand)|sock.*(rice|sand)/, kg: 0.6, fits: ['wrist', 'curl', 'raise'] },
+  { k: 'bag', re: /\briz\b|farine|sucre|\bsel\b|rice|flour|sugar|lentille|haricot|beans|\bsac de|bag of/, kg: 1, fits: ['curl', 'raise', 'ankle'], haz: 'unstable' },
+  { k: 'backpack', re: /sac a dos|backpack|sac de sport|rucksack/, kg: 2, fits: ['curl', 'raise', 'ankle'], adj: true },
+  { k: 'brick', re: /brique|pierre|roche|brick|\brock\b|stone|beton|concrete/, kg: 2, fits: ['curl', 'raise'], haz: 'rough' },
+  { k: 'book', re: /livre|\bbook|dictionnaire|dictionary/, kg: 0.7, fits: ['wrist', 'curl'] },
+  { k: 'step', re: /marche\b|escalier|stair|tabouret|stool|annuaire|phone book|bottin|\bblock\b|bloc/, kg: 0, fits: ['step'] },
+  { k: 'stick', re: /balai|broom|parapluie|umbrella|canne|\bcane\b|baton|stick|rouleau|rolling pin|manche|vadrouille|\bmop\b|\btube\b/, kg: 0.4, fits: ['stick', 'twist'] },
+  { k: 'cloth', re: /serviette|towel|collant|tights|ceinture|\bbelt\b|foulard|scarf|corde|\brope\b|elastique|\bband\b|chambre a air|t-?shirt|taie|pillowcase|chandail/, kg: 0, fits: ['band', 'towel', 'twist', 'stick'] },
+  { k: 'squeeze', re: /\bballe|\bball\b|eponge|sponge|chaussette|\bsock|pate a|putty|slime|play-?doh/, kg: 0.1, fits: ['squeeze'] },
+  { k: 'surface', re: /comptoir|counter|commode|dresser|\btable|chaise|chair|banc\b|bench|\blit\b|\bbed\b|\bmur\b|\bwall|porte|door|armoire|cupboard|couverture|blanket|tapis|\brug\b|\bmat\b|oreiller|pillow/, kg: 0, fits: ['mat', 'chair', 'wall', 'table', 'towel'] },
+];
+// Poids écrit par le patient : « 2 kg », « 500 g », « 1 l », « 750 ml », « 5 lb »
+export function parseKg(text) {
+  const s = norm(text).replace(',', '.');
+  const m = s.match(/(\d+(?:\.\d+)?)\s*(kilos?|kgs?|kg|livres?|lbs?|lb|grammes?|gr|g|litres?|liters?|l|ml|cl|dl|oz|onces?)\b/);
+  if (!m) return null;
+  const n = parseFloat(m[1]), u = m[2];
+  if (/^(kilo|kg)/.test(u)) return n;
+  if (/^(livre|lb)/.test(u)) return n * 0.454;
+  if (/^(gramme|gr$|g$)/.test(u)) return n / 1000;
+  if (/^(litre|liter|l$)/.test(u)) return n;
+  if (u === 'ml') return n / 1000;
+  if (u === 'cl') return n / 100;
+  if (u === 'dl') return n / 10;
+  return n * 0.028;
+}
+const rnd = (x) => Math.round(x * 100) / 100;
+// -> { verdict: 'ok'|'caution'|'no', kgEstimate, reason, source:'local' } ; reason est un texte dans la langue courante
+export function localVerdict(exId, level, text) {
+  const ex = EXERCISES[exId]; if (!ex || !String(text || '').trim()) return null;
+  const s = norm(text), target = targetKg(exId, level);
+  const mvs = new Set((ex.equip || []).map((e) => moveOf(exId, e)));
+  const explicit = parseKg(text);
+  const bad = KW[0].re.test(s);
+  const ent = bad ? null : KW.slice(1).find((e) => e.re.test(s));
+  const obj = String(text).trim();
+  const V = (verdict, kgEstimate, key, vars = {}) => ({ verdict, kgEstimate: kgEstimate == null ? null : rnd(kgEstimate), reason: t(key, { obj, kg: kgEstimate == null ? '?' : rnd(kgEstimate), target: target ?? '', ...vars }), source: 'local' });
+  if (bad) return V('no', explicit, 'eqR_unsafe');
+  if (!ent && explicit == null) return V('caution', null, 'eqR_unknown');
+  const kg = explicit ?? (ent ? ent.kg : null);
+  const kindOk = !ent || [...mvs].some((m) => ent.fits.includes(m)) || (explicit != null && !ent);
+  if (target == null) {
+    // exercice sans charge : l'objet doit jouer le même rôle (élastique, bâton, marche, appui…)
+    if (!ent) return V('caution', kg, 'eqR_unknown');
+    return kindOk ? V('ok', kg, 'eqR_kindOk') : V('caution', kg, 'eqR_kind');
+  }
+  if (!kg) return V(ent && ent.fits.includes('lever') ? 'caution' : 'no', 0, 'eqR_light');
+  const r = kg / target;
+  const worst = (v) => v;
+  let verdict = r < 0.25 ? 'no' : r < 0.5 ? 'caution' : r <= 1.75 ? 'ok' : r <= 2.5 ? 'caution' : 'no';
+  let key = r < 0.5 ? 'eqR_light' : r > 1.75 ? 'eqR_heavy' : 'eqR_load';
+  if (ent && !kindOk && verdict === 'ok') { verdict = 'caution'; key = 'eqR_kind'; }
+  if (ent?.haz === 'unstable' && mvs.has('wrist') && verdict === 'ok') { verdict = 'caution'; key = 'eqR_unstable'; }
+  if (ent?.haz === 'unstable' && mvs.has('wrist') && verdict === 'caution' && r <= 1.75) key = 'eqR_unstable';
+  if (ent?.haz === 'rough' && verdict === 'ok') { verdict = 'caution'; key = 'eqR_rough'; }
+  if (ent?.haz === 'heavy' && verdict === 'ok') { verdict = 'caution'; key = 'eqR_heavy'; }
+  return V(worst(verdict), kg, key);
 }

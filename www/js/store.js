@@ -1,5 +1,6 @@
 // Comptes (Firebase : Google + courriel), données (Firestore ou appareil) et prescriptions clinicien.
 import { CONFIG, firebaseEnabled } from './config.js';
+import { migrateProfile, migrateSessions, migrateJournal, makeBackup, parseBackup, mergeBackup } from './longterm.js';
 
 const LS = {
   get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (_) { return d; } },
@@ -8,8 +9,58 @@ const LS = {
 };
 
 // ---------- Réglages (locaux à l'appareil) ----------
-// Clé Gemini utilisée par l'app : la clé personnelle, sinon l'accès IA partagé par le clinicien (settings().sharedAI.key)
-export const aiKey = () => { const s = settings(); return s.geminiKey || s.sharedAI?.key || ''; };
+// Clé Gemini utilisée par l'app : la clé personnelle, sinon l'accès IA partagé par le clinicien (settings().sharedAI).
+// sharedAI = { key? | proxy?+token?, from, until?: 'AAAA-MM-JJ', cap?: appels/jour, rxCode? }. Mode relais : aiKey() renvoie PROXY_KEY
+// (valeur factice « vraie clé absente ») ; coach.js route alors les appels par le relais au lieu de Google.
+export const PROXY_KEY = '@proxy';
+const dayKey = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+// Accès partagé actif : présent, valide et non expiré (la clé personnelle reste prioritaire ailleurs)
+export const sharedAIActive = (s = settings(), today = dayKey()) => {
+  const a = s.sharedAI;
+  if (!a || (!a.key && !a.proxy)) return null;
+  if (a.until && today > a.until) return null;
+  return a;
+};
+const AIUSE = 'mobilis.aiUse';
+export const aiUsed = (today = dayKey()) => { const u = LS.get(AIUSE, null); return u && u.day === today ? u.n || 0 : 0; };
+export const aiCapReached = (s = settings(), today = dayKey()) => {
+  const a = sharedAIActive(s, today);
+  return !!(a && a.cap > 0 && !s.geminiKey && aiUsed(today) >= a.cap);
+};
+// Compte les appels IA du jour (seulement si on consomme l'accès du clinicien)
+export function aiCount(n = 1, s = settings(), today = dayKey()) {
+  const a = sharedAIActive(s, today);
+  if (!a || s.geminiKey) return;
+  const used = aiUsed(today) + n;
+  LS.set(AIUSE, { day: today, n: used });
+  if (a.cap > 0 && used >= a.cap && used - n < a.cap) { try { window.dispatchEvent(new CustomEvent('mobilis:aicap')); } catch (_) {} }
+}
+export const aiKey = () => {
+  const s = settings();
+  if (s.geminiKey) return s.geminiKey;
+  const a = sharedAIActive(s);
+  if (!a || aiCapReached(s)) return ''; // plafond atteint → coach local
+  return a.proxy ? PROXY_KEY : a.key || '';
+};
+// Relais utilisé (si l'accès effectif est un relais)
+export const aiProxy = () => { const s = settings(); if (s.geminiKey) return null; const a = sharedAIActive(s); return a && a.proxy && !aiCapReached(s) ? { url: a.proxy, token: a.token || '' } : null; };
+// Infos pour l'affichage du profil
+export const sharedAIInfo = () => {
+  const s = settings(), a = sharedAIActive(s);
+  return a ? { from: a.from || '', until: a.until || '', cap: a.cap || 0, used: aiUsed(), mode: a.proxy ? 'proxy' : 'key', personal: !!s.geminiKey, capped: aiCapReached(s) } : null;
+};
+const okUrl = (u) => { try { return new URL(u).protocol === 'https:'; } catch (_) { return false; } };
+// Applique (ou retire) l'accès IA d'un programme du clinicien. Retourne l'accès appliqué ou null.
+export function applySharedAI(rx) {
+  const a = rx?.ai;
+  const valid = a && ((a.mode === 'proxy' && okUrl(a.proxy)) || (a.mode !== 'proxy' && a.key));
+  if (!valid) { if (settings().sharedAI) saveSettings({ sharedAI: null }); return null; }
+  const cap = Math.max(0, Math.min(1000, Math.round(+a.cap) || 0));
+  const sh = { from: String(rx.clinician || '').slice(0, 60), until: /^\d{4}-\d{2}-\d{2}$/.test(a.until || '') ? a.until : '', cap, rxCode: rx.code || null };
+  if (a.mode === 'proxy') { sh.proxy = a.proxy; sh.token = String(a.token || '').slice(0, 300); } else sh.key = String(a.key).trim();
+  saveSettings({ sharedAI: sh });
+  return sh;
+}
 const DEFAULT_SETTINGS = { voice: 'local', countAloud: true, geminiKey: '', sendFrame: false, camera: 'user', theme: 'auto', anatomy: false, selfView: true, guides: true, vibrate: true, liveAI: false };
 export const settings = () => ({ ...DEFAULT_SETTINGS, ...LS.get('mobilis.settings', {}) });
 export const saveSettings = (patch) => LS.set('mobilis.settings', { ...settings(), ...patch });
@@ -132,6 +183,10 @@ export async function loadData() {
       LS.set(key(), cache);
     } catch (e) { console.warn('Lecture Firestore impossible, cache local utilisé', e); }
   }
+  // Anciens profils / séances : champs manquants complétés (rien n'est supprimé)
+  cache.profile = migrateProfile(cache.profile);
+  cache.sessions = migrateSessions(cache.sessions);
+  cache.journal = migrateJournal(cache.journal);
   return cache;
 }
 
@@ -165,8 +220,23 @@ export async function saveSession(session) {
   }
 }
 
+// Sauvegarde (fichier JSON) : profil + séances + journal, sans clé ni jeton
 export function exportData() {
-  return JSON.stringify({ exported: new Date().toISOString(), user: user?.email || 'local', ...cache }, null, 2);
+  return makeBackup({ ...cache, user: user?.email || 'local' });
+}
+// Restauration : fusionne dans les données actuelles (séances par id, journal par jour). Retourne { sessions, journal, profile }.
+export async function importData(text, { replaceProfile = false } = {}) {
+  const bk = parseBackup(text);
+  await loadData();
+  const merged = mergeBackup(cache, bk, { replaceProfile });
+  const before = cache.sessions.length;
+  cache.profile = merged.profile; cache.sessions = merged.sessions; cache.journal = merged.journal;
+  LS.set(key(), cache);
+  if (isCloud()) {
+    await saveUserDoc({ profile: cache.profile, journal: cache.journal });
+    for (const s of cache.sessions) { try { const { db, m } = await loadFirebase(); await m.setDoc(m.doc(db, 'users', user.uid, 'sessions', s.id), s); } catch (e) { console.warn(e); break; } }
+  }
+  return { sessions: cache.sessions.length - before, journal: bk.journal.length, profile: !!cache.profile };
 }
 export function eraseLocal() {
   LS.del(key()); cache = { profile: null, sessions: [], journal: [] };
@@ -188,7 +258,21 @@ export const rxLink = (ref, lang) => `${CONFIG.siteUrl}/#/rx/${ref}${lang ? '/' 
 const LOCAL_RX = 'mobilis.myRx';
 const localRxList = () => { try { return JSON.parse(localStorage.getItem(LOCAL_RX) || '[]'); } catch (_) { return []; } };
 
+// Accès IA partagé d'un programme : on ne garde que les champs connus. Mode « key » : la clé voyage dans le programme.
+export function cleanAI(a) {
+  if (!a || !a.mode) return null;
+  const cap = Math.max(0, Math.min(1000, Math.round(+a.cap) || 0));
+  const o = { mode: a.mode === 'proxy' ? 'proxy' : 'key', cap, until: /^\d{4}-\d{2}-\d{2}$/.test(a.until || '') ? a.until : '' };
+  if (o.mode === 'proxy') { o.proxy = String(a.proxy || '').trim(); o.token = String(a.token || '').trim(); if (!o.proxy) return null; }
+  else { o.key = String(a.key || '').trim(); if (!o.key) return null; }
+  return o;
+}
+// Canal de partage : avec un compte, le programme est stocké (Firestore) et le lien ne porte que le code → la clé ne figure jamais dans l'URL.
+// Sans compte, tout le programme est dans le lien : une clé partagée y serait lisible (avertissement au clinicien).
+export const rxShareInfo = (rx, cloud) => ({ channel: cloud ? 'code' : 'link', keyInLink: !cloud && !!(rx?.ai && rx.ai.mode !== 'proxy' && rx.ai.key) });
+
 export async function saveRx(rx) {
+  rx = { ...rx, ai: cleanAI(rx.ai) };
   // Avec un compte : code court stocké dans Firestore. Sans compte : tout le programme voyage dans le lien
   // (et une copie reste sur l'appareil du clinicien pour le renvoyer ou le tester).
   if (!isCloud()) {
@@ -197,14 +281,14 @@ export async function saveRx(rx) {
     const packed = '~' + b64e({ ...data, localId: undefined });
     data.packed = packed;
     try { localStorage.setItem(LOCAL_RX, JSON.stringify([data, ...localRxList().filter((x) => x.localId !== id)].slice(0, 50))); } catch (_) {}
-    return { code: null, link: rxLink(packed, rx.lang), data };
+    return { code: null, link: rxLink(packed, rx.lang), data, ...rxShareInfo(data, false) };
   }
   const { db, m } = await loadFirebase();
   const code = rx.code || newCode();
   const data = { ...rx, code, by: user.uid, version: (rx.version || 0) + 1, updated: Date.now() };
   if (!rx.created) data.created = Date.now();
   await m.setDoc(m.doc(db, 'rx', code), data);
-  return { code, link: rxLink(code, rx.lang), data };
+  return { code, link: rxLink(code, rx.lang), data, ...rxShareInfo(data, true) };
 }
 
 export async function getRx(codeOrPacked) {

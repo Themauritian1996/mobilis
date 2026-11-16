@@ -21,6 +21,32 @@ const $app = () => document.getElementById('app');
 const fmtDate = (ts) => new Date(ts).toLocaleDateString(locale(), { day: 'numeric', month: 'short' });
 const tk = (k, fb) => { const v = t(k); return v === k ? tr(fb) : v; };
 const RX_PARTIAL = { fr: 'Compter les répétitions partielles', en: 'Count partial reps' }, RX_PARTIAL_D = { fr: 'Désactive pour exiger l\'amplitude complète (≥ 60 %) pour cet exercice.', en: 'Turn off to require near-full range (≥ 60%) for this exercise.' };
+// ---------- Partage de l'accès IA (désactivé par défaut) ----------
+// rx.ai = { mode: 'proxy' | 'key', proxy?, token?, key?, until?, cap } — enregistré dans le programme (code Firestore), jamais dans l'URL si on a un compte.
+// Les derniers réglages sont mémorisés sur l'appareil du clinicien (settings().clinAI) pour ne pas les ressaisir.
+function rxSectionAI(f) {
+  const a = f.ai;
+  const html = `<h2>${t('aiShTitle')}</h2><div class="list"><div class="toggle"><span><b>${t('aiShTitle')}</b><br><small class="muted">${t('aiShD')}</small></span><button class="switch ${a ? 'on' : ''}" id="ai-on" role="switch" aria-checked="${!!a}"></button></div></div>
+    ${a ? `<div id="ai-box" style="margin-top:10px"><div class="seg">${['proxy', 'key'].map((m) => `<button data-aim="${m}" class="${a.mode === m ? 'on' : ''}">${t(m === 'proxy' ? 'aiShProxy' : 'aiShKey')}</button>`).join('')}</div>
+      ${a.mode === 'proxy' ? `<label class="field" style="margin-top:10px"><span>${t('aiShProxyUrl')}</span><input class="input" id="ai-url" type="url" value="${esc(a.proxy || '')}" placeholder="https://…pages.dev/api/coach" autocomplete="off"></label>
+        <label class="field"><span>${t('aiShToken')}</span><input class="input" id="ai-token" type="text" value="${esc(a.token || '')}" autocomplete="off" autocapitalize="off"></label>
+        <p class="note">${t('aiShProxyD')}</p>`
+      : `<label class="field" style="margin-top:10px"><span>${t('aiShKeyLbl')}</span><input class="input" id="ai-key" type="password" value="${esc(a.key || '')}" placeholder="AIza…" autocomplete="off"></label>
+        <div class="banner neg">${icon('shield', 20)}<div>${t('aiShKeyWarn')}</div></div>`}
+      <label class="field" style="margin-top:10px"><span>${t('aiShUntil')}</span><input class="input" type="date" id="ai-until" value="${esc(a.until || '')}"></label>
+      <label class="field"><span>${t('aiShCap')}</span><input class="input tnum" type="number" min="1" max="1000" id="ai-cap" value="${a.cap || 40}"></label></div>` : ''}`;
+  const read = (root) => {
+    if (!f.ai) return;
+    const g = (id) => root.querySelector(id);
+    if (g('#ai-url')) f.ai.proxy = g('#ai-url').value.trim();
+    if (g('#ai-token')) f.ai.token = g('#ai-token').value.trim();
+    if (g('#ai-key')) f.ai.key = g('#ai-key').value.trim();
+    if (g('#ai-until')) f.ai.until = g('#ai-until').value;
+    if (g('#ai-cap')) f.ai.cap = Math.max(1, Math.min(1000, Math.round(+g('#ai-cap').value) || 40));
+  };
+  return { html, read };
+}
+
 const rxRef = (rx) => rx.code || rx.localId;
 const linkOf = (rx) => store.rxLink(rx.code || rx.packed, rx.lang);
 
@@ -67,7 +93,7 @@ export async function viewClinic() {
     }));
   });
   const find = (ref) => list.find((x) => rxRef(x) === ref);
-  box.querySelectorAll('[data-share]').forEach((b) => (b.onclick = () => { const rx = find(b.dataset.share); shareSheet(rx.code, linkOf(rx)); }));
+  box.querySelectorAll('[data-share]').forEach((b) => (b.onclick = () => { const rx = find(b.dataset.share); shareSheet(rx.code, linkOf(rx), null, { keyInLink: !rx.code && rx.ai?.mode === 'key' }); }));
   box.querySelectorAll('[data-test]').forEach((b) => (b.onclick = () => startTrial(find(b.dataset.test))));
 }
 
@@ -114,7 +140,7 @@ export async function viewRxEditor(code) {
     lang: rx?.lang || getLang(), localId: rx?.localId || null, equip: rx?.equip || null, side: rx?.side || null,
     dose: JSON.parse(JSON.stringify(rx?.dose || {})), autoEx: { ...(rx?.autoEx || {}) }, maxLevel: { ...(rx?.maxLevel || {}) }, partial: { ...(rx?.partial || {}) }, open: null,
     prom: JSON.parse(JSON.stringify(rx?.prom || [])), promCustom: JSON.parse(JSON.stringify(rx?.promCustom || [])), promTexts: { ...(rx?.promTexts || {}) },
-    rom: rx?.rom || null, protocol: rx?.protocol || null, report: rx?.report || null,
+    rom: rx?.rom || null, protocol: rx?.protocol || null, report: rx?.report || null, ai: rx?.ai ? { ...rx.ai } : null,
   });
   const path = PATHOLOGIES.find((p) => p.id === f.pathology);
   const regionEx = [...new Set(PATHOLOGIES.filter((p) => p.region === f.region).flatMap((p) => Object.values(p.phases).flat()))];
@@ -124,6 +150,7 @@ export async function viewRxEditor(code) {
   const secs = path ? { protocol: rxSectionProtocol(f), prom: rxSectionProm(f), rom: rxSectionRom(f), report: R?.rxSectionReport ? R.rxSectionReport(f) : null } : {};
   const collect = () => {
     const root = $app();
+    if (path) aiSec.read(root);
     if (!path || !root.querySelector('#pr-root')) return;
     const id = root.querySelector('#pr-id')?.value;
     if (!id) f.protocol = null;
@@ -131,6 +158,7 @@ export async function viewRxEditor(code) {
     Object.assign(f, secs.prom.read(root), secs.rom.read(root));
     if (secs.report) { try { Object.assign(f, secs.report.read(root)); } catch (e) { console.warn(e); } }
   };
+  const aiSec = rxSectionAI(f);
   const draw = () => { collect(); viewRxEditor(code); };
   // Matériel manquant → remplacement maison ou exercice équivalent proposé au clinicien
   const missEq = (id) => {
@@ -178,7 +206,7 @@ export async function viewRxEditor(code) {
     <label class="field" style="margin-top:14px"><span>${t('notesForPatient')}</span><textarea class="input" id="nt" placeholder="${t('notesPh')}">${esc(f.notes)}</textarea></label>
     <label class="field"><span>${t('nextVisit')}</span><input class="input" type="date" id="nv" value="${esc(f.nextVisit)}"></label>
     <label class="field"><span>${t('patientLang')}</span><select class="input" id="pl">${LANGS.map((l) => `<option value="${l.id}" ${f.lang === l.id ? 'selected' : ''}>${l.name}</option>`).join('')}</select><small class="muted">${t('patientLangD')}</small></label>
-    ${secs.protocol.html}${secs.prom.html}${secs.rom.html}${secs.report ? secs.report.html : ''}` : ''}
+    ${secs.protocol.html}${secs.prom.html}${secs.rom.html}${secs.report ? secs.report.html : ''}${aiSec.html}` : ''}
     <div style="height:96px"></div>
     <div class="sticky-cta"><div class="row"><button class="btn ghost" id="try" style="flex:0 0 auto;width:auto;padding-inline:16px" ${path && f.ids.length ? '' : 'disabled'}>${icon('play', 14)} ${t('testRx')}</button><button class="btn grow" id="save" ${path && f.ids.length ? '' : 'disabled'}>${code ? t('saveChanges') : t('createSend')}</button></div></div></section>
     <div class="desk-only">${nav('clinic', prof.role)}</div>`;
@@ -213,6 +241,9 @@ export async function viewRxEditor(code) {
   qa('[data-pside]').forEach((b) => (b.onclick = () => scroll(() => { f.side = b.dataset.pside; })));
   qa('[data-rep]').forEach((b) => (b.onclick = (e) => { e.stopPropagation(); scroll(() => { const i = f.ids.indexOf(b.dataset.rep); if (i >= 0) { f.ids[i] = b.dataset.to; f.levels[b.dataset.to] = f.levels[b.dataset.rep] || 2; delete f.dose[b.dataset.rep]; } }); }));
   qa('[data-pw]').forEach((b) => (b.onclick = () => scroll(() => { f.days = { 2: [1, 4], 3: [1, 3, 5], 4: [1, 2, 4, 5], 5: [1, 2, 3, 4, 5], 6: [1, 2, 3, 4, 5, 6] }[+b.dataset.pw]; })));
+  const aiOn = q('#ai-on');
+  if (aiOn) aiOn.onclick = () => scroll(() => { f.ai = f.ai ? null : { ...(store.settings().clinAI || { mode: 'proxy', proxy: '', token: '', key: '', until: '', cap: 40 }) }; });
+  qa('[data-aim]').forEach((b) => (b.onclick = () => scroll(() => { f.ai.mode = b.dataset.aim; })));
   const au = q('#auto'); if (au) au.onclick = () => scroll(() => { f.auto = !f.auto; });
   const nt = q('#nt'); if (nt) nt.oninput = (e) => { f.notes = e.target.value; };
   const nv = q('#nv'); if (nv) nv.onchange = (e) => { f.nextVisit = e.target.value; };
@@ -229,21 +260,26 @@ export async function viewRxEditor(code) {
     q('#save').disabled = true;
     const levels = levelsOf();
     const data = { code: f.code, clinician: f.clinician.trim(), label: f.label.trim(), region: f.region, pathology: f.pathology, phase: f.phase, ids: f.ids, levels, auto: f.auto, notes: f.notes.trim(), nextVisit: f.nextVisit || null, days: f.days, version: f.version, created: f.created, lang: f.lang || getLang(), equip: f.equip || null, side: f.side || null, dose: only(f.dose), autoEx: only(f.autoEx), maxLevel: only(f.maxLevel), partial: only(f.partial),
-      prom: f.prom || [], promCustom: f.promCustom || [], promTexts: f.promTexts || {}, rom: f.rom || null, protocol: f.protocol || null, report: f.report || null };
+      prom: f.prom || [], promCustom: f.promCustom || [], promTexts: f.promTexts || {}, rom: f.rom || null, protocol: f.protocol || null, report: f.report || null, ai: null };
+    if (f.ai) {
+      const ai = store.cleanAI(f.ai);
+      if (!ai || (ai.mode === 'proxy' && !/^https:\/\//i.test(ai.proxy))) { q('#save').disabled = false; return toast(t('aiShBad'), 4500); }
+      data.ai = ai; store.saveSettings({ clinAI: ai });
+    }
     if (f.localId) data.localId = f.localId;
     try {
       const res = await store.saveRx(data);
       if (f.clinician.trim() && f.clinician.trim() !== prof.clinicianName) await store.saveProfile({ ...profile(), clinicianName: f.clinician.trim() });
       state.clinic = null;
       if (code && res.code) { toast(t('rxSaved')); return go('#/clinic'); }
-      await shareSheet(res.code, res.link, () => go('#/clinic'));
+      await shareSheet(res.code, res.link, () => go('#/clinic'), { keyInLink: res.keyInLink });
       toast(t('rxCreated'));
     } catch (e) { console.warn(e); toast(t('rxSaveErr') + ' ' + (e.code || e.message), 5000); q('#save').disabled = false; }
   };
 }
 
 // Feuille d'envoi : code, QR, lien
-export async function shareSheet(code, link, onClose) {
+export async function shareSheet(code, link, onClose, { keyInLink = false } = {}) {
   let qrSvg = '';
   try {
     const { default: qrcode } = await import('../vendor/qrcode.js');
@@ -252,6 +288,7 @@ export async function shareSheet(code, link, onClose) {
   } catch (e) { console.warn(e); }
   const bg = sheet(`<h3>${t('sendToPatient')}</h3><p class="small muted" style="margin:4px 0 14px">${code ? t('sendCodeD') : t('sendLinkD')}</p>
     ${code ? `<div class="code-big">${store.fmtCode(code)}</div><p class="small muted" style="text-align:center;margin:4px 0 14px">${t('codeHowTo')}</p>` : ''}
+    ${keyInLink ? `<div class="banner neg" style="margin-bottom:12px">${icon('shield', 20)}<div>${t('aiShLinkWarn')}</div></div>` : ''}
     ${qrSvg ? `<div class="qr" aria-label="QR">${qrSvg}</div>` : ''}
     <div class="row" style="margin-top:16px"><button class="btn ghost" id="cp">${icon('copy', 18)} ${t('copyLink')}</button><button class="btn" id="sh">${icon('share', 18)} ${t('share')}</button></div>
     <button class="btn soft" id="done" style="margin-top:10px">${t('done')}</button>`, { onClose });

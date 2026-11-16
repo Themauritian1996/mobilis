@@ -8,6 +8,7 @@ import { state, go, profile, todaySession, updateProfile, navRole } from './stat
 import { esc, icon, IC, toast, mountFigs, figSvg, nav } from './ui.js';
 import { doseText } from './train.js';
 import { EQUIP_IDS, haveList, missing, alternatives } from './equip.js';
+import { equipHelpHtml, bindEquipHelp, equipChipHtml } from './equipui.js';
 
 const $app = () => document.getElementById('app');
 const mins = (sec) => Math.max(1, Math.round(sec / 60));
@@ -43,12 +44,14 @@ export function viewSession() {
           <div class="row wrap" style="gap:4px;margin-top:4px">
             <span class="chip sm">${ex.track ? `${icon('cam', 12)} ${t('tracked')}` : `${icon('timer', 12)} ${t('guidedShort')}`}</span>
             ${(ex.equip || []).map((e) => `<span class="chip sm">${esc(tr(EQUIP[e]))}</span>`).join('')}
+            ${(ex.equip || []).length ? equipChipHtml(x.id, prof) : ''}
             ${d.custom ? `<span class="chip sm ink">${t(x.kept ? 'sessCustomKept' : 'sessCustomToday')}</span>` : ''}
           </div></div>
         ${isDone ? `<div class="stack" style="gap:6px;align-items:flex-end"><span class="chip pos">${icon('check', 14)} ${t('doneShort')}</span><button class="btn sm ghost" data-redo="${x.id}">${icon('flip', 14)} ${t('redoEx')}</button></div>` : `<button class="btn sm ghost" data-edit="${x.id}" aria-expanded="${isOpen}">${t(isOpen ? 'close' : 'sessEdit')}</button>`}
       </div>
       ${miss.length ? `<div class="sess-miss"><b>${icon('shield', 14)} ${t('missingEq')} ${miss.map((e) => esc(tr(EQUIP[e]))).join(', ')}</b>
         <div class="small">${miss.map((e) => `${t('subFor')} ${esc(tr(EQUIP[e]).toLowerCase())} : ${t('sub_' + e)}`).join('<br>')}</div>
+        ${equipHelpHtml(x.id, x.level || 1, prof)}
         ${alts.length ? `<div class="small muted" style="margin-top:6px">${t('orSwap')}</div><div class="row wrap" style="gap:6px;margin-top:4px">${alts.map((a) => `<button class="btn sm ghost" data-swap="${x.id}" data-to="${a}">${esc(tr(EXERCISES[a].name))}</button>`).join('')}</div>` : ''}</div>` : ''}
       ${from ? `<div class="sess-miss ok small">${t('swappedFrom')} ${esc(tr(EXERCISES[from].name))} <button class="link" data-unswap="${from}">${t('undoSwap')}</button></div>` : ''}
       ${isOpen && !isDone ? editor(x) : ''}</div>`;
@@ -93,6 +96,7 @@ export function viewSession() {
     <div class="sticky-cta"><div>${todo.length ? `<button class="btn" data-a="start">${IC.play.replace('<svg', '<svg width="16" height="16"')} ${t(done.size ? 'continueSession' : 'startSession')} · ~${mins(total)} min</button>` : `<button class="btn" data-a="again">${icon('flip', 16)} ${t('redoSession')}</button>`}</div></div>
   </section>`;
   mountFigs($app());
+  for (const x of items) bindEquipHelp($app(), x.id, x.level || 1);
 
   const q = (s) => $app().querySelector(s);
   // Refaire un exercice ou toute la séance le même jour (les séances refaites s'ajoutent à l'historique)

@@ -1,7 +1,7 @@
 // Coach vocal : consignes instantanées (voix de l'appareil) + commentaires de fin de série par Gemini.
 import { CONFIG, coachUrl } from './config.js';
 import { CUES, getLang, getAiLang, aiLangInfo, tr, t, tp, langInfo } from './i18n.js';
-import { settings, aiKey } from './store.js';
+import { settings, aiKey, aiProxy, aiCount, aiCapReached, sharedAIActive, PROXY_KEY } from './store.js';
 import { primeAudio, stopAll, playRich } from './audio.js';
 
 // ---------- Voix de l'appareil (latence quasi nulle, idéal pour corriger en direct) ----------
@@ -93,6 +93,19 @@ const SYS = {
 const REG = { fr: ' Address the patient informally with "tu"/"ton", never "vous".', es: ' Use informal "tú", never "usted".', pt: ' Use informal "você", never "o senhor/a senhora".' };
 export const langLine = () => `Always answer in ${aiLangInfo().label}.${REG[getAiLang()] || ' Use a warm, informal register.'}`;
 export const aiAvailable = () => !!(aiKey() || CONFIG.coachEndpoint);
+// Accès partagé épuisé pour aujourd'hui (plafond du clinicien) : le coach local prend le relais
+export const aiCapped = () => !settings().geminiKey && !!sharedAIActive() && aiCapReached();
+
+// Appel « generateContent » : direct chez Google avec une clé, ou par le relais du clinicien (mode proxy : POST {kind:'gen', model, ...}
+// + jeton en en-tête ; le relais renvoie la réponse de Gemini telle quelle, donc le reste du code est identique).
+export function genFetch(model, body, key, signal) {
+  if (key === PROXY_KEY) {
+    const px = aiProxy();
+    if (!px) return Promise.reject(new Error('no proxy'));
+    return fetch(px.url, { method: 'POST', signal, headers: { 'Content-Type': 'application/json', ...(px.token ? { 'x-mobilis-token': px.token } : {}) }, body: JSON.stringify({ kind: 'gen', model, ...body }) });
+  }
+  return fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, signal, body: JSON.stringify(body) });
+}
 
 // Appel Gemini direct (clé personnelle). Rapide par défaut : modèle « lite », réflexion minimale, limite de temps stricte.
 // Les modèles récents (3.x) n'acceptent plus « thinkingBudget: 0 » mais « thinkingLevel: minimal » ; les plus anciens l'inverse.
@@ -112,19 +125,17 @@ export function parseJSON(txt) {
   if (a >= 0 && b > a) return JSON.parse(txt.slice(a, b + 1));
   throw new Error('json');
 }
-export async function gemini({ key = aiKey(), sys, parts, maxTokens = 180, temperature = 0.5, schema = null, timeout = 8000, fast = true }) {
+export async function gemini({ key = aiKey(), sys, parts, maxTokens = 180, temperature = 0.5, schema = null, timeout = 8000, fast = true, _retry = false }) {
+  if (!_retry) aiCount();
   const chain = modelChain(fast);
   const model = chain[0] || CONFIG.geminiModel;
   const gen = { temperature, maxOutputTokens: maxTokens + 400 };
   if (schema) { gen.responseMimeType = 'application/json'; gen.responseSchema = schema; }
   if (THINK[flags.think]) gen.thinkingConfig = THINK[flags.think];
   const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), timeout);
-  const again = () => gemini({ key, sys, parts, maxTokens, temperature, schema, timeout, fast });
+  const again = () => gemini({ key, sys, parts, maxTokens, temperature, schema, timeout, fast, _retry: true });
   try {
-    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, signal: ctl.signal,
-      body: JSON.stringify({ systemInstruction: { parts: [{ text: sys }] }, contents: [{ role: 'user', parts }], generationConfig: gen }),
-    });
+    const r = await genFetch(model, { systemInstruction: { parts: [{ text: sys }] }, contents: [{ role: 'user', parts }], generationConfig: gen }, key, ctl.signal);
     if (!r.ok) {
       const body = await r.text().catch(() => '');
       if (r.status === 400 && /think/i.test(body) && NEXT_THINK[flags.think] !== undefined && flags.think !== 'none') { flags.think = NEXT_THINK[flags.think] || 'none'; return again(); }
@@ -178,7 +189,7 @@ export async function coachComment(d, imageB64) {
     const txt = await ask(d.kind === 'week' ? 'week' : 'set', d, imageB64);
     if (txt) return { text: txt, source: 'gemini' };
   } catch (_) { /* repli local */ }
-  return { text: localComment(d), source: 'local' };
+  return { text: localComment(d), source: 'local', capped: aiCapped() };
 }
 
 // Réponse du coach au commentaire écrit / dicté du patient
@@ -299,10 +310,9 @@ export async function speakRich(text, { lang = getAiLang() } = {}) {
     const body = { contents: [{ parts: [{ text }] }], generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } } } };
     let r;
     if (aiKey()) {
+      aiCount();
       for (const m of (CONFIG.geminiTtsModels || []).filter((x) => !flags.dead.has(x))) {
-        r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': aiKey() }, body: JSON.stringify(body),
-        });
+        r = await genFetch(m, body, aiKey());
         if (r.ok || ![400, 403, 404].includes(r.status)) break;
         flags.dead.add(m);
       }

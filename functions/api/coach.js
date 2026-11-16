@@ -1,11 +1,14 @@
 // Cloudflare Pages Function : POST /api/coach
 // Garde la clé Gemini secrète côté serveur (variable d'environnement GEMINI_API_KEY dans Cloudflare).
-// kind = 'set' (commentaire de fin de série), 'week' (bilan hebdo) ou 'tts' (voix Gemini).
+// kind = 'set' (commentaire de fin de série), 'week' (bilan hebdo), 'tts' (voix Gemini), 'transcribe'
+// ou 'gen' : relais générique « generateContent » (texte, image, voix) pour les patients d'un clinicien (accès IA partagé).
+// 'gen' exige un jeton patient (en-tête x-mobilis-token) : liste PATIENT_TOKENS (séparés par des virgules) ou secret TOKEN_SECRET (jetons « AAAA-MM-JJ.signature »).
+// Voir docs/ai-proxy.md. Gemini Live (WebSocket) ne passe pas par ce relais.
 
 const CORS = {
   'Access-Control-Allow-Origin': '*', // l'APK appelle depuis https://localhost
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Headers': 'Content-Type, x-mobilis-token',
 };
 const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'Content-Type': 'application/json', ...CORS } });
 
@@ -17,12 +20,49 @@ const SYS = {
 };
 const LABELS = { fr: 'French (Canada)', en: 'English', es: 'Spanish (Latin America)', pt: 'Portuguese (Brazil)', ar: 'Arabic (Modern Standard)', zh: 'Simplified Chinese (Mandarin)' };
 
+// ---- Relais générique (kind 'gen') ----
+const GEN_MODEL = /^gemini-(?:flash(?:-lite)?-latest|\d+(?:\.\d+)?-flash(?:-lite)?(?:-preview)?(?:-tts)?(?:-preview-tts)?)$/;
+const GEN_MAX_BYTES = 4500000;   // image + audio d'une requête
+const GEN_MAX_TOKENS = 1500;
+const b64url = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const sameStr = (a, b) => { if (a.length !== b.length) return false; let d = 0; for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i); return d === 0; };
+export async function tokenOk(token, env, today = new Date().toISOString().slice(0, 10)) {
+  token = String(token || '').trim();
+  if (!token || token.length > 300) return false;
+  const list = String(env.PATIENT_TOKENS || '').split(',').map((x) => x.trim()).filter(Boolean);
+  if (list.some((x) => sameStr(x, token))) return true;
+  if (env.TOKEN_SECRET) {
+    const [exp, sig] = token.split('.');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(exp || '') || !sig || exp < today) return false;
+    const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(env.TOKEN_SECRET), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+    return sameStr(b64url(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(exp))).slice(0, 32), sig);
+  }
+  return false;
+}
+async function gen(request, body, env) {
+  if (!(await tokenOk(request.headers.get('x-mobilis-token'), env))) return json({ error: 'jeton invalide' }, 401);
+  const extra = String(env.ALLOWED_MODELS || '').split(',').map((x) => x.trim()).filter(Boolean);
+  const model = String(body.model || '');
+  if (!(extra.length ? extra.includes(model) : GEN_MODEL.test(model))) return json({ error: 'modèle refusé' }, 400);
+  if (!Array.isArray(body.contents) || !body.contents.length || body.contents.length > 8) return json({ error: 'contents' }, 400);
+  const out = { contents: body.contents };
+  if (body.systemInstruction) out.systemInstruction = body.systemInstruction;
+  const gc = { ...(body.generationConfig || {}) };
+  if (!(gc.maxOutputTokens <= GEN_MAX_TOKENS)) gc.maxOutputTokens = GEN_MAX_TOKENS; // plafonne (et refuse NaN / absent)
+  out.generationConfig = gc;
+  const payload = JSON.stringify(out);
+  if (payload.length > GEN_MAX_BYTES) return json({ error: 'trop volumineux' }, 413);
+  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY }, body: payload });
+  return new Response(await r.text(), { status: r.status, headers: { 'Content-Type': 'application/json', ...CORS } });
+}
+
 export async function onRequestOptions() { return new Response(null, { headers: CORS }); }
 
 export async function onRequestPost({ request, env }) {
   if (!env.GEMINI_API_KEY) return json({ error: 'GEMINI_API_KEY manquante' }, 500);
   let body;
   try { body = await request.json(); } catch { return json({ error: 'JSON invalide' }, 400); }
+  if (body.kind === 'gen') return gen(request, body, env);
   const label = LABELS[body.lang] || String(body.langLabel || 'French (Canada)').slice(0, 40);
   const base = 'https://generativelanguage.googleapis.com/v1beta/models';
   const headers = { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY };

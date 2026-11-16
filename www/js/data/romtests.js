@@ -356,6 +356,58 @@ export const TESTS = {
   },
 };
 
+// ---------- Position de départ guidée ----------
+// Pour chaque test : partie du corps nommée (gros libellé « Bras DROIT » ; g = genre grammatical m / f), mode d'orientation
+//   'near'    : vue de profil, le côté testé doit être tourné vers le téléphone ;
+//   'front'   : vue de face (le côté testé s'affiche à droite ou à gauche de l'écran selon le miroir) ;
+//   'dir'     : vue de face, le côté = sens de rotation de la tête ;
+//   'profile' : vue de profil, sans côté.
+// lo / hi : plage acceptée pour la valeur du test (mêmes unités que deg) à la position de départ ; fixed : segment censé rester immobile
+// (deux points, « sh » = épaule du côté testé, « sh.L » = point explicite) ; lying : couché (le côté tourné vers la caméra ne se déduit pas de la tête).
+// instr : consigne de départ (dite et affichée) ; go : consigne du mouvement (dite après « Bien. Maintenant, … »). {side} → « droite » / « gauche ».
+export const START = {
+  sh_flex: { part: ['arm', 'm'], mode: 'near', lo: -20, hi: 22, fixed: ['sh', 'hip'],
+    instr: S('Debout, dos droit, bras le long du corps, paume vers la cuisse.', 'Stand tall, arm at your side, palm toward your thigh.'),
+    go: S('lève le bras tendu vers l’avant et vers le haut, doucement, aussi haut que c’est confortable, puis tiens 2 secondes.', 'raise your straight arm forward and up slowly, as high as is comfortable, then hold 2 seconds.') },
+  sh_abd: { part: ['arm', 'm'], mode: 'front', lo: -10, hi: 25, fixed: ['sh', 'hip'],
+    instr: S('Debout face au téléphone, dos droit, bras le long du corps, paume vers la cuisse.', 'Stand facing the phone, back straight, arm at your side, palm toward your thigh.'),
+    go: S('lève le bras tendu sur le côté, doucement, aussi haut que c’est confortable, puis tiens 2 secondes.', 'raise your straight arm out to the side slowly, as high as is comfortable, then hold 2 seconds.') },
+  sh_er: { part: ['arm', 'm'], mode: 'front', lo: -25, hi: 25, fixed: ['sh', 'el'],
+    instr: S('Face au téléphone, coude collé au corps plié à 90°, avant-bras vers l’avant, pouce vers le haut.', 'Facing the phone, elbow tucked in and bent to 90°, forearm pointing forward, thumb up.'),
+    go: S('garde le coude collé et ouvre l’avant-bras vers l’extérieur, comme une porte, puis tiens 2 secondes.', 'keep the elbow tucked and swing the forearm outward like a door, then hold 2 seconds.') },
+  el_flex: { part: ['elbow', 'm'], mode: 'near', lo: -10, hi: 22, fixed: ['sh', 'hip'],
+    instr: S('Debout ou assis, dos droit, bras le long du corps, coude tendu, paume vers l’avant.', 'Stand or sit tall, arm at your side, elbow straight, palm forward.'),
+    go: S('plie le coude en amenant la main vers l’épaule, sans lever l’épaule, puis tiens 2 secondes.', 'bend the elbow bringing your hand toward your shoulder, without lifting the shoulder, then hold 2 seconds.') },
+  el_ext: { part: ['elbow', 'm'], mode: 'near', lo: 35, hi: 130, fixed: ['sh', 'hip'],
+    instr: S('Debout ou assis, dos droit, bras un peu en avant, coude plié.', 'Stand or sit tall, arm slightly forward, elbow bent.'),
+    go: S('tends le coude au maximum, comme pour pousser quelque chose devant toi, sans forcer, puis tiens 2 secondes.', 'straighten the elbow as far as it goes, as if pushing something away, without forcing, then hold 2 seconds.') },
+  wr_flex: { part: ['wrist', 'm'], mode: 'near', lo: -22, hi: 22, fixed: ['el', 'wr'],
+    instr: S('Assis à la table, avant-bras à plat, paume vers le bas, main dans le vide au bord de la table, poignet droit.', 'Sit at the table, forearm flat, palm down, hand hanging past the edge, wrist straight.'),
+    go: S('laisse la main descendre et plie le poignet vers le bas, doigts relâchés, l’avant-bras reste posé, puis tiens 2 secondes.', 'let the hand drop and bend the wrist down, fingers relaxed, forearm staying on the table, then hold 2 seconds.') },
+  wr_ext: { part: ['wrist', 'm'], mode: 'near', lo: -22, hi: 22, fixed: ['el', 'wr'],
+    instr: S('Assis à la table, avant-bras à plat, paume vers le bas, main dans le vide au bord de la table, poignet droit.', 'Sit at the table, forearm flat, palm down, hand hanging past the edge, wrist straight.'),
+    go: S('relève la main vers le haut, comme pour dire stop, l’avant-bras reste posé, puis tiens 2 secondes.', 'lift the hand up like a stop sign, forearm staying on the table, then hold 2 seconds.') },
+  hip_flex: { part: ['hip', 'f'], mode: 'near', lying: true, lo: -15, hi: 30, fixed: ['sh', 'hip'],
+    instr: S('Couché sur le dos, jambes allongées, l’autre jambe tendue et à plat, bas du dos au sol.', 'Lie on your back, legs straight, the other leg flat and straight, lower back on the floor.'),
+    go: S('ramène le genou vers la poitrine, le bas du dos reste à plat, puis tiens 2 secondes.', 'bring the knee toward your chest, keeping your lower back flat, then hold 2 seconds.') },
+  kn_flex: { part: ['knee', 'm'], mode: 'near', lo: -12, hi: 100, fixed: ['sh', 'hip'],
+    instr: S('Assis au bord d’une chaise, dos droit, ou couché sur le dos, jambe détendue, cheville visible.', 'Sit on the edge of a chair, back straight, or lie on your back, leg relaxed, ankle visible.'),
+    go: S('plie le genou en ramenant le talon vers la fesse, puis tiens 2 secondes.', 'bend the knee bringing your heel toward your buttock, then hold 2 seconds.') },
+  kn_ext: { part: ['knee', 'm'], mode: 'near', lo: 45, hi: 120, fixed: ['sh', 'hip'],
+    instr: S('Assis sur une chaise, dos droit, genou plié à 90°, pied au sol.', 'Sit on a chair, back straight, knee bent to 90°, foot on the floor.'),
+    go: S('tends le genou en levant le pied, cuisse contractée, puis tiens 2 secondes.', 'straighten the knee by lifting your foot, thigh tight, then hold 2 seconds.') },
+  an_df: { part: ['ankle', 'f'], mode: 'near', lo: -8, hi: 22, fixed: ['heel', 'ft'],
+    instr: S('Debout face à un mur, pied testé en avant, orteils à environ 10 cm du mur, talon au sol, genou tendu.', 'Stand facing a wall, tested foot forward, toes about 10 cm from the wall, heel down, knee straight.'),
+    go: S('plie le genou vers le mur sans décoller le talon, puis tiens 2 secondes.', 'bend the knee toward the wall without lifting the heel, then hold 2 seconds.') },
+  cerv_rot: { part: ['head', 'f'], mode: 'dir', lo: -16, hi: 16, fixed: ['sh.L', 'sh.R'],
+    instr: S('Assis ou debout, dos droit, épaules relâchées et de face, regard droit devant.', 'Sit or stand tall, shoulders relaxed and square, looking straight ahead.'),
+    go: S('tourne lentement la tête vers ta {side}, sans tourner les épaules, aussi loin que c’est confortable, puis tiens 2 secondes.', 'slowly turn your head to your {side}, without turning your shoulders, as far as is comfortable, then hold 2 seconds.') },
+  lumb_flex: { part: null, mode: 'profile', lo: 12, hi: 85, fixed: ['hip', 'an'],
+    instr: S('Debout de profil, pieds à la largeur des hanches, genoux tendus, bras relâchés, corps entier visible.', 'Stand side-on, feet hip-width apart, knees straight, arms relaxed, whole body visible.'),
+    go: S('penche-toi lentement vers l’avant en glissant les mains vers le sol, genoux tendus, puis tiens 2 secondes.', 'slowly bend forward sliding your hands toward the floor, knees straight, then hold 2 seconds.') },
+};
+for (const id of Object.keys(TESTS)) TESTS[id].start = START[id];
+
 export const TEST_IDS = Object.keys(TESTS);
 export const getTest = (id) => TESTS[id] || null;
 /** Côtés mesurables d'un test : ['L','R'] ou [null] (test sans côté). */

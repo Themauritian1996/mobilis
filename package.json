@@ -7,7 +7,7 @@
   "scripts": {
     "fetch-model": "bash scripts/fetch-model.sh",
     "vendor": "bash scripts/vendor.sh",
-    "test": "node tests/tracker.test.mjs && node tests/hand.test.mjs && node tests/thumb.test.mjs && node tests/figures.test.mjs && node tests/gemini.test.mjs && node tests/realism.test.mjs && node tests/overlay.test.mjs && node tests/calendar.test.mjs && node tests/program.test.mjs && node tests/live.test.mjs && node tests/partial.test.mjs && node tests/ailang.test.mjs && node tests/placement.test.mjs && node tests/badges.test.mjs && node tests/proms.test.mjs && node tests/rom.test.mjs && node tests/protocols.test.mjs && node tests/report.test.mjs",
+    "test": "node tests/tracker.test.mjs && node tests/hand.test.mjs && node tests/thumb.test.mjs && node tests/figures.test.mjs && node tests/gemini.test.mjs && node tests/realism.test.mjs && node tests/overlay.test.mjs && node tests/calendar.test.mjs && node tests/program.test.mjs && node tests/live.test.mjs && node tests/partial.test.mjs && node tests/ailang.test.mjs && node tests/placement.test.mjs && node tests/badges.test.mjs && node tests/proms.test.mjs && node tests/rom.test.mjs && node tests/protocols.test.mjs && node tests/report.test.mjs && node tests/equip.test.mjs",
     "test:e2e": "node tests/overlay.e2e.mjs && node tests/rom.e2e.mjs",
     "serve": "npx serve www",
     "android:sync": "npx cap sync android"
