@@ -302,7 +302,7 @@ export async function viewRxImport(code) {
   };
   async function finish() {
     const p = rxToProfile({ ...rx, days: o.days }, prev, { name: o.name.trim(), shareProgress: o.share, trial: prev?.role === 'clinician' });
-    await store.saveProfile(p); state.data = await store.loadData(); state.ob = null; state.rxo = null;
+    await store.saveProfile(p); store.clearPendingRx(); state.data = await store.loadData(); state.ob = null; state.rxo = null;
     if (prev?.role !== 'clinician') store.applySharedAI(rx); // accès IA du clinicien (ou retrait s'il n'en partage plus)
     toast(t('rxAdded'));
     go('#/home');

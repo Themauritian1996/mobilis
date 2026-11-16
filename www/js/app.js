@@ -138,6 +138,7 @@ function viewAuth() {
       <p class="err" id="err" hidden></p>
       <div class="divider">${t('or')}</div>` : ''}
       <button class="btn ${fbOn ? 'soft' : ''}" data-a="local">${fbOn ? t('demoBtn') : t('start')}</button>
+      <input type="file" id="rs-file" accept=".json,application/json" hidden><button class="link small" data-a="restore" style="margin-top:8px">${t('bkRestoreStart')}</button>
     </div>
     <p class="note" style="margin-top:18px">${t('disclaimer')}</p>
   </section>`;
@@ -146,6 +147,16 @@ function viewAuth() {
   const err = (e) => { const p = q('#err'); if (p) { p.hidden = false; p.textContent = t('authErr') + (e.code || e.message); } };
   const dr = q('[data-a="dropRx"]'); if (dr) dr.onclick = () => { store.clearPendingRx(); viewAuth(); };
   q('[data-a="local"]').onclick = () => store.signInLocal(async (u) => { state.user = u; state.data = await store.loadData(); render(); });
+  // Nouveau téléphone sans compte : restaurer une sauvegarde complète (profil, séances, journaux) avant tout
+  q('[data-a="restore"]').onclick = () => q('#rs-file').click();
+  q('#rs-file').onchange = async (e) => {
+    const f = e.target.files?.[0]; if (!f) return;
+    store.signInLocal(async (u) => {
+      state.user = u;
+      try { await store.importData(await f.text(), { replaceProfile: true }); toast(t('bkRestored')); } catch (_) { toast(t('bkBad')); }
+      state.data = await store.loadData(); render();
+    });
+  };
   if (!fbOn) return;
   q('[data-a="google"]').onclick = () => store.signInGoogle().catch(err);
   q('[data-a="emailToggle"]').onclick = () => { q('#emailBox').hidden = !q('#emailBox').hidden; };

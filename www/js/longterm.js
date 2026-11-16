@@ -55,8 +55,17 @@ export function mergeBackup(cur, bk, { replaceProfile = false } = {}) {
   for (const s of bk.sessions) if (!ses.has(s.id)) ses.set(s.id, s);
   const jr = new Map((cur.journal || []).map((j) => [j.day, j]));
   for (const j of bk.journal) if (!jr.has(j.day)) jr.set(j.day, j);
+  // Profil gardé : on y ajoute quand même les journaux de la sauvegarde (amplitudes, questionnaires, rapports, badges, objets)
+  let profile = replaceProfile || !cur.profile ? bk.profile || cur.profile : cur.profile;
+  if (!replaceProfile && cur.profile && bk.profile) {
+    const mergeLog = (a = [], b = []) => { const k = (x) => JSON.stringify([x.ts, x.test || x.id || '', x.side || '']); const seen = new Set(a.map(k)); return [...a, ...b.filter((x) => x && !seen.has(k(x)))].sort((x, y) => (x.ts || 0) - (y.ts || 0)); };
+    profile = { ...cur.profile };
+    for (const f of ['romLog', 'promLog', 'reportLog']) if (Array.isArray(bk.profile[f])) profile[f] = mergeLog(cur.profile[f], bk.profile[f]);
+    for (const f of ['badges', 'equipChoice']) if (bk.profile[f]) profile[f] = { ...bk.profile[f], ...(cur.profile[f] || {}) };
+    if (!cur.profile.promActivities && bk.profile.promActivities) profile.promActivities = bk.profile.promActivities;
+  }
   return {
-    profile: replaceProfile || !cur.profile ? bk.profile || cur.profile : cur.profile,
+    profile,
     sessions: [...ses.values()].sort((a, b) => a.date - b.date),
     journal: [...jr.values()].sort((a, b) => String(a.day).localeCompare(String(b.day))),
   };

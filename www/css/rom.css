@@ -61,7 +61,7 @@
 .rom-sidebig b { font-size: clamp(1.45rem, 7vw, 2.1rem); font-weight: 800; letter-spacing: .01em; line-height: 1.05; color: var(--sc, #fff); text-shadow: 0 1px 0 rgba(0, 0, 0, .5); }
 .rom-sidebig span { font-size: .92rem; font-weight: 600; line-height: 1.25; text-wrap: balance; }
 .rom-sidebig.plain { border-color: rgba(255, 255, 255, .5); }
-.rom-sidebig.compact { top: calc(76px + env(safe-area-inset-top, 0px)); bottom: auto; inset-inline: auto; inset-inline-start: 12px; margin: 0; width: auto; padding: 6px 14px; border-width: 2px; border-radius: 999px; }
+.rom-sidebig.compact { top: calc(104px + env(safe-area-inset-top, 0px)); bottom: auto; inset-inline: auto; inset-inline-start: 12px; margin: 0; width: auto; padding: 6px 14px; border-width: 2px; border-radius: 999px; }
 .rom-sidebig.compact b { font-size: 1.15rem; }
 .rom-sidechip { display: inline-block; padding: 6px 14px; border-radius: 999px; font-weight: 800; font-size: 1.05rem; letter-spacing: .01em; color: #fff; background: var(--sc, #444); text-shadow: 0 1px 1px rgba(0, 0, 0, .45); }
 .rom-or { color: var(--ink); }

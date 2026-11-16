@@ -536,10 +536,10 @@ export async function viewRom($app, testId, side, cleanup) {
   function paintSide(mode) {
     const el = $('.rom-sidebig'); if (!el) return;
     const o = orient();
-    if (!big && !(mode !== 'compact' && o)) { el.hidden = true; return; }
+    if (!big && !(mode === 'full' && o)) { el.hidden = true; return; }
     el.hidden = false; el.className = 'rom-sidebig' + (mode === 'compact' ? ' compact' : '') + (big ? '' : ' plain');
     el.style.setProperty('--sc', big ? big.color : '#fff'); if (big) el.dataset.side = big.side;
-    el.innerHTML = (big ? `<b>${esc(big.text)}</b>` : '') + (mode === 'compact' || !o ? '' : `<span>${esc(o)}</span>`);
+    el.innerHTML = (big ? `<b>${esc(big.text)}</b>` : '') + (mode === 'compact' || mode === 'label' || !o ? '' : `<span>${esc(o)}</span>`);
   }
   function sizeCanvas() { const { W, H } = canvasSize(canvas.clientWidth, canvas.clientHeight, window.devicePixelRatio || 1); if (canvas.width !== W || canvas.height !== H) { canvas.width = W; canvas.height = H; } V.W = W; V.H = H; }
   function grab() {
@@ -678,7 +678,7 @@ export async function viewRom($app, testId, side, cleanup) {
     voicer.reset(); clearTimeout(S.start?.timer);
     S.start = { gate: new StartGate(), t0: performance.now(), introSaid: false, aiN: 0, aiBusy: false, last: null, lm: null, shown: null, timer: null };
     S.start.timer = setTimeout(() => { if (S.stage === 'start') { toast(t('pl_timeout'), 3500); endStart(false); } }, START_MAX_MS);
-    paintSide('full'); $('.place').hidden = true;
+    paintSide('label'); $('.place').hidden = true; // la carte de départ porte déjà la phrase d'orientation
     const box = $('.rstart'); box.hidden = false; box.dataset.state = 'wait'; $('.rstart .place-ai').hidden = true; $('.rstart .place-bar i').style.width = '0%';
     renderStart({ key: 'intro', text: startInstr(T), icon: 'eye' }, null, null);
   }
@@ -711,7 +711,7 @@ export async function viewRom($app, testId, side, cleanup) {
       if (cue.key === 'go') return endStart(true);
     }
     if (r.ready && muted) return endStart(true);
-    if (store.aiKey() && navigator.onLine !== false && !A.aiBusy && A.aiN < 3 && !r.ready && now - A.t0 > 6000 + A.aiN * 14000 && voicer.idle(now)) startAdvice(chk, s);
+    if (store.aiKey() && store.imageConsent() && navigator.onLine !== false && !A.aiBusy && A.aiN < 3 && !r.ready && now - A.t0 > 6000 + A.aiN * 14000 && voicer.idle(now)) startAdvice(chk, s);
   }
   // Conseil IA facultatif (clé personnelle ou partagée) : une image annotée + les mesures locales → 2 phrases courtes, dites et affichées
   function annotated(lm, w = 512) {

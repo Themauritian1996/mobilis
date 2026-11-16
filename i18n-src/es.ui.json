@@ -1132,5 +1132,7 @@
 "offD": "Descarga una vez los modelos de seguimiento (≈ 15 MB) para hacer tus sesiones con cámara sin conexión.",
 "offBtn": "Descargar para usar sin conexión",
 "offReady": "Listo para usar sin conexión",
-"offFail": "No se pudo descargar, revisa tu conexión"
+"offFail": "No se pudo descargar, revisa tu conexión",
+"bkRestoreStart": "¿Teléfono nuevo? Restaurar una copia de seguridad",
+"bkRestored": "Copia de seguridad restaurada"
 }

@@ -12,7 +12,9 @@ export async function loadPose(onStatus = () => {}) {
   onStatus('model');
   let modelAssetPath = CONFIG.poseModelRemote;
   try {
-    const r = await fetch(CONFIG.poseModelLocal, { method: 'HEAD' });
+    // GET (servi par le cache du service worker hors ligne) ; HEAD n'est pas mis en cache
+    const c = (typeof caches !== 'undefined') ? await caches.match(CONFIG.poseModelLocal).catch(() => null) : null;
+    const r = c || await fetch(CONFIG.poseModelLocal, { cache: 'force-cache' });
     if (r.ok) modelAssetPath = CONFIG.poseModelLocal;
   } catch (_) { /* pas de modèle local */ }
   for (const delegate of delegates()) {

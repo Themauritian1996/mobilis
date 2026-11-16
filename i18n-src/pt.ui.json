@@ -1132,5 +1132,7 @@
 "offD": "Baixe uma vez os modelos de rastreamento (≈ 15 MB) para fazer suas sessões com câmera offline.",
 "offBtn": "Baixar para uso offline",
 "offReady": "Pronto para uso offline",
-"offFail": "Não foi possível baixar, verifique sua conexão"
+"offFail": "Não foi possível baixar, verifique sua conexão",
+"bkRestoreStart": "Celular novo? Restaurar um backup",
+"bkRestored": "Backup restaurado"
 }

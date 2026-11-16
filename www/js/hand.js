@@ -14,7 +14,9 @@ export async function loadHands(onStatus = () => {}) {
   onStatus('model');
   let modelAssetPath = CONFIG.handModelRemote;
   try {
-    const r = await fetch(CONFIG.handModelLocal, { method: 'HEAD' });
+    // GET (servi par le cache du service worker hors ligne) ; HEAD n'est pas mis en cache
+    const c = (typeof caches !== 'undefined') ? await caches.match(CONFIG.handModelLocal).catch(() => null) : null;
+    const r = c || await fetch(CONFIG.handModelLocal, { cache: 'force-cache' });
     if (r.ok) modelAssetPath = CONFIG.handModelLocal;
   } catch (_) { /* pas de modèle local */ }
   for (const delegate of delegates()) {

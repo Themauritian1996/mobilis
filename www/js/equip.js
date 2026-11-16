@@ -2,7 +2,7 @@
 import { EXERCISES, EQUIP } from './data/exercises.js';
 import { EX_ANATOMY } from './data/anatomy.js';
 import { PATHOLOGIES } from './data/pathologies.js';
-import { t } from './i18n.js';
+import { t, locale } from './i18n.js';
 
 export const EQUIP_IDS = Object.keys(EQUIP);
 // Matériel « de maison » qu'on suppose disponible tant que le patient n'a rien indiqué
@@ -115,7 +115,8 @@ export function localVerdict(exId, level, text) {
   const bad = KW[0].re.test(s);
   const ent = bad ? null : KW.slice(1).find((e) => e.re.test(s));
   const obj = String(text).trim();
-  const V = (verdict, kgEstimate, key, vars = {}) => ({ verdict, kgEstimate: kgEstimate == null ? null : rnd(kgEstimate), reason: t(key, { obj, kg: kgEstimate == null ? '?' : rnd(kgEstimate), target: target ?? '', ...vars }), source: 'local' });
+  const numL = (n) => { try { return Number(n).toLocaleString(locale()); } catch (_) { return String(n); } };
+  const V = (verdict, kgEstimate, key, vars = {}) => ({ verdict, kgEstimate: kgEstimate == null ? null : rnd(kgEstimate), reason: t(key, { obj, kg: kgEstimate == null ? '?' : numL(rnd(kgEstimate)), target: target == null ? '' : numL(target), ...vars }), source: 'local' });
   if (bad) return V('no', explicit, 'eqR_unsafe');
   if (!ent && explicit == null) return V('caution', null, 'eqR_unknown');
   const kg = explicit ?? (ent ? ent.kg : null);
