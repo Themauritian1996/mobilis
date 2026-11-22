@@ -21,7 +21,7 @@ import * as P from '../../../www/js/program.js';
 import * as store from '../../../www/js/store.js';
 import { canToggleDay, toggleDay } from '../../../www/js/longterm.js';
 import { doseText } from '../../../www/js/train.js';
-import { rxExtrasRom } from '../../../www/js/rom.js';
+import { rxExtrasRom } from '../../domains/outcomes/rom.ts';
 import { scheduleReminders } from '../../domains/rehab/calendar.ts';
 import {
   state,
