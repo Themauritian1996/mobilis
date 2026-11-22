@@ -79,3 +79,67 @@ export interface CustomScale {
   readonly max: number;
   readonly labels?: readonly Bilingual[];
 }
+
+// ---------------------------------------------------------------- Protocoles post-opératoires
+
+/** Exercice d'une phase : identifiant seul, ou avec niveau (min/max) et dose imposés. */
+export interface ProtocolExerciseEntry {
+  readonly id: string;
+  readonly level?: number;
+  readonly maxLevel?: number;
+  readonly dose?: { readonly sets: number; readonly reps: number; readonly hold?: number };
+}
+
+export type ProtocolExercise = string | ProtocolExerciseEntry;
+
+/** Cible d'amplitude : `dir` 'max' = « au plus » (ex. déficit d'extension) ; par défaut « au moins ». */
+export interface RomTarget {
+  readonly test: string;
+  readonly deg: number;
+  readonly dir?: 'max';
+}
+
+/** Remplacements propres à une variante de chirurgie (appliqués par resolvePhase). */
+export interface PhaseOverride {
+  readonly weeks?: readonly [number, number | null];
+  readonly goals?: readonly Bilingual[];
+  readonly precautions?: readonly Bilingual[];
+  readonly precautionsAdd?: readonly Bilingual[];
+  readonly exercises?: readonly ProtocolExercise[];
+  readonly exercisesAdd?: readonly ProtocolExercise[];
+  readonly progressionCriteria?: readonly Bilingual[];
+  readonly romTargets?: readonly RomTarget[];
+}
+
+/** Phase : `weeks` = [de, à[ en semaines écoulées depuis la chirurgie (à = null : jusqu'à la fin). */
+export interface ProtocolPhase extends PhaseOverride {
+  readonly id: string;
+  readonly weeks: readonly [number, number | null];
+  readonly byVariant?: Readonly<Record<string, PhaseOverride>>;
+}
+
+/** Phase résolue pour une variante : tous les tableaux sont présents, sans `byVariant`. */
+export interface ResolvedPhase extends Omit<ProtocolPhase, 'byVariant' | 'precautionsAdd' | 'exercisesAdd'> {
+  readonly weeks: readonly [number, number | null];
+  readonly goals: readonly Bilingual[];
+  readonly precautions: readonly Bilingual[];
+  readonly exercises: readonly ProtocolExercise[];
+  readonly progressionCriteria: readonly Bilingual[];
+  readonly romTargets: readonly RomTarget[];
+}
+
+export interface ProtocolVariant {
+  readonly id: string;
+  readonly name: Bilingual;
+}
+
+export interface Protocol {
+  readonly id: string;
+  readonly region: string;
+  readonly name: Bilingual;
+  readonly surgery: Bilingual;
+  readonly painMax: number;
+  readonly variants?: readonly ProtocolVariant[];
+  readonly phases: readonly ProtocolPhase[];
+  readonly redFlags: readonly Bilingual[];
+}
