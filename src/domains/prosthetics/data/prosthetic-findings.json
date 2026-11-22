@@ -1,0 +1,345 @@
+{
+  "schemaVersion": 1,
+  "generated": "2026-11-22",
+  "disclaimer": "Toutes les suggestions sont « à valider par l'équipe (prothésiste, physiatre, physiothérapeute) ». L'application ne modifie jamais une prothèse ; elle propose des pistes à discuter.",
+  "sourcesNote": "Causes et corrections tirées surtout de deux sources secondaires concordantes (physiopedia_amputee_gait, qui cite Esquenazi 2014, Bowker & Michael 1992 et BACPAR 2020 ; burris_prosthetic_gait). Les ouvrages de référence (smith2004, esquenazi2014) n'ont pas été consultés en texte intégral : vérifier avant diffusion. Les seuils chiffrés sont des heuristiques proposées (thresholdType=proposed_heuristic), aucun seuil publié n'a été retrouvé.",
+  "backgroundRefs": ["smith2004", "esquenazi2014", "bowker1992", "bacpar2020", "gailey2008"],
+  "causeCategories": {
+    "alignment": "Alignement prothétique (bench/static/dynamic alignment)",
+    "socket_suspension": "Emboîture / suspension (socket fit, suspension)",
+    "length": "Longueur de la prothèse",
+    "components": "Composants (pied, genou, butées, friction)",
+    "weakness_rom": "Faiblesse / amplitude articulaire résiduelle (weakness, contracture)",
+    "pain": "Douleur (moignon, membre sain, dos)",
+    "habit_fear": "Habitude, peur, manque de confiance, entraînement insuffisant"
+  },
+  "levels": {
+    "transtibial": "Transtibial (TT, below-knee)",
+    "transfemoral": "Transfémoral (TF, above-knee)",
+    "knee_disarticulation": "Désarticulation du genou : déviations proches du TF (genou prothétique) ; données spécifiques non retrouvées → to_verify",
+    "syme": "Syme / désarticulation de la cheville : déviations proches du TT (pied prothétique à faible hauteur) ; données spécifiques non retrouvées → to_verify"
+  },
+  "deviations": [
+    {
+      "id": "abducted_gait",
+      "name_fr": "Démarche en abduction (base élargie)", "name_en": "Abducted gait (wide base)",
+      "levels": ["transfemoral", "transtibial"],
+      "criteria": [{"metric": "step_width", "phase": "stance", "view": "frontal|posterior", "threshold": "Largeur de base > norme + 2 ET, ou pied prothétique nettement plus latéral que le pied sain", "thresholdType": "proposed_heuristic"}],
+      "causes": {
+        "socket_suspension": ["Bord médial de l'emboîture trop haut (pression sur la branche ischio-pubienne)", "Espace dans la paroi latérale / contention latérale insuffisante"],
+        "length": ["Prothèse trop longue"],
+        "alignment": ["TT : pied trop en dehors (outset), adduction excessive de l'emboîture"],
+        "weakness_rom": ["Contracture en abduction", "Faiblesse des abducteurs/adducteurs/fléchisseurs de hanche"],
+        "pain": ["Douleur à la branche pubienne ou au fémur distal latéral"],
+        "habit_fear": ["Insécurité, peur du transfert de poids"]
+      },
+      "suggestions_prosthetist": ["Vérifier la hauteur du bord médial et la contention latérale", "Vérifier la longueur", "TT : position médio-latérale du pied"],
+      "exercises": ["Étirement des abducteurs si contracture", "Renforcement des adducteurs et abducteurs de hanche", "Transfert de poids sur la prothèse, équilibre"],
+      "assistiveDevice": "Canne controlatérale temporaire si insécurité",
+      "confidence": "medium",
+      "refs": ["physiopedia_amputee_gait", "burris_prosthetic_gait", "esquenazi2014"]
+    },
+    {
+      "id": "prosthetic_circumduction",
+      "name_fr": "Circumduction (démarche fauchante) prothétique", "name_en": "Circumduction",
+      "levels": ["transfemoral"],
+      "criteria": [{"metric": "foot_lateral_displacement_swing", "phase": "MSw", "view": "frontal|posterior", "threshold": "Arc latéral du pied prothétique en oscillation > côté sain × 2", "thresholdType": "proposed_heuristic"}],
+      "causes": {
+        "length": ["Prothèse trop longue"],
+        "components": ["Friction/résistance du genou trop forte", "Rappel en extension (extension assist) trop fort", "Pied en flexion plantaire excessive"],
+        "socket_suspension": ["Suspension insuffisante (la prothèse glisse et s'allonge)", "Problème de bord d'emboîture"],
+        "alignment": ["Axe du genou (TKA) trop postérieur → genou trop stable, difficile à fléchir"],
+        "weakness_rom": ["Faiblesse des fléchisseurs de hanche", "Contracture en abduction"],
+        "habit_fear": ["Manque de confiance pour fléchir le genou prothétique", "Initiation de l'oscillation par tout le bassin"]
+      },
+      "suggestions_prosthetist": ["Vérifier longueur et suspension", "Réduire friction/rappel en extension du genou", "Revoir l'axe du genou"],
+      "exercises": ["Entraînement à la flexion du genou prothétique en pré-oscillation", "Renforcement des fléchisseurs de hanche"],
+      "assistiveDevice": null,
+      "confidence": "medium",
+      "refs": ["physiopedia_amputee_gait", "burris_prosthetic_gait"]
+    },
+    {
+      "id": "prosthetic_vaulting",
+      "name_fr": "Vaulting (élévation sur la pointe du membre sain)", "name_en": "Vaulting",
+      "levels": ["transfemoral", "transtibial"],
+      "criteria": [{"metric": "sound_side_heel_rise_timing", "phase": "MSt (membre sain)", "view": "lateral (côté sain)", "threshold": "Décollement du talon sain avant 31 % de son cycle pendant l'oscillation prothétique", "thresholdType": "proposed_heuristic"}],
+      "causes": {
+        "length": ["Prothèse trop longue (anatomique ou fonctionnelle)"],
+        "components": ["Résistance à la flexion du genou trop élevée"],
+        "socket_suspension": ["Suspension lâche : la prothèse descend en oscillation (allongement fonctionnel)"],
+        "weakness_rom": ["Faiblesse des fléchisseurs de hanche du côté amputé"],
+        "habit_fear": ["Habitude, peur d'accrocher l'orteil"]
+      },
+      "suggestions_prosthetist": ["Mesurer la longueur (bassin horizontal en appui bipodal)", "Vérifier la suspension", "Réduire la résistance du genou"],
+      "exercises": ["Entraînement à l'initiation de l'oscillation par les fléchisseurs de hanche", "Rétroaction vidéo"],
+      "assistiveDevice": null,
+      "confidence": "medium",
+      "refs": ["physiopedia_amputee_gait", "burris_prosthetic_gait"]
+    },
+    {
+      "id": "prosthetic_hip_hiking",
+      "name_fr": "Élévation du bassin (hip hiking) côté prothétique", "name_en": "Hip hiking",
+      "levels": ["transfemoral", "transtibial"],
+      "criteria": [{"metric": "pelvic_obliquity", "phase": "MSw (prothèse)", "view": "frontal|posterior", "threshold": "Hémibassin prothétique plus haut que le sain en oscillation, > 3°", "thresholdType": "proposed_heuristic"}],
+      "causes": {
+        "length": ["Prothèse trop longue"],
+        "components": ["Genou trop résistant à la flexion"],
+        "socket_suspension": ["Suspension insuffisante"],
+        "weakness_rom": ["Faiblesse des fléchisseurs de hanche"],
+        "habit_fear": ["Habitude"]
+      },
+      "suggestions_prosthetist": ["Mêmes vérifications que pour le vaulting et la circumduction"],
+      "exercises": ["Renforcement des fléchisseurs de hanche, contrôle du bassin"],
+      "assistiveDevice": null,
+      "confidence": "low",
+      "notes": "Les sources secondaires consultées ne décrivent pas le hip hiking séparément ; causes extrapolées des déviations « membre long » (circumduction, vaulting). À confirmer dans smith2004/esquenazi2014.",
+      "refs": ["burris_prosthetic_gait", "kerrigan2000"]
+    },
+    {
+      "id": "lateral_trunk_bending",
+      "name_fr": "Inclinaison latérale du tronc vers la prothèse", "name_en": "Lateral trunk bending",
+      "levels": ["transfemoral", "transtibial"],
+      "criteria": [{"metric": "trunk_lateral_lean_toward_prosthesis", "phase": "MSt (prothèse)", "view": "frontal|posterior", "threshold": "Inclinaison vers le côté prothétique en appui > inclinaison vers le côté sain + 5°", "thresholdType": "proposed_heuristic"}],
+      "causes": {
+        "length": ["Prothèse trop courte"],
+        "socket_suspension": ["Contention latérale insuffisante / paroi latérale inefficace", "Bord médial trop haut", "Emboîture alignée en abduction (surtout moignon court)"],
+        "alignment": ["Pied trop en dehors (outset)"],
+        "weakness_rom": ["Faiblesse des abducteurs de hanche", "Contracture en abduction", "Moignon court"],
+        "pain": ["Douleur du moignon, de la branche pubienne ou du fémur distal latéral"],
+        "habit_fear": ["Équilibre insuffisant", "Habitude"]
+      },
+      "suggestions_prosthetist": ["Vérifier la longueur", "Contention latérale et adduction de l'emboîture (TF)", "Position du pied"],
+      "exercises": ["Renforcement des abducteurs de hanche (côté amputé)", "Équilibre unipodal sur la prothèse"],
+      "assistiveDevice": "Canne du côté sain si faiblesse importante des abducteurs",
+      "confidence": "medium",
+      "refs": ["physiopedia_amputee_gait", "burris_prosthetic_gait", "gailey2008"]
+    },
+    {
+      "id": "prosthetic_foot_slap",
+      "name_fr": "Claquement du pied prothétique", "name_en": "Foot slap",
+      "levels": ["transfemoral", "transtibial"],
+      "criteria": [{"metric": "time_heel_strike_to_foot_flat", "phase": "LR (prothèse)", "view": "lateral", "threshold": "Pied à plat atteint en < 50 % du temps du côté sain", "thresholdType": "proposed_heuristic"}],
+      "causes": {
+        "components": ["Résistance à la flexion plantaire trop faible (talon/butée trop mou)"],
+        "alignment": ["Dorsiflexion excessive du pied"],
+        "habit_fear": ["TF : le patient force le contact pour stabiliser le genou"]
+      },
+      "suggestions_prosthetist": ["Talon/butée de flexion plantaire plus ferme", "Revoir l'alignement du pied"],
+      "exercises": ["Contrôle de l'extension de hanche au contact initial (TF)"],
+      "assistiveDevice": null,
+      "confidence": "medium",
+      "refs": ["physiopedia_amputee_gait"]
+    },
+    {
+      "id": "terminal_swing_impact",
+      "name_fr": "Impact en fin d'oscillation", "name_en": "Excessive terminal swing impact",
+      "levels": ["transfemoral"],
+      "criteria": [{"metric": "knee_extension_angular_velocity", "phase": "TSw (prothèse)", "view": "lateral", "threshold": "Arrêt brutal de l'extension du genou prothétique (décélération > côté sain × 2) avant le contact", "thresholdType": "proposed_heuristic"}],
+      "causes": {
+        "components": ["Résistance à l'extension du genou insuffisante (friction faible)", "Rappel en extension trop fort", "Mauvais fonctionnement mécanique du genou"],
+        "habit_fear": ["Habitude de « claquer » le genou en extension pour s'assurer qu'il est verrouillé"]
+      },
+      "suggestions_prosthetist": ["Augmenter la résistance à l'extension / réduire le rappel", "Entretien du genou"],
+      "exercises": ["Entraînement du contrôle de la hanche en fin d'oscillation, confiance dans la stabilité du genou"],
+      "assistiveDevice": null,
+      "confidence": "medium",
+      "camera2dLimits": "Nécessite ≥ 60 images/s ; le bruit d'impact n'est pas capté.",
+      "refs": ["physiopedia_amputee_gait"]
+    },
+    {
+      "id": "medial_whip",
+      "name_fr": "Fouet médial (talon qui part en dedans)", "name_en": "Medial whip",
+      "levels": ["transfemoral"],
+      "criteria": [{"metric": "heel_mediolateral_displacement_at_toe_off", "phase": "PSw–ISw", "view": "posterior", "threshold": "Déplacement médial rapide du talon prothétique au décollement (estimation qualitative)", "thresholdType": "proposed_heuristic"}],
+      "causes": {
+        "alignment": ["Genou/axe/pied en rotation externe"],
+        "socket_suspension": ["Emboîture enfilée en rotation externe", "Emboîture lâche, suspension insuffisante"],
+        "habit_fear": ["Rotation externe active de la hanche au décollement"]
+      },
+      "suggestions_prosthetist": ["Vérifier l'alignement rotatoire du genou et l'enfilage", "Ajuster l'emboîture/la suspension"],
+      "exercises": ["Rééducation du contrôle rotatoire de la hanche"],
+      "assistiveDevice": null,
+      "confidence": "medium",
+      "camera2dLimits": "Mouvement rapide et rotatoire : 2D peu fiable ; estimation seulement en vue postérieure.",
+      "refs": ["burris_prosthetic_gait", "physiopedia_amputee_gait"]
+    },
+    {
+      "id": "lateral_whip",
+      "name_fr": "Fouet latéral (talon qui part en dehors)", "name_en": "Lateral whip",
+      "levels": ["transfemoral"],
+      "criteria": [{"metric": "heel_mediolateral_displacement_at_toe_off", "phase": "PSw–ISw", "view": "posterior", "threshold": "Déplacement latéral rapide du talon prothétique au décollement (estimation qualitative)", "thresholdType": "proposed_heuristic"}],
+      "causes": {
+        "alignment": ["Genou/axe/pied en rotation interne"],
+        "socket_suspension": ["Emboîture enfilée en rotation interne", "Emboîture lâche"],
+        "habit_fear": ["Rotation interne active de la hanche au décollement"]
+      },
+      "suggestions_prosthetist": ["Vérifier l'alignement rotatoire et l'enfilage"],
+      "exercises": ["Contrôle rotatoire de la hanche"],
+      "assistiveDevice": null,
+      "confidence": "medium",
+      "refs": ["burris_prosthetic_gait", "physiopedia_amputee_gait"]
+    },
+    {
+      "id": "uneven_heel_rise",
+      "name_fr": "Élévation inégale (excessive) du talon prothétique", "name_en": "Uneven / excessive heel rise",
+      "levels": ["transfemoral"],
+      "criteria": [{"metric": "peak_knee_flexion_swing", "phase": "ISw (prothèse)", "view": "lateral", "threshold": "Flexion maximale du genou prothétique > côté sain + 15° ou talon montant plus haut que le talon sain", "thresholdType": "proposed_heuristic"}],
+      "causes": {
+        "components": ["Résistance à la flexion du genou insuffisante", "Genou mal choisi"],
+        "habit_fear": ["Utilisation excessive des fléchisseurs de hanche qui « lance » le genou"]
+      },
+      "suggestions_prosthetist": ["Augmenter la friction/résistance en flexion ou changer de genou"],
+      "exercises": ["Dosage de l'effort des fléchisseurs de hanche"],
+      "assistiveDevice": null,
+      "confidence": "medium",
+      "refs": ["physiopedia_amputee_gait", "burris_prosthetic_gait"]
+    },
+    {
+      "id": "drop_off",
+      "name_fr": "Chute en fin d'appui (drop-off)", "name_en": "Drop-off (early knee flexion at end of stance)",
+      "levels": ["transtibial"],
+      "criteria": [{"metric": "heel_off_timing_and_knee_flexion", "phase": "TSt (prothèse)", "view": "lateral", "threshold": "Décollement du talon et flexion du genou précoces (< 40 % du cycle) avec chute du bassin/tronc vers l'avant", "thresholdType": "proposed_heuristic"}],
+      "causes": {
+        "alignment": ["Pied trop postérieur par rapport à l'emboîture", "Dorsiflexion excessive"],
+        "components": ["Levier d'avant-pied (keel/toe lever) trop court ou trop mou", "Talon de chaussure trop haut"],
+        "weakness_rom": ["Faiblesse des extenseurs de genou et de hanche"]
+      },
+      "suggestions_prosthetist": ["Avancer le pied / réduire la dorsiflexion", "Pied à levier plus long ou plus rigide", "Vérifier la chaussure"],
+      "exercises": ["Renforcement du quadriceps et des extenseurs de hanche"],
+      "assistiveDevice": null,
+      "confidence": "medium",
+      "refs": ["physiopedia_amputee_gait", "burris_prosthetic_gait"]
+    },
+    {
+      "id": "tt_knee_hyperextension",
+      "name_fr": "Absence de flexion / hyperextension du genou (TT)", "name_en": "Absent knee flexion / knee hyperextension in stance (TT)",
+      "levels": ["transtibial"],
+      "criteria": [{"metric": "knee_flexion_loading_response", "phase": "LR (prothèse)", "view": "lateral", "threshold": "Flexion du genou < 5° en réponse à la charge (norme ≈ 10–20°) ou extension au-delà de 0°", "thresholdType": "proposed_heuristic"}],
+      "causes": {
+        "alignment": ["Emboîture en extension ou trop postérieure", "Pied trop antérieur, flexion plantaire excessive"],
+        "components": ["Talon trop dur ; levier d'avant-pied trop long/rigide"],
+        "socket_suspension": ["Suspension défectueuse"],
+        "weakness_rom": ["Faiblesse du quadriceps, mauvais contrôle de la flexion"]
+      },
+      "suggestions_prosthetist": ["Revoir flexion/position de l'emboîture et du pied", "Talon plus souple"],
+      "exercises": ["Renforcement excentrique du quadriceps", "Contrôle de la flexion du genou en mise en charge"],
+      "assistiveDevice": null,
+      "confidence": "medium",
+      "refs": ["physiopedia_amputee_gait"]
+    },
+    {
+      "id": "knee_instability",
+      "name_fr": "Instabilité du genou (dérobement / flexion excessive)", "name_en": "Knee instability / excessive knee flexion",
+      "levels": ["transfemoral", "transtibial"],
+      "criteria": [
+        {"metric": "knee_flexion_loading_response", "phase": "LR–MSt (prothèse)", "view": "lateral", "threshold": "TT : flexion > 25° en réponse à la charge ; TF : flexion non contrôlée du genou prothétique en appui", "thresholdType": "proposed_heuristic"}
+      ],
+      "causes": {
+        "alignment": ["TF : genou trop antérieur (axe en avant de la ligne de charge)", "TT : emboîture trop fléchie/antérieure, dorsiflexion excessive"],
+        "components": ["Talon trop ferme ; amortissement de flexion insuffisant"],
+        "socket_suspension": ["TF : flexion initiale de l'emboîture insuffisante pour le flessum", "Suspension défectueuse"],
+        "weakness_rom": ["Faiblesse des extenseurs de hanche (TF) ou du quadriceps (TT)", "Flessum de hanche ou de genou"],
+        "habit_fear": ["Déconditionnement"]
+      },
+      "suggestions_prosthetist": ["Revoir l'alignement du genou/emboîture et la rigidité du talon"],
+      "exercises": ["Renforcement des extenseurs de hanche et du quadriceps", "Étirement des fléchisseurs de hanche"],
+      "assistiveDevice": "Aide bilatérale (déambulateur, 2 cannes) tant que le genou n'est pas sécuritaire",
+      "confidence": "medium",
+      "safety": "Risque de chute : prioritaire.",
+      "refs": ["physiopedia_amputee_gait", "burris_prosthetic_gait"]
+    },
+    {
+      "id": "tt_mediolateral_thrust",
+      "name_fr": "Poussée médiale ou latérale du genou (TT)", "name_en": "Medial/lateral knee thrust (TT)",
+      "levels": ["transtibial"],
+      "criteria": [{"metric": "knee_frontal_displacement", "phase": "MSt (prothèse)", "view": "frontal", "threshold": "Déplacement latéral (varus) ou médial (valgus) du genou en appui > côté sain + 5° (FPPA estimé)", "thresholdType": "proposed_heuristic"}],
+      "causes": {
+        "alignment": ["Poussée latérale : pied trop en dedans (inset)", "Poussée médiale : pied trop en dehors (outset)"],
+        "socket_suspension": ["Emboîture lâche (les deux)"],
+        "weakness_rom": ["Latérale : faiblesse du quadriceps ; médiale : faiblesse des abducteurs de hanche"]
+      },
+      "suggestions_prosthetist": ["Ajuster la position médio-latérale du pied ; vérifier l'ajustement de l'emboîture"],
+      "exercises": ["Renforcement du quadriceps et des abducteurs"],
+      "assistiveDevice": null,
+      "confidence": "low",
+      "camera2dLimits": "FPPA non validé à la marche.",
+      "refs": ["physiopedia_amputee_gait"]
+    },
+    {
+      "id": "lumbar_hyperlordosis",
+      "name_fr": "Hyperlordose lombaire compensatoire", "name_en": "Excessive lumbar lordosis",
+      "levels": ["transfemoral"],
+      "criteria": [{"metric": "trunk_pelvis_sagittal_angle", "phase": "MSt–TSt (prothèse)", "view": "lateral", "threshold": "Antéversion pelvienne / extension lombaire accrue en appui prothétique (estimation qualitative, norme non vérifiée)", "thresholdType": "proposed_heuristic"}],
+      "causes": {
+        "socket_suspension": ["Paroi postérieure mal formée ou douleur ischiatique → bascule antérieure du bassin", "Soutien antérieur insuffisant", "Flexion initiale de l'emboîture insuffisante"],
+        "weakness_rom": ["Flessum de hanche", "Faiblesse des extenseurs de hanche et des abdominaux"],
+        "habit_fear": ["Habitude"]
+      },
+      "suggestions_prosthetist": ["Augmenter la flexion initiale de l'emboîture ; revoir la paroi postérieure/le siège ischiatique"],
+      "exercises": ["Étirement des fléchisseurs de hanche", "Renforcement des extenseurs de hanche et du tronc", "Prévention de la lombalgie (fréquente chez l'amputé, gailey2008)"],
+      "assistiveDevice": null,
+      "confidence": "medium",
+      "refs": ["physiopedia_amputee_gait", "gailey2008"]
+    },
+    {
+      "id": "uneven_step_length_timing",
+      "name_fr": "Asymétrie de la longueur ou de la durée des pas", "name_en": "Uneven step length / timing",
+      "levels": ["transfemoral", "transtibial"],
+      "criteria": [
+        {"metric": "symmetry_index_step_length", "phase": "cycle", "view": "lateral", "threshold": "|prothèse − sain| / moyenne > 10 %", "thresholdType": "proposed_heuristic"},
+        {"metric": "symmetry_index_stance_time", "phase": "cycle", "view": "lateral", "threshold": "Appui prothétique plus court que l'appui sain de > 10 %", "thresholdType": "proposed_heuristic"}
+      ],
+      "causes": {
+        "socket_suspension": ["Emboîture douloureuse ou mal ajustée", "Flexion de l'emboîture insuffisante (pas prothétique long) ou excessive (pas prothétique court)"],
+        "components": ["Levier d'avant-pied court/mou (pas court) ou long/rigide (pas long)", "Genou instable"],
+        "weakness_rom": ["Flessum de hanche ou de genou", "Faiblesse de la hanche"],
+        "pain": ["Douleur du moignon → réduction de l'appui prothétique", "Douleur du membre sain"],
+        "habit_fear": ["Peur, mauvais équilibre"]
+      },
+      "suggestions_prosthetist": ["Vérifier ajustement, flexion de l'emboîture, choix du pied"],
+      "exercises": ["Entraînement à la marche symétrique (métronome)", "Transfert de poids sur la prothèse", "Étirement des fléchisseurs de hanche"],
+      "assistiveDevice": "Aide technique selon l'équilibre",
+      "confidence": "medium",
+      "camera2dLimits": "Paramètres temporels fiables en 2D ; filmer les deux côtés pour la longueur de pas.",
+      "refs": ["physiopedia_amputee_gait", "burris_prosthetic_gait", "stenum2021"]
+    },
+    {
+      "id": "foot_rotation",
+      "name_fr": "Rotation externe ou interne du pied prothétique", "name_en": "Prosthetic foot external/internal rotation",
+      "levels": ["transtibial", "transfemoral"],
+      "criteria": [{"metric": "foot_progression_angle", "phase": "stance", "view": "frontal", "threshold": "Angle de progression du pied prothétique différent du sain de > 10° (estimation)", "thresholdType": "proposed_heuristic"}],
+      "causes": {
+        "alignment": ["Pied monté en rotation"],
+        "components": ["Talon trop dur (rotation externe au contact)"],
+        "socket_suspension": ["Emboîture lâche"],
+        "weakness_rom": ["Faiblesse des extenseurs de hanche"],
+        "habit_fear": ["Volonté d'imiter l'orientation du pied sain"]
+      },
+      "suggestions_prosthetist": ["Corriger la rotation du pied ; talon plus souple"],
+      "exercises": ["Contrôle rotatoire de la hanche"],
+      "assistiveDevice": null,
+      "confidence": "low",
+      "camera2dLimits": "Angle de progression du pied peu fiable avec les repères MediaPipe.",
+      "refs": ["physiopedia_amputee_gait", "burris_prosthetic_gait"]
+    },
+    {
+      "id": "pistoning",
+      "name_fr": "Pistonnage", "name_en": "Pistoning",
+      "levels": ["transtibial", "transfemoral"],
+      "criteria": [{"metric": "socket_vertical_displacement", "phase": "swing vs stance", "view": "lateral", "threshold": "Non mesurable de façon fiable par caméra (mouvement interne à l'emboîture)", "thresholdType": "proposed_heuristic"}],
+      "causes": {"socket_suspension": ["Suspension insuffisante", "Emboîture trop grande (fonte du moignon)"]},
+      "suggestions_prosthetist": ["Revoir suspension, manchon, chaussettes"],
+      "exercises": [],
+      "assistiveDevice": null,
+      "confidence": "medium",
+      "measurableByCamera": false,
+      "refs": ["physiopedia_amputee_gait"]
+    }
+  ],
+  "lengthSigns": {
+    "tooLong": ["Lombalgie", "Sensation de marcher en montée", "Épaule qui monte/descend du côté prothétique", "Balancement des bras inégal", "TT : hésitation entre le mi-appui prothétique et le contact du pied sain", "Vaulting, circumduction, hip hiking"],
+    "tooShort": ["Lombalgie", "Sensation de « tomber dans un trou »", "Inclinaison latérale du tronc vers la prothèse", "Balancement des bras inégal"],
+    "refs": ["burris_prosthetic_gait"],
+    "confidence": "medium"
+  }
+}
