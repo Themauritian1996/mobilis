@@ -14,19 +14,44 @@ export interface Profile {
   [key: string]: unknown;
 }
 
+/** Exercice d'une séance enregistrée. */
+export interface SessionItem {
+  id: string;
+  partial?: boolean;
+  pain?: number | null;
+  note?: string;
+  [key: string]: unknown;
+}
+
 /** Séance enregistrée (v1.15). */
 export interface SessionRecord {
   id?: string;
   date?: number;
-  items?: { id: string; partial?: boolean; [key: string]: unknown }[];
+  manual?: boolean;
+  items?: SessionItem[];
   checkin?: unknown;
+  [key: string]: unknown;
+}
+
+/** Entrée du journal de douleur : un jour, une valeur. */
+export interface JournalEntry {
+  day: string;
+  pain: number;
+  ts?: number;
   [key: string]: unknown;
 }
 
 export interface AppData {
   profile?: Profile;
   sessions?: SessionRecord[];
+  journal?: JournalEntry[];
   [key: string]: unknown;
+}
+
+/** État de l'écran « Historique » (onglet courant, nombre de lignes supplémentaires). */
+export interface HistState {
+  tab: string;
+  more: number;
 }
 
 export interface AppState {
@@ -36,6 +61,9 @@ export interface AppState {
   lib: { region: string; q: string };
   cal: { month: number | null; sel: number | string | null };
   clinic: unknown;
+  /** Plage de dates choisie (écran Progrès / Historique) ; absente tant que l'utilisateur n'a rien choisi. */
+  range?: string | undefined;
+  hist?: HistState;
 }
 
 export const state: AppState = {
