@@ -97,6 +97,12 @@ export interface AppState {
   /** Plage de dates choisie (écran Progrès / Historique) ; absente tant que l'utilisateur n'a rien choisi. */
   range?: string | undefined;
   hist?: HistState;
+  /** Aperçu de séance : exercice dont l'éditeur est ouvert, panneau matériel ouvert. */
+  sessOpen?: string | null;
+  equipOpen?: boolean;
+  /** Séance refaite le même jour (exercice ou file d'exercices). */
+  redo?: boolean;
+  redoQueue?: string[];
 }
 
 export const state: AppState = {
