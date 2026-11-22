@@ -9,7 +9,6 @@
 import {
   evaluateFindings,
   pick,
-
   sideDelta,
   sideRatioPct,
   threshold,
@@ -73,7 +72,13 @@ const DEFS: readonly Def[] = [
         refs: ['hollman2011'],
         evaluate: (src, side) => {
           const m = src.get('step_width_mean');
-          if (m?.norm?.sd) return threshold(pick.global('step_width_mean'), 'above', m.norm.mean + 2 * m.norm.sd, m.norm.mean + 2.5 * m.norm.sd)(src, side);
+          if (m?.norm?.sd)
+            return threshold(
+              pick.global('step_width_mean'),
+              'above',
+              m.norm.mean + 2 * m.norm.sd,
+              m.norm.mean + 2.5 * m.norm.sd,
+            )(src, side);
           return threshold(pick.global('step_width_mean'), 'above', 0.15, 0.18)(src, side);
         },
       },
@@ -300,36 +305,40 @@ export function catalogLevel(level: AmputationLevel): 'transtibial' | 'transfemo
     : 'transtibial';
 }
 
-export const PROSTHETIC_DEVIATIONS: readonly (FindingDefinition & { levels: readonly string[]; safety: string | null })[] =
-  DEFS.map((d) => {
-    const j = PROSTHETIC_CATALOG.deviations.find((x) => x.id === d.id);
-    if (!j) throw new Error(`prosthetic-findings.json : déviation ${d.id} absente`);
-    const causes = Object.entries(j.causes).flatMap(([cat, list]) =>
-      list.map((c) => `${PROSTHETIC_CATALOG.causeCategories[cat] ?? cat} : ${c}`),
-    );
-    return {
-      id: d.id,
-      kind: 'prosthetic' as const,
-      name_fr: j.name_fr,
-      name_en: j.name_en,
-      criteria: d.criteria,
-      determinants: d.determinants,
-      causes,
-      differentials: [],
-      management: [
-        ...j.suggestions_prosthetist.map((s) => `À discuter avec le prothésiste : ${s}`),
-        ...j.exercises,
-        ...(j.assistiveDevice ? [`Aide technique : ${j.assistiveDevice}`] : []),
-      ],
-      refs: j.refs,
-      evidenceLevel: j.confidence,
-      camera2dLimits: j.camera2dLimits ?? (d.observeOnly ? 'Non mesurable de façon fiable par une caméra 2D : à observer cliniquement.' : null),
-      audience: 'clinician' as const,
-      levels: j.levels,
-      safety: j.safety ?? null,
-      ...(d.observeOnly ? { observeOnly: true } : {}),
-    };
-  });
+export const PROSTHETIC_DEVIATIONS: readonly (FindingDefinition & {
+  levels: readonly string[];
+  safety: string | null;
+})[] = DEFS.map((d) => {
+  const j = PROSTHETIC_CATALOG.deviations.find((x) => x.id === d.id);
+  if (!j) throw new Error(`prosthetic-findings.json : déviation ${d.id} absente`);
+  const causes = Object.entries(j.causes).flatMap(([cat, list]) =>
+    list.map((c) => `${PROSTHETIC_CATALOG.causeCategories[cat] ?? cat} : ${c}`),
+  );
+  return {
+    id: d.id,
+    kind: 'prosthetic' as const,
+    name_fr: j.name_fr,
+    name_en: j.name_en,
+    criteria: d.criteria,
+    determinants: d.determinants,
+    causes,
+    differentials: [],
+    management: [
+      ...j.suggestions_prosthetist.map((s) => `À discuter avec le prothésiste : ${s}`),
+      ...j.exercises,
+      ...(j.assistiveDevice ? [`Aide technique : ${j.assistiveDevice}`] : []),
+    ],
+    refs: j.refs,
+    evidenceLevel: j.confidence,
+    camera2dLimits:
+      j.camera2dLimits ??
+      (d.observeOnly ? 'Non mesurable de façon fiable par une caméra 2D : à observer cliniquement.' : null),
+    audience: 'clinician' as const,
+    levels: j.levels,
+    safety: j.safety ?? null,
+    ...(d.observeOnly ? { observeOnly: true } : {}),
+  };
+});
 
 export interface ProstheticAssessment {
   readonly prosthesis: ProsthesisInput;
@@ -374,4 +383,3 @@ export function assessProstheticGait(
     requiresClinicianValidation: true,
   };
 }
-

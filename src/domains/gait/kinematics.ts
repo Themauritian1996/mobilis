@@ -19,7 +19,10 @@ import { mid, pt, type Track } from './preprocess.ts';
 import { angle3, mean, RAD2DEG } from './signal.ts';
 import type { Side } from './types.ts';
 
-type P = { x: number; y: number };
+interface P {
+  x: number;
+  y: number;
+}
 
 /** Angle (°) d'un vecteur a→b par rapport à la verticale descendante, positif vers l'avant (sens de marche d). */
 function fromVertical(a: P, b: P, d: number): number {

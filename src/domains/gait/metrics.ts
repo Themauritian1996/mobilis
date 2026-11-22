@@ -35,11 +35,20 @@ export interface MetricContext {
   readonly sagittal?: { L: SagittalAngles; R: SagittalAngles };
   readonly frontal?: FrontalAngles;
   /** Obliquité pelvienne et tronc en station debout (offsets frontaux). */
-  readonly frontalOffsets?: { obliquity: number; trunk: number; fppa: { L: number; R: number }; heel: { L: number; R: number } };
+  readonly frontalOffsets?: {
+    obliquity: number;
+    trunk: number;
+    fppa: { L: number; R: number };
+    heel: { L: number; R: number };
+  };
 }
 
 /** Comparaison à la norme : z si l'ET est publiée, sinon % de la moyenne. */
-export function compareToNorm(metricId: string, value: number | null, patient: GaitPatientInput): NormComparison | undefined {
+export function compareToNorm(
+  metricId: string,
+  value: number | null,
+  patient: GaitPatientInput,
+): NormComparison | undefined {
   if (value === null || !Number.isFinite(value)) return undefined;
   const n = normFor(metricId, patient);
   if (!n) return undefined;
@@ -148,7 +157,15 @@ export function spatiotemporal(ctx: MetricContext): GaitMetric[] {
     out.push(metric(ctx, 'stride_time', strideT, 's', { side, conf: tempConf, estimate: !sag }));
     const stance = cyc.map((c) => c.stancePct ?? NaN);
     out.push(metric(ctx, 'stance_pct', stance, '%', { side, conf: tempConf, estimate: !sag }));
-    out.push(metric(ctx, 'swing_pct', stance.map((s) => 100 - s), '%', { side, conf: tempConf, estimate: !sag }));
+    out.push(
+      metric(
+        ctx,
+        'swing_pct',
+        stance.map((s) => 100 - s),
+        '%',
+        { side, conf: tempConf, estimate: !sag },
+      ),
+    );
     const pct = (c: GaitCycle, f: number | null): number =>
       f === null ? NaN : ((track.t[f]! - c.startT) / (c.endT - c.startT)) * 100;
     out.push(
@@ -246,7 +263,9 @@ export function spatiotemporal(ctx: MetricContext): GaitMetric[] {
   if (sag) {
     const speeds = valid(ctx).map((c) => {
       const k1 = idx(c.side, 'heel');
-      return (d * (track.X[k1]![c.endFrame]! - track.X[k1]![c.startFrame]!) * scaleAt(c.startFrame)) / (c.endT - c.startT);
+      return (
+        (d * (track.X[k1]![c.endFrame]! - track.X[k1]![c.startFrame]!) * scaleAt(c.startFrame)) / (c.endT - c.startT)
+      );
     });
     out.push(
       metric(ctx, 'gait_speed', speeds, 'm/s', {
@@ -304,23 +323,55 @@ export function sagittalMetrics(ctx: MetricContext): GaitMetric[] {
       out.push(metric(ctx, id, vals, unit, { side, ...(normId ? { normId } : {}) }));
     };
     // Cheville.
-    add('ankle_ic', per('ankle', (cv) => at(cv, 0)));
-    add('ankle_lr_min', per('ankle', (cv, c) => minOf(slice(cv, 0, ph(c, 'LR').endPct + 2))));
-    add('ankle_msw', per('ankle', (cv, c) => mean(slice(cv, ph(c, 'MSw').startPct, ph(c, 'MSw').endPct))));
-    add('peak_ankle_dorsiflexion_stance', per('ankle', (cv, c) => maxOf(slice(cv, 0, to(c)))));
-    add('ankle_mst', per('ankle', (cv, c) => mean(slice(cv, ph(c, 'MSt').startPct, ph(c, 'MSt').endPct))));
-    add('ankle_pf_preswing', per('ankle', (cv, c) => minOf(slice(cv, ph(c, 'PSw').startPct, ph(c, 'ISw').endPct))));
+    add(
+      'ankle_ic',
+      per('ankle', (cv) => at(cv, 0)),
+    );
+    add(
+      'ankle_lr_min',
+      per('ankle', (cv, c) => minOf(slice(cv, 0, ph(c, 'LR').endPct + 2))),
+    );
+    add(
+      'ankle_msw',
+      per('ankle', (cv, c) => mean(slice(cv, ph(c, 'MSw').startPct, ph(c, 'MSw').endPct))),
+    );
+    add(
+      'peak_ankle_dorsiflexion_stance',
+      per('ankle', (cv, c) => maxOf(slice(cv, 0, to(c)))),
+    );
+    add(
+      'ankle_mst',
+      per('ankle', (cv, c) => mean(slice(cv, ph(c, 'MSt').startPct, ph(c, 'MSt').endPct))),
+    );
+    add(
+      'ankle_pf_preswing',
+      per('ankle', (cv, c) => minOf(slice(cv, ph(c, 'PSw').startPct, ph(c, 'ISw').endPct))),
+    );
     // Genou.
-    add('knee_ic', per('knee', (cv) => at(cv, 0)));
+    add(
+      'knee_ic',
+      per('knee', (cv) => at(cv, 0)),
+    );
     add(
       'knee_flexion_loading',
       per('knee', (cv, c) => maxOf(slice(cv, 0, ph(c, 'MSt').endPct))),
       '°',
       'knee_flexion_loading',
     );
-    add('knee_min_stance', per('knee', (cv, c) => minOf(slice(cv, ph(c, 'LR').endPct, ph(c, 'TSt').endPct))));
-    add('knee_at_toe_off', per('knee', (cv, c) => at(cv, to(c))));
-    add('peak_knee_flexion_swing', per('knee', (cv, c) => maxOf(slice(cv, to(c) - 5, 100))), '°', 'peak_knee_flexion_swing');
+    add(
+      'knee_min_stance',
+      per('knee', (cv, c) => minOf(slice(cv, ph(c, 'LR').endPct, ph(c, 'TSt').endPct))),
+    );
+    add(
+      'knee_at_toe_off',
+      per('knee', (cv, c) => at(cv, to(c))),
+    );
+    add(
+      'peak_knee_flexion_swing',
+      per('knee', (cv, c) => maxOf(slice(cv, to(c) - 5, 100))),
+      '°',
+      'peak_knee_flexion_swing',
+    );
     add(
       'time_to_peak_knee_flexion',
       per('knee', (cv, c) => {
@@ -330,11 +381,28 @@ export function sagittalMetrics(ctx: MetricContext): GaitMetric[] {
       '%',
     );
     // Hanche.
-    add('hip_ic', per('hip', (cv) => at(cv, 0)));
-    add('peak_hip_extension', per('hip', (cv, c) => minOf(slice(cv, 0, to(c)))));
-    add('peak_hip_flexion_swing', per('hip', (cv, c) => maxOf(slice(cv, to(c), 100))));
-    add('hip_rom', per('hip', (cv) => maxOf(cv) - minOf(cv)), '°', 'hip_rom');
-    add('trunk_inclination', per('trunk', (cv) => mean(cv)));
+    add(
+      'hip_ic',
+      per('hip', (cv) => at(cv, 0)),
+    );
+    add(
+      'peak_hip_extension',
+      per('hip', (cv, c) => minOf(slice(cv, 0, to(c)))),
+    );
+    add(
+      'peak_hip_flexion_swing',
+      per('hip', (cv, c) => maxOf(slice(cv, to(c), 100))),
+    );
+    add(
+      'hip_rom',
+      per('hip', (cv) => maxOf(cv) - minOf(cv)),
+      '°',
+      'hip_rom',
+    );
+    add(
+      'trunk_inclination',
+      per('trunk', (cv) => mean(cv)),
+    );
 
     // Décollement du talon (% du cycle) : talon > 2 % de la taille au-dessus de son niveau d'appui.
     const hk = idx(side, 'heel');
@@ -475,7 +543,15 @@ export function frontalMetrics(ctx: MetricContext): GaitMetric[] {
     const em = meanCurve('x', side, 'm', exc).mean;
     let kb = Math.round(iswS);
     for (let k = Math.round(iswS); k <= Math.round(tswS); k++) if (em[k]! > em[kb]!) kb = k;
-    out.push(metric(ctx, 'foot_lateral_excursion_swing', exc.map((c) => c[kb]!), 'm', { side, ...est }));
+    out.push(
+      metric(
+        ctx,
+        'foot_lateral_excursion_swing',
+        exc.map((c) => c[kb]!),
+        'm',
+        { side, ...est },
+      ),
+    );
     out.push(
       metric(
         ctx,
@@ -487,7 +563,8 @@ export function frontalMetrics(ctx: MetricContext): GaitMetric[] {
     );
   }
   const sw = out.filter((m) => m.id === 'step_width' && m.value !== null).map((m) => m.value!);
-  if (sw.length) out.push(metric(ctx, 'step_width_mean', [mean(sw)], 'm', { estimate: true, normId: 'step_width', conf: 0.8 }));
+  if (sw.length)
+    out.push(metric(ctx, 'step_width_mean', [mean(sw)], 'm', { estimate: true, normId: 'step_width', conf: 0.8 }));
   // Déplacement latéral du bassin (crête à crête par foulée, m), après retrait de la dérive linéaire.
   const pel = valid(ctx, 'L').map((c) => {
     const vals: number[] = [];

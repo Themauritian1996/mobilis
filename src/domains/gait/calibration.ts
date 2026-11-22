@@ -160,9 +160,7 @@ export function estimateScale(
     PROPORTION_UNCERTAINTY.value ** 2 + cv ** 2 + (methodGap / 2) ** 2 + (objectDiscrepancy / 2) ** 2,
   );
   if (methodGap > 0.08)
-    notes.push(
-      `Désaccord de ${(methodGap * 100).toFixed(0)} % entre la hauteur du corps et la longueur des segments.`,
-    );
+    notes.push(`Désaccord de ${(methodGap * 100).toFixed(0)} % entre la hauteur du corps et la longueur des segments.`);
   if (view === 'frontal' || view === 'posterior')
     notes.push('Vue frontale/postérieure : échelle variable avec la distance (corrigée par la longueur du tronc).');
   const confidence = Math.max(0, Math.min(1, 1 - relativeUncertainty * 5));

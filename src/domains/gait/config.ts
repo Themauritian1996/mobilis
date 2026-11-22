@@ -22,7 +22,12 @@ export interface GaitConfig {
    * Largeur de la bande « doute » des critères angulaires sans bande explicite : erreur absolue moyenne 2D
    * (Stenum 2021 : hanche 4,0°, genou 5,6°, cheville 7,4°).
    */
-  readonly doubtBandDeg: { readonly hip: number; readonly knee: number; readonly ankle: number; readonly frontal: number };
+  readonly doubtBandDeg: {
+    readonly hip: number;
+    readonly knee: number;
+    readonly ankle: number;
+    readonly frontal: number;
+  };
 }
 
 export const DEFAULT_GAIT_CONFIG: GaitConfig = Object.freeze({

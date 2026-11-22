@@ -37,23 +37,10 @@ export type GaitView = 'sagittal-left' | 'sagittal-right' | 'frontal' | 'posteri
 export type Side = 'L' | 'R';
 
 export type AssistiveDevice =
-  | 'none'
-  | 'cane'
-  | 'quad_cane'
-  | 'axillary_crutches'
-  | 'forearm_crutches'
-  | 'walker'
-  | 'rollator'
-  | 'other';
+  'none' | 'cane' | 'quad_cane' | 'axillary_crutches' | 'forearm_crutches' | 'walker' | 'rollator' | 'other';
 
 export type AmputationLevel =
-  | 'transtibial'
-  | 'transfemoral'
-  | 'knee_disarticulation'
-  | 'syme'
-  | 'chopart'
-  | 'partial_foot'
-  | 'hip_disarticulation';
+  'transtibial' | 'transfemoral' | 'knee_disarticulation' | 'syme' | 'chopart' | 'partial_foot' | 'hip_disarticulation';
 
 export interface ProsthesisInput {
   readonly level: AmputationLevel;

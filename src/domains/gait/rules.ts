@@ -117,7 +117,10 @@ export interface FindingDefinition {
 // ------------------------------------------------------------------------------------------------ Sources
 
 /** Fusionne les métriques de plusieurs analyses : pour chaque (id, côté), la plus confiante. */
-export function metricSource(analyses: readonly GaitAnalysis[], config: GaitConfig = DEFAULT_GAIT_CONFIG): MetricSource {
+export function metricSource(
+  analyses: readonly GaitAnalysis[],
+  config: GaitConfig = DEFAULT_GAIT_CONFIG,
+): MetricSource {
   const best = new Map<string, GaitMetric>();
   for (const a of analyses)
     for (const m of a.metrics) {
@@ -207,7 +210,13 @@ export function sideDelta(
 }
 
 /** Critère relatif (%) : (côté − autre) / autre × 100. */
-export function sideRatioPct(id: string, direction: 'below' | 'above', anomaly: number, confident: number, swap = false): CriterionSpec['evaluate'] {
+export function sideRatioPct(
+  id: string,
+  direction: 'below' | 'above',
+  anomaly: number,
+  confident: number,
+  swap = false,
+): CriterionSpec['evaluate'] {
   return (src, side) => {
     const s1 = swap ? OTHER_SIDE[side] : side;
     const a = src.get(id, s1);
@@ -228,7 +237,11 @@ export function sideRatioPct(id: string, direction: 'below' | 'above', anomaly: 
 }
 
 /** Critère sur le score z de la norme (anomalie à ± zThreshold, « confiant » au-delà de la bande de doute). */
-export function normZ(getter: Getter, direction: 'below' | 'above', doubtBand: (cfg: GaitConfig) => number): CriterionSpec['evaluate'] {
+export function normZ(
+  getter: Getter,
+  direction: 'below' | 'above',
+  doubtBand: (cfg: GaitConfig) => number,
+): CriterionSpec['evaluate'] {
   return (src, side) => {
     const m = getter(src, side);
     if (!m || m.value === null || !m.norm || m.norm.sd === null) return null;

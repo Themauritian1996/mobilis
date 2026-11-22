@@ -5,9 +5,24 @@
 import { estimateScale } from './calibration.ts';
 import { normalizeCycle, segmentCycles } from './cycles.ts';
 import { detectEvents, isSagittal } from './events.ts';
-import { applyOffsets, leftSign, offsetsFrom, rawFrontal, rawSagittal, type FrontalAngles, type SagittalAngles } from './kinematics.ts';
+import {
+  applyOffsets,
+  leftSign,
+  offsetsFrom,
+  rawFrontal,
+  rawSagittal,
+  type FrontalAngles,
+  type SagittalAngles,
+} from './kinematics.ts';
 import { LM } from './landmarks.ts';
-import { frontalMetrics, meanCurve, sagittalCurves, sagittalMetrics, spatiotemporal, type MetricContext } from './metrics.ts';
+import {
+  frontalMetrics,
+  meanCurve,
+  sagittalCurves,
+  sagittalMetrics,
+  spatiotemporal,
+  type MetricContext,
+} from './metrics.ts';
 import { buildTrack, DEFAULTS, qualityReport, type Track } from './preprocess.ts';
 import { angle3, mean, sd } from './signal.ts';
 import type { GaitAnalysis, GaitCycle, GaitMetric, GaitRecordingInput, PerryPhaseId, Side } from './types.ts';
@@ -109,7 +124,8 @@ function pelvicRotation(p: PreparedRecording): GaitMetric {
     ...(vals.length > 1 ? { sd: sd(vals) } : {}),
     n: vals.length,
     confidence: 0.15,
-    warning: 'Profondeur (z) MediaPipe peu fiable : amplitude de rotation pelvienne ± (demi crête à crête), estimation.',
+    warning:
+      'Profondeur (z) MediaPipe peu fiable : amplitude de rotation pelvienne ± (demi crête à crête), estimation.',
   };
 }
 
@@ -118,12 +134,18 @@ export function analyzeGait(input: GaitRecordingInput): GaitAnalysis {
   const p = prepareRecording(input);
   const { ctx, track } = p;
   const quality = qualityReport(track);
-  const metrics: GaitMetric[] = [...spatiotemporal(ctx), ...sagittalMetrics(ctx), ...frontalMetrics(ctx), pelvicRotation(p)];
+  const metrics: GaitMetric[] = [
+    ...spatiotemporal(ctx),
+    ...sagittalMetrics(ctx),
+    ...frontalMetrics(ctx),
+    pelvicRotation(p),
+  ];
   const curves = sagittalCurves(ctx);
   const warnings = [...quality.warnings, ...ctx.scale.notes];
   for (const s of ['L', 'R'] as const) {
     const n = ctx.cycles.filter((c) => c.side === s && !c.rejected).length;
-    if (n < 3) warnings.push(`Côté ${s} : ${n} cycle(s) valide(s) ; ≥ 3 recommandés (findings.json > thresholdPolicy).`);
+    if (n < 3)
+      warnings.push(`Côté ${s} : ${n} cycle(s) valide(s) ; ≥ 3 recommandés (findings.json > thresholdPolicy).`);
   }
   if (!isSagittal(input.view))
     warnings.push('Vue frontale/postérieure : événements et mesures = estimations (aucune validation 2D publiée).');

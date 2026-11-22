@@ -6,14 +6,14 @@
 import { DEFAULT_GAIT_CONFIG, type GaitConfig } from './config.ts';
 import { GAIT_FINDINGS } from './data/findings.ts';
 import { restorationGoals } from './determinant-ids.ts';
-import { evaluateDeterminants, evaluateJointPhases, type DeterminantResult, type HealthStatus, type JointPhaseResult } from './determinants.ts';
 import {
-  enoughCycles,
-  evaluateFinding,
-  metricSource,
-  type FindingDefinition,
-  type FindingResult,
-} from './rules.ts';
+  evaluateDeterminants,
+  evaluateJointPhases,
+  type DeterminantResult,
+  type HealthStatus,
+  type JointPhaseResult,
+} from './determinants.ts';
+import { enoughCycles, evaluateFinding, metricSource, type FindingDefinition, type FindingResult } from './rules.ts';
 import type { GaitAnalysis, GaitMetric, Side } from './types.ts';
 
 /** Évalue un catalogue de défauts sur les analyses (toutes vues fusionnées). */
@@ -29,7 +29,9 @@ export function evaluateFindings(
     const ss: readonly Side[] = def.global ? ['L'] : sides;
     for (const side of ss) {
       const r = evaluateFinding(def, src, side, restorationGoals);
-      const ok = def.global ? enoughCycles(analyses, 'L', config) || enoughCycles(analyses, 'R', config) : enoughCycles(analyses, side, config);
+      const ok = def.global
+        ? enoughCycles(analyses, 'L', config) || enoughCycles(analyses, 'R', config)
+        : enoughCycles(analyses, side, config);
       out.push(!ok && r.status !== 'observe' && r.status !== 'absent' ? { ...r, status: 'insufficient_data' } : r);
     }
   }
@@ -68,11 +70,16 @@ export function flagLimitingFactors(
       for (const i of d.indicators) if (i.status === 'affected') limiting.add(key(i.metric, i.side));
   return analyses.map((a) => ({
     ...a,
-    metrics: a.metrics.map((m): GaitMetric => (m.estimate ? { ...m, limitingFactor: limiting.has(key(m.id, m.side)) } : m)),
+    metrics: a.metrics.map((m): GaitMetric =>
+      m.estimate ? { ...m, limitingFactor: limiting.has(key(m.id, m.side)) } : m,
+    ),
   }));
 }
 
-export function assessGait(analyses: readonly GaitAnalysis[], config: GaitConfig = DEFAULT_GAIT_CONFIG): GaitAssessment {
+export function assessGait(
+  analyses: readonly GaitAnalysis[],
+  config: GaitConfig = DEFAULT_GAIT_CONFIG,
+): GaitAssessment {
   const findings = evaluateFindings(GAIT_FINDINGS, analyses, config);
   const determinants = evaluateDeterminants(analyses, findings, config);
   return {
@@ -125,10 +132,13 @@ export interface GaitComparison {
  */
 export function measurementError(m: GaitMetric): { value: number; source: string } | null {
   const id = m.id;
-  if (id === 'gait_speed') return { value: 0.1, source: 'stenum2021 (< 0,10 m/s) ≥ MDC 0,08 m/s (perera2006, to_verify)' };
-  if (id === 'step_length' || id === 'stride_length') return { value: 0.018, source: 'stenum2021 (moyenne par participant)' };
+  if (id === 'gait_speed')
+    return { value: 0.1, source: 'stenum2021 (< 0,10 m/s) ≥ MDC 0,08 m/s (perera2006, to_verify)' };
+  if (id === 'step_length' || id === 'stride_length')
+    return { value: 0.018, source: 'stenum2021 (moyenne par participant)' };
   if (id.endsWith('_time')) return { value: 0.01, source: 'stenum2021' };
-  if (id.endsWith('_pct') && !id.startsWith('heel') && !id.startsWith('foot')) return { value: 2, source: 'stenum2021 (0,02 s ≈ 2 % du cycle)' };
+  if (id.endsWith('_pct') && !id.startsWith('heel') && !id.startsWith('foot'))
+    return { value: 2, source: 'stenum2021 (0,02 s ≈ 2 % du cycle)' };
   if (id === 'cadence') return { value: 2, source: 'stenum2021 (0,01 s par foulée ≈ 1–2 pas/min)' };
   if (m.unit === '°') {
     if (m.estimate) return { value: 3, source: 'proposition (mesure frontale non validée)' };

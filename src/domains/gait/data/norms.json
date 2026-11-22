@@ -10,206 +10,642 @@
     "derivedValues": "Les valeurs marquées derived=true sont des conversions arithmétiques faites ici (ex. pas/s × 60), pas des valeurs publiées."
   },
   "camera2dAccuracy": [
-    {"id": "acc_stenum2021", "system": "OpenPose, une caméra sagittale, adultes sains, marche au sol", "metrics": {"temporal_mae_s_per_step": 0.02, "temporal_mae_s_participant_mean": 0.01, "step_length_mae_m_per_step": 0.049, "step_length_mae_m_participant_mean": 0.018, "gait_speed_max_diff_m_s": "< 0.10", "hip_sagittal_mae_deg": 4.0, "knee_sagittal_mae_deg": 5.6, "ankle_sagittal_mae_deg": 7.4}, "ref": "stenum2021", "confidence": "high", "notes": "Référence 3D (capture optoélectronique). Population saine : erreurs probablement plus grandes chez les patients (aides techniques, prothèses, vêtements amples)."},
-    {"id": "acc_hii2023", "system": "MediaPipe Pose, une caméra sagittale droite, 25 images/s, 31 adultes sains", "metrics": {"event_timing_mae_ms": "20–30", "temporal_parameters_mae_ms_all_cycles": "30–50", "double_support_icc": "0,51–0,62 (modéré)", "swing_time_right_icc": 0.469}, "ref": "hii2023", "confidence": "high", "notes": "À 25 i/s, le double appui (~0,2 s) est mal mesuré ; inversions gauche/droite observées. Recommandation : ≥ 30 i/s, idéalement 60 i/s."},
-    {"id": "acc_menychtas2023", "system": "MediaPipe vs OpenPose vs marquage manuel vs 3D, vue sagittale, 17 adultes", "metrics": {"summary": "MediaPipe le moins précis : cheville « complètement mal identifiée », hanche médiocre ; genou acceptable en flexion mais erreurs en appui dues aux inversions G/D."}, "ref": "menychtas2023", "confidence": "medium", "notes": "Petit échantillon, un cycle par sujet, chiffres d'erreur non disponibles dans le texte consulté."},
-    {"id": "acc_washabaugh2022", "system": "Comparaison de plusieurs modèles open source de pose estimation pour la cinématique de la marche", "metrics": null, "ref": "washabaugh2022", "confidence": "low", "status": "to_verify", "notes": "Résultats chiffrés non extraits."},
-    {"id": "acc_frontal_plane", "system": "Vues frontale/postérieure (valgus/varus, chute pelvienne, inclinaison du tronc, largeur de base)", "metrics": null, "ref": null, "confidence": "low", "status": "to_verify", "notes": "Aucune étude de validation retrouvée pendant cette recherche pour ces mesures pendant la marche avec une seule caméra (Hii 2023 a choisi la vue sagittale parce qu'elle est moins sensible à l'angle de la caméra). Afficher ces mesures comme « estimation »."},
-    {"id": "acc_known_limits", "system": "Limites générales 2D", "metrics": null, "ref": "stenum2021", "confidence": "medium", "notes": "Erreurs de parallaxe/perspective si la caméra n'est pas perpendiculaire au plan de marche ; rotations hors plan (rotation de hanche, pied en rotation externe) projetées comme flexion/valgus ; repère de la hanche imprécis ; cheville et pied les moins fiables ; occlusion du membre controlatéral en vue latérale ; aides techniques et prothèses pouvant tromper le modèle de pose."}
+    {
+      "id": "acc_stenum2021",
+      "system": "OpenPose, une caméra sagittale, adultes sains, marche au sol",
+      "metrics": {
+        "temporal_mae_s_per_step": 0.02,
+        "temporal_mae_s_participant_mean": 0.01,
+        "step_length_mae_m_per_step": 0.049,
+        "step_length_mae_m_participant_mean": 0.018,
+        "gait_speed_max_diff_m_s": "< 0.10",
+        "hip_sagittal_mae_deg": 4.0,
+        "knee_sagittal_mae_deg": 5.6,
+        "ankle_sagittal_mae_deg": 7.4
+      },
+      "ref": "stenum2021",
+      "confidence": "high",
+      "notes": "Référence 3D (capture optoélectronique). Population saine : erreurs probablement plus grandes chez les patients (aides techniques, prothèses, vêtements amples)."
+    },
+    {
+      "id": "acc_hii2023",
+      "system": "MediaPipe Pose, une caméra sagittale droite, 25 images/s, 31 adultes sains",
+      "metrics": {
+        "event_timing_mae_ms": "20–30",
+        "temporal_parameters_mae_ms_all_cycles": "30–50",
+        "double_support_icc": "0,51–0,62 (modéré)",
+        "swing_time_right_icc": 0.469
+      },
+      "ref": "hii2023",
+      "confidence": "high",
+      "notes": "À 25 i/s, le double appui (~0,2 s) est mal mesuré ; inversions gauche/droite observées. Recommandation : ≥ 30 i/s, idéalement 60 i/s."
+    },
+    {
+      "id": "acc_menychtas2023",
+      "system": "MediaPipe vs OpenPose vs marquage manuel vs 3D, vue sagittale, 17 adultes",
+      "metrics": {
+        "summary": "MediaPipe le moins précis : cheville « complètement mal identifiée », hanche médiocre ; genou acceptable en flexion mais erreurs en appui dues aux inversions G/D."
+      },
+      "ref": "menychtas2023",
+      "confidence": "medium",
+      "notes": "Petit échantillon, un cycle par sujet, chiffres d'erreur non disponibles dans le texte consulté."
+    },
+    {
+      "id": "acc_washabaugh2022",
+      "system": "Comparaison de plusieurs modèles open source de pose estimation pour la cinématique de la marche",
+      "metrics": null,
+      "ref": "washabaugh2022",
+      "confidence": "low",
+      "status": "to_verify",
+      "notes": "Résultats chiffrés non extraits."
+    },
+    {
+      "id": "acc_frontal_plane",
+      "system": "Vues frontale/postérieure (valgus/varus, chute pelvienne, inclinaison du tronc, largeur de base)",
+      "metrics": null,
+      "ref": null,
+      "confidence": "low",
+      "status": "to_verify",
+      "notes": "Aucune étude de validation retrouvée pendant cette recherche pour ces mesures pendant la marche avec une seule caméra (Hii 2023 a choisi la vue sagittale parce qu'elle est moins sensible à l'angle de la caméra). Afficher ces mesures comme « estimation »."
+    },
+    {
+      "id": "acc_known_limits",
+      "system": "Limites générales 2D",
+      "metrics": null,
+      "ref": "stenum2021",
+      "confidence": "medium",
+      "notes": "Erreurs de parallaxe/perspective si la caméra n'est pas perpendiculaire au plan de marche ; rotations hors plan (rotation de hanche, pied en rotation externe) projetées comme flexion/valgus ; repère de la hanche imprécis ; cheville et pied les moins fiables ; occlusion du membre controlatéral en vue latérale ; aides techniques et prothèses pouvant tromper le modèle de pose."
+    }
   ],
   "phases": {
     "ref": "aapmr_normal_gait",
     "secondaryRefs": ["perry2010", "physiopedia_gait_cycle", "degheldere_normal_gait"],
     "confidence": "high",
     "items": [
-      {"id": "IC", "name_fr": "Contact initial", "name_en": "Initial contact", "startPct": 0, "endPct": 2, "support": "double"},
-      {"id": "LR", "name_fr": "Réponse à la charge", "name_en": "Loading response", "startPct": 2, "endPct": 12, "support": "double"},
-      {"id": "MSt", "name_fr": "Mi-appui", "name_en": "Mid stance", "startPct": 12, "endPct": 31, "support": "single"},
-      {"id": "TSt", "name_fr": "Appui terminal", "name_en": "Terminal stance", "startPct": 31, "endPct": 50, "support": "single"},
-      {"id": "PSw", "name_fr": "Pré-oscillation", "name_en": "Pre-swing", "startPct": 50, "endPct": 62, "support": "double"},
-      {"id": "ISw", "name_fr": "Oscillation initiale", "name_en": "Initial swing", "startPct": 62, "endPct": 75, "support": "none"},
-      {"id": "MSw", "name_fr": "Oscillation moyenne", "name_en": "Mid swing", "startPct": 75, "endPct": 87, "support": "none"},
-      {"id": "TSw", "name_fr": "Oscillation terminale", "name_en": "Terminal swing", "startPct": 87, "endPct": 100, "support": "none"}
+      {
+        "id": "IC",
+        "name_fr": "Contact initial",
+        "name_en": "Initial contact",
+        "startPct": 0,
+        "endPct": 2,
+        "support": "double"
+      },
+      {
+        "id": "LR",
+        "name_fr": "Réponse à la charge",
+        "name_en": "Loading response",
+        "startPct": 2,
+        "endPct": 12,
+        "support": "double"
+      },
+      {
+        "id": "MSt",
+        "name_fr": "Mi-appui",
+        "name_en": "Mid stance",
+        "startPct": 12,
+        "endPct": 31,
+        "support": "single"
+      },
+      {
+        "id": "TSt",
+        "name_fr": "Appui terminal",
+        "name_en": "Terminal stance",
+        "startPct": 31,
+        "endPct": 50,
+        "support": "single"
+      },
+      {
+        "id": "PSw",
+        "name_fr": "Pré-oscillation",
+        "name_en": "Pre-swing",
+        "startPct": 50,
+        "endPct": 62,
+        "support": "double"
+      },
+      {
+        "id": "ISw",
+        "name_fr": "Oscillation initiale",
+        "name_en": "Initial swing",
+        "startPct": 62,
+        "endPct": 75,
+        "support": "none"
+      },
+      {
+        "id": "MSw",
+        "name_fr": "Oscillation moyenne",
+        "name_en": "Mid swing",
+        "startPct": 75,
+        "endPct": 87,
+        "support": "none"
+      },
+      {
+        "id": "TSw",
+        "name_fr": "Oscillation terminale",
+        "name_en": "Terminal swing",
+        "startPct": 87,
+        "endPct": 100,
+        "support": "none"
+      }
     ],
     "notes": "À vitesse normale : appui ≈ 60 %, oscillation ≈ 40 % ; simple appui ≈ 40 %, double appui ≈ 20 % (AAPM&R). Les pourcentages varient avec la vitesse."
   },
   "spatiotemporal": [
     {
       "id": "speed_comfortable_bohannon1997",
-      "metric_fr": "Vitesse de marche confortable", "metric_en": "Comfortable gait speed", "unit": "cm/s", "plane": "sagittal",
+      "metric_fr": "Vitesse de marche confortable",
+      "metric_en": "Comfortable gait speed",
+      "unit": "cm/s",
+      "plane": "sagittal",
       "population": "Adultes sains 20–79 ans",
       "values": [
-        {"sex": "M", "ageGroup": "20-29", "mean": 139.3, "sd": 15.3},
-        {"sex": "M", "ageGroup": "30-39", "mean": 145.8, "sd": 9.4},
-        {"sex": "M", "ageGroup": "40-49", "mean": 146.2, "sd": 16.4},
-        {"sex": "M", "ageGroup": "50-59", "mean": 139.3, "sd": 22.9},
-        {"sex": "M", "ageGroup": "60-69", "mean": 135.9, "sd": 20.5},
-        {"sex": "M", "ageGroup": "70-79", "mean": 133.0, "sd": 19.6},
-        {"sex": "F", "ageGroup": "20-29", "mean": 140.7, "sd": 17.5},
-        {"sex": "F", "ageGroup": "30-39", "mean": 141.5, "sd": 12.7},
-        {"sex": "F", "ageGroup": "40-49", "mean": 139.1, "sd": 15.8},
-        {"sex": "F", "ageGroup": "50-59", "mean": 139.5, "sd": 15.1},
-        {"sex": "F", "ageGroup": "60-69", "mean": 129.6, "sd": 21.3},
-        {"sex": "F", "ageGroup": "70-79", "mean": 127.2, "sd": 21.1}
+        { "sex": "M", "ageGroup": "20-29", "mean": 139.3, "sd": 15.3 },
+        { "sex": "M", "ageGroup": "30-39", "mean": 145.8, "sd": 9.4 },
+        { "sex": "M", "ageGroup": "40-49", "mean": 146.2, "sd": 16.4 },
+        { "sex": "M", "ageGroup": "50-59", "mean": 139.3, "sd": 22.9 },
+        { "sex": "M", "ageGroup": "60-69", "mean": 135.9, "sd": 20.5 },
+        { "sex": "M", "ageGroup": "70-79", "mean": 133.0, "sd": 19.6 },
+        { "sex": "F", "ageGroup": "20-29", "mean": 140.7, "sd": 17.5 },
+        { "sex": "F", "ageGroup": "30-39", "mean": 141.5, "sd": 12.7 },
+        { "sex": "F", "ageGroup": "40-49", "mean": 139.1, "sd": 15.8 },
+        { "sex": "F", "ageGroup": "50-59", "mean": 139.5, "sd": 15.1 },
+        { "sex": "F", "ageGroup": "60-69", "mean": 129.6, "sd": 21.3 },
+        { "sex": "F", "ageGroup": "70-79", "mean": 127.2, "sd": 21.1 }
       ],
-      "ref": "bohannon1997", "confidence": "medium",
+      "ref": "bohannon1997",
+      "confidence": "medium",
       "notes": "Valeurs lues sur une copie OCR et recoupées avec l'abstract : relire l'original.",
       "camera2d": "Erreur de vitesse < 0,10 m/s vs 3D (stenum2021) si l'échelle est correcte ; l'erreur d'échelle (taille saisie, profondeur) s'ajoute proportionnellement."
     },
     {
       "id": "speed_max_bohannon1997",
-      "metric_fr": "Vitesse de marche maximale", "metric_en": "Maximum gait speed", "unit": "cm/s", "plane": "sagittal",
+      "metric_fr": "Vitesse de marche maximale",
+      "metric_en": "Maximum gait speed",
+      "unit": "cm/s",
+      "plane": "sagittal",
       "population": "Idem bohannon1997",
       "values": [
-        {"sex": "M", "ageGroup": "20-29", "mean": 253.3, "sd": 29.1},
-        {"sex": "M", "ageGroup": "30-39", "mean": 245.6, "sd": 31.5},
-        {"sex": "M", "ageGroup": "40-49", "mean": 246.2, "sd": 36.3},
-        {"sex": "M", "ageGroup": "50-59", "mean": 206.9, "sd": 44.8},
-        {"sex": "M", "ageGroup": "60-69", "mean": 193.3, "sd": 36.4},
-        {"sex": "M", "ageGroup": "70-79", "mean": 207.9, "sd": 36.3},
-        {"sex": "F", "ageGroup": "20-29", "mean": 246.7, "sd": 25.3},
-        {"sex": "F", "ageGroup": "30-39", "mean": 234.2, "sd": 34.4},
-        {"sex": "F", "ageGroup": "40-49", "mean": 212.3, "sd": 27.5},
-        {"sex": "F", "ageGroup": "50-59", "mean": 201.0, "sd": 25.8},
-        {"sex": "F", "ageGroup": "60-69", "mean": 177.4, "sd": 25.4},
-        {"sex": "F", "ageGroup": "70-79", "mean": 174.9, "sd": 28.1}
+        { "sex": "M", "ageGroup": "20-29", "mean": 253.3, "sd": 29.1 },
+        { "sex": "M", "ageGroup": "30-39", "mean": 245.6, "sd": 31.5 },
+        { "sex": "M", "ageGroup": "40-49", "mean": 246.2, "sd": 36.3 },
+        { "sex": "M", "ageGroup": "50-59", "mean": 206.9, "sd": 44.8 },
+        { "sex": "M", "ageGroup": "60-69", "mean": 193.3, "sd": 36.4 },
+        { "sex": "M", "ageGroup": "70-79", "mean": 207.9, "sd": 36.3 },
+        { "sex": "F", "ageGroup": "20-29", "mean": 246.7, "sd": 25.3 },
+        { "sex": "F", "ageGroup": "30-39", "mean": 234.2, "sd": 34.4 },
+        { "sex": "F", "ageGroup": "40-49", "mean": 212.3, "sd": 27.5 },
+        { "sex": "F", "ageGroup": "50-59", "mean": 201.0, "sd": 25.8 },
+        { "sex": "F", "ageGroup": "60-69", "mean": 177.4, "sd": 25.4 },
+        { "sex": "F", "ageGroup": "70-79", "mean": 174.9, "sd": 28.1 }
       ],
-      "ref": "bohannon1997", "confidence": "medium"
+      "ref": "bohannon1997",
+      "confidence": "medium"
     },
     {
       "id": "speed_meta_bohannon2011",
-      "metric_fr": "Vitesse de marche habituelle (méta-analyse)", "metric_en": "Usual gait speed (meta-analysis)", "unit": "m/s", "plane": "sagittal",
+      "metric_fr": "Vitesse de marche habituelle (méta-analyse)",
+      "metric_en": "Usual gait speed (meta-analysis)",
+      "unit": "m/s",
+      "plane": "sagittal",
       "population": "Méta-analyse, 83 à 8 591 participants par décennie",
       "values": [
-        {"sex": "M", "ageGroup": "20-29", "mean": 1.36, "sd": null},
-        {"sex": "M", "ageGroup": "30-39", "mean": 1.43, "sd": null},
-        {"sex": "M", "ageGroup": "40-49", "mean": 1.43, "sd": null},
-        {"sex": "M", "ageGroup": "50-59", "mean": 1.43, "sd": null},
-        {"sex": "M", "ageGroup": "60-69", "mean": 1.34, "sd": null},
-        {"sex": "M", "ageGroup": "70-79", "mean": 1.26, "sd": null},
-        {"sex": "M", "ageGroup": "80-99", "mean": 0.97, "sd": null},
-        {"sex": "F", "ageGroup": "20-29", "mean": 1.34, "sd": null},
-        {"sex": "F", "ageGroup": "30-39", "mean": 1.34, "sd": null},
-        {"sex": "F", "ageGroup": "40-49", "mean": 1.39, "sd": null},
-        {"sex": "F", "ageGroup": "50-59", "mean": 1.31, "sd": null},
-        {"sex": "F", "ageGroup": "60-69", "mean": 1.24, "sd": null},
-        {"sex": "F", "ageGroup": "70-79", "mean": 1.13, "sd": null},
-        {"sex": "F", "ageGroup": "80-99", "mean": 0.94, "sd": null}
+        { "sex": "M", "ageGroup": "20-29", "mean": 1.36, "sd": null },
+        { "sex": "M", "ageGroup": "30-39", "mean": 1.43, "sd": null },
+        { "sex": "M", "ageGroup": "40-49", "mean": 1.43, "sd": null },
+        { "sex": "M", "ageGroup": "50-59", "mean": 1.43, "sd": null },
+        { "sex": "M", "ageGroup": "60-69", "mean": 1.34, "sd": null },
+        { "sex": "M", "ageGroup": "70-79", "mean": 1.26, "sd": null },
+        { "sex": "M", "ageGroup": "80-99", "mean": 0.97, "sd": null },
+        { "sex": "F", "ageGroup": "20-29", "mean": 1.34, "sd": null },
+        { "sex": "F", "ageGroup": "30-39", "mean": 1.34, "sd": null },
+        { "sex": "F", "ageGroup": "40-49", "mean": 1.39, "sd": null },
+        { "sex": "F", "ageGroup": "50-59", "mean": 1.31, "sd": null },
+        { "sex": "F", "ageGroup": "60-69", "mean": 1.24, "sd": null },
+        { "sex": "F", "ageGroup": "70-79", "mean": 1.13, "sd": null },
+        { "sex": "F", "ageGroup": "80-99", "mean": 0.94, "sd": null }
       ],
-      "ref": "bohannon2011", "secondaryRefs": ["utoronto_iwalk"], "confidence": "medium",
+      "ref": "bohannon2011",
+      "secondaryRefs": ["utoronto_iwalk"],
+      "confidence": "medium",
       "notes": "Moyennes reprises d'un tableau secondaire ; les IC95 % publiés ne sont pas extraits (to_verify). Recommandé comme norme par défaut pour l'interface (plus grand échantillon)."
     },
     {
       "id": "speed_oberg1993",
-      "metric_fr": "Vitesse de marche normale", "metric_en": "Normal gait speed", "unit": "cm/s", "plane": "sagittal",
+      "metric_fr": "Vitesse de marche normale",
+      "metric_en": "Normal gait speed",
+      "unit": "cm/s",
+      "plane": "sagittal",
       "population": "233 sujets sains 10–79 ans (Suède)",
       "values": [
-        {"sex": "M", "ageGroup": "20-29", "mean": 122.7, "sd": 11.1}, {"sex": "M", "ageGroup": "30-39", "mean": 131.6, "sd": 15.0},
-        {"sex": "M", "ageGroup": "40-49", "mean": 132.8, "sd": 9.8}, {"sex": "M", "ageGroup": "50-59", "mean": 125.2, "sd": 17.7},
-        {"sex": "M", "ageGroup": "60-69", "mean": 127.7, "sd": 12.4}, {"sex": "M", "ageGroup": "70-79", "mean": 118.2, "sd": 15.4},
-        {"sex": "F", "ageGroup": "20-29", "mean": 124.1, "sd": 17.1}, {"sex": "F", "ageGroup": "30-39", "mean": 128.5, "sd": 19.1},
-        {"sex": "F", "ageGroup": "40-49", "mean": 124.7, "sd": 14.4}, {"sex": "F", "ageGroup": "50-59", "mean": 110.5, "sd": 9.7},
-        {"sex": "F", "ageGroup": "60-69", "mean": 115.7, "sd": 16.7}, {"sex": "F", "ageGroup": "70-79", "mean": 111.3, "sd": 12.5}
+        { "sex": "M", "ageGroup": "20-29", "mean": 122.7, "sd": 11.1 },
+        { "sex": "M", "ageGroup": "30-39", "mean": 131.6, "sd": 15.0 },
+        { "sex": "M", "ageGroup": "40-49", "mean": 132.8, "sd": 9.8 },
+        { "sex": "M", "ageGroup": "50-59", "mean": 125.2, "sd": 17.7 },
+        { "sex": "M", "ageGroup": "60-69", "mean": 127.7, "sd": 12.4 },
+        { "sex": "M", "ageGroup": "70-79", "mean": 118.2, "sd": 15.4 },
+        { "sex": "F", "ageGroup": "20-29", "mean": 124.1, "sd": 17.1 },
+        { "sex": "F", "ageGroup": "30-39", "mean": 128.5, "sd": 19.1 },
+        { "sex": "F", "ageGroup": "40-49", "mean": 124.7, "sd": 14.4 },
+        { "sex": "F", "ageGroup": "50-59", "mean": 110.5, "sd": 9.7 },
+        { "sex": "F", "ageGroup": "60-69", "mean": 115.7, "sd": 16.7 },
+        { "sex": "F", "ageGroup": "70-79", "mean": 111.3, "sd": 12.5 }
       ],
-      "ref": "oberg1993", "confidence": "high",
+      "ref": "oberg1993",
+      "confidence": "high",
       "notes": "Valeurs 10–19 ans disponibles dans la source, non reprises ici (adultes)."
     },
     {
       "id": "step_length_oberg1993",
-      "metric_fr": "Longueur de pas", "metric_en": "Step length", "unit": "cm", "plane": "sagittal",
+      "metric_fr": "Longueur de pas",
+      "metric_en": "Step length",
+      "unit": "cm",
+      "plane": "sagittal",
       "values": [
-        {"sex": "M", "ageGroup": "20-29", "mean": 61.6, "sd": 3.5}, {"sex": "M", "ageGroup": "30-39", "mean": 64.9, "sd": 4.6},
-        {"sex": "M", "ageGroup": "40-49", "mean": 64.7, "sd": 3.7}, {"sex": "M", "ageGroup": "50-59", "mean": 63.5, "sd": 6.0},
-        {"sex": "M", "ageGroup": "60-69", "mean": 65.0, "sd": 3.6}, {"sex": "M", "ageGroup": "70-79", "mean": 61.5, "sd": 5.1},
-        {"sex": "F", "ageGroup": "20-29", "mean": 59.1, "sd": 6.3}, {"sex": "F", "ageGroup": "30-39", "mean": 59.7, "sd": 5.3},
-        {"sex": "F", "ageGroup": "40-49", "mean": 57.1, "sd": 3.7}, {"sex": "F", "ageGroup": "50-59", "mean": 53.5, "sd": 2.6},
-        {"sex": "F", "ageGroup": "60-69", "mean": 55.3, "sd": 4.2}, {"sex": "F", "ageGroup": "70-79", "mean": 54.2, "sd": 3.7}
+        { "sex": "M", "ageGroup": "20-29", "mean": 61.6, "sd": 3.5 },
+        { "sex": "M", "ageGroup": "30-39", "mean": 64.9, "sd": 4.6 },
+        { "sex": "M", "ageGroup": "40-49", "mean": 64.7, "sd": 3.7 },
+        { "sex": "M", "ageGroup": "50-59", "mean": 63.5, "sd": 6.0 },
+        { "sex": "M", "ageGroup": "60-69", "mean": 65.0, "sd": 3.6 },
+        { "sex": "M", "ageGroup": "70-79", "mean": 61.5, "sd": 5.1 },
+        { "sex": "F", "ageGroup": "20-29", "mean": 59.1, "sd": 6.3 },
+        { "sex": "F", "ageGroup": "30-39", "mean": 59.7, "sd": 5.3 },
+        { "sex": "F", "ageGroup": "40-49", "mean": 57.1, "sd": 3.7 },
+        { "sex": "F", "ageGroup": "50-59", "mean": 53.5, "sd": 2.6 },
+        { "sex": "F", "ageGroup": "60-69", "mean": 55.3, "sd": 4.2 },
+        { "sex": "F", "ageGroup": "70-79", "mean": 54.2, "sd": 3.7 }
       ],
-      "ref": "oberg1993", "confidence": "high",
+      "ref": "oberg1993",
+      "confidence": "high",
       "camera2d": "Erreur absolue moyenne ≈ 4,9 cm par pas, 1,8 cm sur la moyenne d'un participant (stenum2021) : toujours moyenner plusieurs pas."
     },
     {
       "id": "step_length_height_normalized",
-      "metric_fr": "Longueur de pas normalisée à la taille", "metric_en": "Height-normalized step length", "unit": "ratio (longueur de pas / taille)", "plane": "sagittal",
+      "metric_fr": "Longueur de pas normalisée à la taille",
+      "metric_en": "Height-normalized step length",
+      "unit": "ratio (longueur de pas / taille)",
+      "plane": "sagittal",
       "values": [],
-      "ref": "samson2001", "confidence": "low", "status": "to_verify",
+      "ref": "samson2001",
+      "confidence": "low",
+      "status": "to_verify",
       "notes": "La taille explique une part significative de la longueur de foulée (samson2001), mais aucune norme publiée du ratio pas/taille par âge et sexe n'a été vérifiée pendant cette recherche. Ne pas afficher de seuil tant qu'une source n'est pas confirmée ; en attendant, comparer la valeur absolue aux normes par âge/sexe et afficher le ratio à titre descriptif."
     },
     {
       "id": "cadence_oberg1993",
-      "metric_fr": "Cadence", "metric_en": "Cadence", "unit": "pas/min", "plane": "sagittal",
+      "metric_fr": "Cadence",
+      "metric_en": "Cadence",
+      "unit": "pas/min",
+      "plane": "sagittal",
       "derived": true,
       "values": [
-        {"sex": "M", "ageGroup": "20-29", "mean": 118.8, "sd": 7.8}, {"sex": "M", "ageGroup": "30-39", "mean": 120.0, "sd": 8.4},
-        {"sex": "M", "ageGroup": "40-49", "mean": 120.6, "sd": 6.6}, {"sex": "M", "ageGroup": "50-59", "mean": 117.6, "sd": 10.8},
-        {"sex": "M", "ageGroup": "60-69", "mean": 117.0, "sd": 8.4}, {"sex": "M", "ageGroup": "70-79", "mean": 114.6, "sd": 8.4},
-        {"sex": "F", "ageGroup": "20-29", "mean": 124.8, "sd": 9.0}, {"sex": "F", "ageGroup": "30-39", "mean": 127.8, "sd": 10.2},
-        {"sex": "F", "ageGroup": "40-49", "mean": 129.6, "sd": 9.6}, {"sex": "F", "ageGroup": "50-59", "mean": 121.8, "sd": 7.8},
-        {"sex": "F", "ageGroup": "60-69", "mean": 123.6, "sd": 10.8}, {"sex": "F", "ageGroup": "70-79", "mean": 121.8, "sd": 8.4}
+        { "sex": "M", "ageGroup": "20-29", "mean": 118.8, "sd": 7.8 },
+        { "sex": "M", "ageGroup": "30-39", "mean": 120.0, "sd": 8.4 },
+        { "sex": "M", "ageGroup": "40-49", "mean": 120.6, "sd": 6.6 },
+        { "sex": "M", "ageGroup": "50-59", "mean": 117.6, "sd": 10.8 },
+        { "sex": "M", "ageGroup": "60-69", "mean": 117.0, "sd": 8.4 },
+        { "sex": "M", "ageGroup": "70-79", "mean": 114.6, "sd": 8.4 },
+        { "sex": "F", "ageGroup": "20-29", "mean": 124.8, "sd": 9.0 },
+        { "sex": "F", "ageGroup": "30-39", "mean": 127.8, "sd": 10.2 },
+        { "sex": "F", "ageGroup": "40-49", "mean": 129.6, "sd": 9.6 },
+        { "sex": "F", "ageGroup": "50-59", "mean": 121.8, "sd": 7.8 },
+        { "sex": "F", "ageGroup": "60-69", "mean": 123.6, "sd": 10.8 },
+        { "sex": "F", "ageGroup": "70-79", "mean": 121.8, "sd": 8.4 }
       ],
-      "ref": "oberg1993", "confidence": "high",
+      "ref": "oberg1993",
+      "confidence": "high",
       "notes": "La source publie la fréquence de pas en pas/s (ex. hommes 20–29 ans : 1,98 ± 0,13) ; valeurs ×60 ici. samson2001 : cadence non associée à l'âge, la taille ou le poids.",
       "camera2d": "Robuste en 2D (repose sur la détection d'événements ; erreur temporelle ≈ 0,01–0,02 s, stenum2021)."
     },
     {
       "id": "older_adults_hollman2011",
-      "metric_fr": "Paramètres spatio-temporels, 70 ans et plus", "metric_en": "Spatiotemporal parameters, age 70+", "plane": "sagittal+frontal",
+      "metric_fr": "Paramètres spatio-temporels, 70 ans et plus",
+      "metric_en": "Spatiotemporal parameters, age 70+",
+      "plane": "sagittal+frontal",
       "population": "Adultes de 70 ans et plus (cohorte de la Mayo Clinic), tapis GAITRite ; critères d'inclusion à relire",
-      "columns": {"speed": "cm/s", "cadence": "pas/min", "strideLength": "cm", "stepWidth": "cm (largeur de base)", "doubleSupport": "% cycle", "stance": "% cycle", "swing": "% cycle"},
+      "columns": {
+        "speed": "cm/s",
+        "cadence": "pas/min",
+        "strideLength": "cm",
+        "stepWidth": "cm (largeur de base)",
+        "doubleSupport": "% cycle",
+        "stance": "% cycle",
+        "swing": "% cycle"
+      },
       "values": [
-        {"sex": "M", "ageGroup": "70-74", "speed": [117, 16], "cadence": [102, 8], "strideLength": [139, 14], "stepWidth": [9.7, 3.0], "doubleSupport": [26.3, 3.0], "stance": [63.2, 2.1], "swing": [36.6, 1.5]},
-        {"sex": "M", "ageGroup": "75-79", "speed": [122, 15], "cadence": [106, 10], "strideLength": [137, 12], "stepWidth": [8.9, 5.2], "doubleSupport": [26.5, 2.3], "stance": [64.0, 2.5], "swing": [36.7, 1.5]},
-        {"sex": "M", "ageGroup": "80-84", "speed": [112, 17], "cadence": [103, 8], "strideLength": [131, 17], "stepWidth": [11.2, 4.0], "doubleSupport": [27.4, 4.7], "stance": [63.8, 2.7], "swing": [36.6, 2.8]},
-        {"sex": "M", "ageGroup": "85+", "speed": [101, 22], "cadence": [102, 11], "strideLength": [119, 21], "stepWidth": [9.9, 4.8], "doubleSupport": [30.3, 3.5], "stance": [64.9, 2.7], "swing": [35.1, 2.69]},
-        {"sex": "F", "ageGroup": "70-74", "speed": [116, 20], "cadence": [113, 20], "strideLength": [123, 17], "stepWidth": [7.0, 3.5], "doubleSupport": [27.14, 4.0], "stance": [63.3, 3.1], "swing": [36.6, 2.6]},
-        {"sex": "F", "ageGroup": "75-79", "speed": [112, 17], "cadence": [114, 13], "strideLength": [118, 15], "stepWidth": [7.7, 4.0], "doubleSupport": [28.4, 6.4], "stance": [63.9, 3.0], "swing": [36.1, 3.0]},
-        {"sex": "F", "ageGroup": "80-84", "speed": [101, 15], "cadence": [110, 9], "strideLength": [111, 14], "stepWidth": [7.9, 4.1], "doubleSupport": [29.0, 4.6], "stance": [64.5, 2.6], "swing": [35.5, 2.5]},
-        {"sex": "F", "ageGroup": "85+", "speed": [98, 20], "cadence": [108, 10], "strideLength": [109, 18], "stepWidth": [9.1, 2.6], "doubleSupport": [28.7, 4.8], "stance": [64.5, 2.5], "swing": [35.7, 2.6]}
+        {
+          "sex": "M",
+          "ageGroup": "70-74",
+          "speed": [117, 16],
+          "cadence": [102, 8],
+          "strideLength": [139, 14],
+          "stepWidth": [9.7, 3.0],
+          "doubleSupport": [26.3, 3.0],
+          "stance": [63.2, 2.1],
+          "swing": [36.6, 1.5]
+        },
+        {
+          "sex": "M",
+          "ageGroup": "75-79",
+          "speed": [122, 15],
+          "cadence": [106, 10],
+          "strideLength": [137, 12],
+          "stepWidth": [8.9, 5.2],
+          "doubleSupport": [26.5, 2.3],
+          "stance": [64.0, 2.5],
+          "swing": [36.7, 1.5]
+        },
+        {
+          "sex": "M",
+          "ageGroup": "80-84",
+          "speed": [112, 17],
+          "cadence": [103, 8],
+          "strideLength": [131, 17],
+          "stepWidth": [11.2, 4.0],
+          "doubleSupport": [27.4, 4.7],
+          "stance": [63.8, 2.7],
+          "swing": [36.6, 2.8]
+        },
+        {
+          "sex": "M",
+          "ageGroup": "85+",
+          "speed": [101, 22],
+          "cadence": [102, 11],
+          "strideLength": [119, 21],
+          "stepWidth": [9.9, 4.8],
+          "doubleSupport": [30.3, 3.5],
+          "stance": [64.9, 2.7],
+          "swing": [35.1, 2.69]
+        },
+        {
+          "sex": "F",
+          "ageGroup": "70-74",
+          "speed": [116, 20],
+          "cadence": [113, 20],
+          "strideLength": [123, 17],
+          "stepWidth": [7.0, 3.5],
+          "doubleSupport": [27.14, 4.0],
+          "stance": [63.3, 3.1],
+          "swing": [36.6, 2.6]
+        },
+        {
+          "sex": "F",
+          "ageGroup": "75-79",
+          "speed": [112, 17],
+          "cadence": [114, 13],
+          "strideLength": [118, 15],
+          "stepWidth": [7.7, 4.0],
+          "doubleSupport": [28.4, 6.4],
+          "stance": [63.9, 3.0],
+          "swing": [36.1, 3.0]
+        },
+        {
+          "sex": "F",
+          "ageGroup": "80-84",
+          "speed": [101, 15],
+          "cadence": [110, 9],
+          "strideLength": [111, 14],
+          "stepWidth": [7.9, 4.1],
+          "doubleSupport": [29.0, 4.6],
+          "stance": [64.5, 2.6],
+          "swing": [35.5, 2.5]
+        },
+        {
+          "sex": "F",
+          "ageGroup": "85+",
+          "speed": [98, 20],
+          "cadence": [108, 10],
+          "strideLength": [109, 18],
+          "stepWidth": [9.1, 2.6],
+          "doubleSupport": [28.7, 4.8],
+          "stance": [64.5, 2.5],
+          "swing": [35.7, 2.6]
+        }
       ],
       "valueFormat": "[moyenne, écart-type]",
-      "ref": "hollman2011", "confidence": "high",
+      "ref": "hollman2011",
+      "confidence": "high",
       "notes": "Le double appui est ici la somme des deux périodes de double appui (% du cycle). Les valeurs de cadence masculines (~102–106) sont basses par rapport à Oberg ; populations et instruments différents.",
       "camera2d": "Largeur de base : mesurable seulement en vue frontale/postérieure, aucune validation 2D retrouvée (to_verify). Double appui : peu fiable à 25–30 i/s (hii2023)."
     },
     {
       "id": "stance_swing_general",
-      "metric_fr": "Proportion appui / oscillation / double appui", "metric_en": "Stance / swing / double support proportion", "unit": "% cycle", "plane": "sagittal",
-      "values": [{"sex": "all", "ageGroup": "adult", "stance": 60, "swing": 40, "doubleSupportTotal": 20, "singleSupport": 40}],
-      "ref": "aapmr_normal_gait", "secondaryRefs": ["perry2010"], "confidence": "high",
+      "metric_fr": "Proportion appui / oscillation / double appui",
+      "metric_en": "Stance / swing / double support proportion",
+      "unit": "% cycle",
+      "plane": "sagittal",
+      "values": [
+        { "sex": "all", "ageGroup": "adult", "stance": 60, "swing": 40, "doubleSupportTotal": 20, "singleSupport": 40 }
+      ],
+      "ref": "aapmr_normal_gait",
+      "secondaryRefs": ["perry2010"],
+      "confidence": "high",
       "notes": "Valeurs approximatives de manuel à vitesse normale ; pour les 70 ans et +, utiliser hollman2011."
     },
     {
       "id": "gait_speed_mcid",
-      "metric_fr": "Changement cliniquement important de la vitesse", "metric_en": "Meaningful change in gait speed", "unit": "m/s",
-      "values": [{"population": "Aînés (Perera 2006)", "smallMeaningfulChange": 0.05, "substantialChange": 0.10}, {"population": "Post-fracture de hanche, MDC", "mdc": 0.08}],
-      "ref": "perera2006", "secondaryRefs": ["sralab2024"], "confidence": "medium",
+      "metric_fr": "Changement cliniquement important de la vitesse",
+      "metric_en": "Meaningful change in gait speed",
+      "unit": "m/s",
+      "values": [
+        { "population": "Aînés (Perera 2006)", "smallMeaningfulChange": 0.05, "substantialChange": 0.1 },
+        { "population": "Post-fracture de hanche, MDC", "mdc": 0.08 }
+      ],
+      "ref": "perera2006",
+      "secondaryRefs": ["sralab2024"],
+      "confidence": "medium",
       "notes": "0,05/0,10 m/s cités de mémoire pour Perera 2006 et partiellement confirmés par sralab2024 (MCID 0,1 m/s) : relire l'abstract. Utile pour le module de recherche (changement minimal détectable)."
     }
   ],
   "sagittalKinematics": {
     "notes": "Valeurs de manuel (Perry / Rancho / Webster & Darter) reprises de sources secondaires concordantes ; aucune n'a d'écart-type. Les écarts-types disponibles viennent d'Oberg 1994 (électrogoniométrie). Les valeurs varient selon la convention (voir conventions.hipReference) et la vitesse.",
     "byPhase": [
-      {"phase": "IC", "hip": {"value": "20–30 (flexion)", "note": "20° si angle cuisse–verticale (Perry), 30° si cuisse–bassin"}, "knee": {"value": "0–5 (quasi extension)"}, "ankle": {"value": "0 (neutre)"}, "refs": ["physiopedia_gait_cycle", "degheldere_normal_gait", "perry2010"], "confidence": "medium"},
-      {"phase": "LR", "hip": {"value": "≈ 20–30 (flexion, début d'extension)"}, "knee": {"value": "10–20 (flexion, amortissement)"}, "ankle": {"value": "≈ −10 (flexion plantaire vers pied à plat)"}, "refs": ["physiopedia_gait_cycle", "degheldere_normal_gait", "aapmr_normal_gait"], "confidence": "medium"},
-      {"phase": "MSt", "hip": {"value": "→ 0 (neutre)"}, "knee": {"value": "extension progressive vers ≈ 5"}, "ankle": {"value": "≈ +5 (dorsiflexion progressive)"}, "refs": ["aapmr_normal_gait", "degheldere_normal_gait"], "confidence": "medium"},
-      {"phase": "TSt", "hip": {"value": "≈ −10 (extension maximale ; « 20° d'hyperextension apparente » selon la convention cuisse–verticale de Perry)"}, "knee": {"value": "≈ 0–5"}, "ankle": {"value": "≈ +10 (dorsiflexion maximale, puis début de flexion plantaire)"}, "refs": ["physiopedia_gait_cycle", "degheldere_normal_gait", "perry2010"], "confidence": "medium", "clinicalKey": "Extension de hanche en appui terminal (indicateur de longueur de pas et de propulsion)."},
-      {"phase": "PSw", "hip": {"value": "retour vers 0"}, "knee": {"value": "≈ 35–40 (flexion rapide)"}, "ankle": {"value": "≈ −20 (flexion plantaire)"}, "refs": ["degheldere_normal_gait", "physiopedia_gait_cycle"], "confidence": "medium"},
-      {"phase": "ISw", "hip": {"value": "flexion croissante (≈ 15–20)"}, "knee": {"value": "≈ 60 (flexion maximale, fin d'oscillation initiale)"}, "ankle": {"value": "de ≈ −20 vers 0"}, "refs": ["physiopedia_gait_cycle", "degheldere_normal_gait"], "confidence": "medium", "clinicalKey": "Flexion maximale du genou en oscillation (stiff-knee si diminuée)."},
-      {"phase": "MSw", "hip": {"value": "≈ 25–30 (flexion maximale)"}, "knee": {"value": "extension passive (≈ 25–30 au milieu de la phase)", "status": "to_verify"}, "ankle": {"value": "0 (neutre)"}, "refs": ["physiopedia_gait_cycle", "degheldere_normal_gait"], "confidence": "medium", "clinicalKey": "Cheville ≥ 0° en oscillation moyenne (dégagement du pied)."},
-      {"phase": "TSw", "hip": {"value": "≈ 25–30"}, "knee": {"value": "≈ 0–5 (extension avant le contact)"}, "ankle": {"value": "0 (neutre)"}, "refs": ["physiopedia_gait_cycle", "degheldere_normal_gait"], "confidence": "medium"}
+      {
+        "phase": "IC",
+        "hip": { "value": "20–30 (flexion)", "note": "20° si angle cuisse–verticale (Perry), 30° si cuisse–bassin" },
+        "knee": { "value": "0–5 (quasi extension)" },
+        "ankle": { "value": "0 (neutre)" },
+        "refs": ["physiopedia_gait_cycle", "degheldere_normal_gait", "perry2010"],
+        "confidence": "medium"
+      },
+      {
+        "phase": "LR",
+        "hip": { "value": "≈ 20–30 (flexion, début d'extension)" },
+        "knee": { "value": "10–20 (flexion, amortissement)" },
+        "ankle": { "value": "≈ −10 (flexion plantaire vers pied à plat)" },
+        "refs": ["physiopedia_gait_cycle", "degheldere_normal_gait", "aapmr_normal_gait"],
+        "confidence": "medium"
+      },
+      {
+        "phase": "MSt",
+        "hip": { "value": "→ 0 (neutre)" },
+        "knee": { "value": "extension progressive vers ≈ 5" },
+        "ankle": { "value": "≈ +5 (dorsiflexion progressive)" },
+        "refs": ["aapmr_normal_gait", "degheldere_normal_gait"],
+        "confidence": "medium"
+      },
+      {
+        "phase": "TSt",
+        "hip": {
+          "value": "≈ −10 (extension maximale ; « 20° d'hyperextension apparente » selon la convention cuisse–verticale de Perry)"
+        },
+        "knee": { "value": "≈ 0–5" },
+        "ankle": { "value": "≈ +10 (dorsiflexion maximale, puis début de flexion plantaire)" },
+        "refs": ["physiopedia_gait_cycle", "degheldere_normal_gait", "perry2010"],
+        "confidence": "medium",
+        "clinicalKey": "Extension de hanche en appui terminal (indicateur de longueur de pas et de propulsion)."
+      },
+      {
+        "phase": "PSw",
+        "hip": { "value": "retour vers 0" },
+        "knee": { "value": "≈ 35–40 (flexion rapide)" },
+        "ankle": { "value": "≈ −20 (flexion plantaire)" },
+        "refs": ["degheldere_normal_gait", "physiopedia_gait_cycle"],
+        "confidence": "medium"
+      },
+      {
+        "phase": "ISw",
+        "hip": { "value": "flexion croissante (≈ 15–20)" },
+        "knee": { "value": "≈ 60 (flexion maximale, fin d'oscillation initiale)" },
+        "ankle": { "value": "de ≈ −20 vers 0" },
+        "refs": ["physiopedia_gait_cycle", "degheldere_normal_gait"],
+        "confidence": "medium",
+        "clinicalKey": "Flexion maximale du genou en oscillation (stiff-knee si diminuée)."
+      },
+      {
+        "phase": "MSw",
+        "hip": { "value": "≈ 25–30 (flexion maximale)" },
+        "knee": { "value": "extension passive (≈ 25–30 au milieu de la phase)", "status": "to_verify" },
+        "ankle": { "value": "0 (neutre)" },
+        "refs": ["physiopedia_gait_cycle", "degheldere_normal_gait"],
+        "confidence": "medium",
+        "clinicalKey": "Cheville ≥ 0° en oscillation moyenne (dégagement du pied)."
+      },
+      {
+        "phase": "TSw",
+        "hip": { "value": "≈ 25–30" },
+        "knee": { "value": "≈ 0–5 (extension avant le contact)" },
+        "ankle": { "value": "0 (neutre)" },
+        "refs": ["physiopedia_gait_cycle", "degheldere_normal_gait"],
+        "confidence": "medium"
+      }
     ],
     "withSD": [
-      {"id": "knee_midstance_oberg1994", "metric_fr": "Flexion du genou en mi-appui", "metric_en": "Knee flexion at midstance", "unit": "°", "values": [{"sex": "M", "ageGroup": "10-79", "mean": 19.3, "sd": 5.6, "side": "droit"}, {"sex": "M", "ageGroup": "10-79", "mean": 19.6, "sd": 5.8, "side": "gauche"}, {"sex": "F", "ageGroup": "10-79", "mean": 15.7, "sd": 5.0, "side": "droit"}, {"sex": "F", "ageGroup": "10-79", "mean": 15.0, "sd": 4.8, "side": "gauche"}], "ref": "oberg1994", "confidence": "high", "notes": "Moyennes par décennie disponibles sans écart-type (ex. hommes 70–79 : 20,9° D ; femmes 70–79 : 18,5° D). Plus élevé que les valeurs de manuel (≈ 5°) : définition « mi-appui » = flexion maximale en début d'appui ? à vérifier dans l'article."},
-      {"id": "knee_swing_max_oberg1994", "metric_fr": "Flexion maximale du genou en oscillation", "metric_en": "Peak knee flexion in swing", "unit": "°", "values": [{"sex": "M", "ageGroup": "10-79", "mean": 66.9, "sd": 5.2, "side": "droit"}, {"sex": "M", "ageGroup": "10-79", "mean": 67.7, "sd": 6.2, "side": "gauche"}, {"sex": "F", "ageGroup": "10-79", "mean": 63.0, "sd": 6.1, "side": "droit"}, {"sex": "F", "ageGroup": "10-79", "mean": 62.6, "sd": 5.9, "side": "gauche"}], "ref": "oberg1994", "confidence": "high", "notes": "Par décennie (moyenne seule) : hommes 20–29 63,4° D … 70–79 65,0° D ; femmes 20–29 63,9° D … 70–79 63,2° D.", "camera2d": "Erreur absolue moyenne du genou ≈ 5,6° (stenum2021)."},
-      {"id": "hip_rom_oberg1994", "metric_fr": "Amplitude flexion–extension de la hanche sur le cycle", "metric_en": "Hip flexion–extension excursion", "unit": "°", "values": [{"sex": "M", "ageGroup": "10-79", "mean": 46.9, "sd": 5.3, "side": "droit"}, {"sex": "M", "ageGroup": "10-79", "mean": 48.2, "sd": 6.7, "side": "gauche"}, {"sex": "F", "ageGroup": "10-79", "mean": 45.3, "sd": 5.8, "side": "droit"}, {"sex": "F", "ageGroup": "10-79", "mean": 47.1, "sd": 6.5, "side": "gauche"}], "ref": "oberg1994", "confidence": "high", "camera2d": "Erreur absolue moyenne de la hanche ≈ 4,0° (stenum2021)."},
-      {"id": "kadaba1990_curves", "metric_fr": "Courbes cinématiques normales (bassin, hanche, genou, cheville, 3 plans)", "metric_en": "Normal kinematic curves", "values": [], "ref": "kadaba1990", "confidence": "low", "status": "to_verify", "notes": "Source de référence pour les courbes moyennes ± ET ; valeurs non extraites (texte intégral non consulté)."}
+      {
+        "id": "knee_midstance_oberg1994",
+        "metric_fr": "Flexion du genou en mi-appui",
+        "metric_en": "Knee flexion at midstance",
+        "unit": "°",
+        "values": [
+          { "sex": "M", "ageGroup": "10-79", "mean": 19.3, "sd": 5.6, "side": "droit" },
+          { "sex": "M", "ageGroup": "10-79", "mean": 19.6, "sd": 5.8, "side": "gauche" },
+          { "sex": "F", "ageGroup": "10-79", "mean": 15.7, "sd": 5.0, "side": "droit" },
+          { "sex": "F", "ageGroup": "10-79", "mean": 15.0, "sd": 4.8, "side": "gauche" }
+        ],
+        "ref": "oberg1994",
+        "confidence": "high",
+        "notes": "Moyennes par décennie disponibles sans écart-type (ex. hommes 70–79 : 20,9° D ; femmes 70–79 : 18,5° D). Plus élevé que les valeurs de manuel (≈ 5°) : définition « mi-appui » = flexion maximale en début d'appui ? à vérifier dans l'article."
+      },
+      {
+        "id": "knee_swing_max_oberg1994",
+        "metric_fr": "Flexion maximale du genou en oscillation",
+        "metric_en": "Peak knee flexion in swing",
+        "unit": "°",
+        "values": [
+          { "sex": "M", "ageGroup": "10-79", "mean": 66.9, "sd": 5.2, "side": "droit" },
+          { "sex": "M", "ageGroup": "10-79", "mean": 67.7, "sd": 6.2, "side": "gauche" },
+          { "sex": "F", "ageGroup": "10-79", "mean": 63.0, "sd": 6.1, "side": "droit" },
+          { "sex": "F", "ageGroup": "10-79", "mean": 62.6, "sd": 5.9, "side": "gauche" }
+        ],
+        "ref": "oberg1994",
+        "confidence": "high",
+        "notes": "Par décennie (moyenne seule) : hommes 20–29 63,4° D … 70–79 65,0° D ; femmes 20–29 63,9° D … 70–79 63,2° D.",
+        "camera2d": "Erreur absolue moyenne du genou ≈ 5,6° (stenum2021)."
+      },
+      {
+        "id": "hip_rom_oberg1994",
+        "metric_fr": "Amplitude flexion–extension de la hanche sur le cycle",
+        "metric_en": "Hip flexion–extension excursion",
+        "unit": "°",
+        "values": [
+          { "sex": "M", "ageGroup": "10-79", "mean": 46.9, "sd": 5.3, "side": "droit" },
+          { "sex": "M", "ageGroup": "10-79", "mean": 48.2, "sd": 6.7, "side": "gauche" },
+          { "sex": "F", "ageGroup": "10-79", "mean": 45.3, "sd": 5.8, "side": "droit" },
+          { "sex": "F", "ageGroup": "10-79", "mean": 47.1, "sd": 6.5, "side": "gauche" }
+        ],
+        "ref": "oberg1994",
+        "confidence": "high",
+        "camera2d": "Erreur absolue moyenne de la hanche ≈ 4,0° (stenum2021)."
+      },
+      {
+        "id": "kadaba1990_curves",
+        "metric_fr": "Courbes cinématiques normales (bassin, hanche, genou, cheville, 3 plans)",
+        "metric_en": "Normal kinematic curves",
+        "values": [],
+        "ref": "kadaba1990",
+        "confidence": "low",
+        "status": "to_verify",
+        "notes": "Source de référence pour les courbes moyennes ± ET ; valeurs non extraites (texte intégral non consulté)."
+      }
     ]
   },
   "frontalAndTrunk": [
-    {"id": "pelvic_drop_gait", "metric_fr": "Chute pelvienne frontale controlatérale en appui", "metric_en": "Contralateral pelvic drop (pelvic obliquity) in stance", "unit": "°", "plane": "frontal", "values": [], "ref": "kadaba1990", "confidence": "low", "status": "to_verify", "notes": "Aucune norme de marche (moyenne ± ET) vérifiée pendant cette recherche. Repère seulement : en station debout, l'obliquité pelvienne radiologique normale va de 0 à 5,6° (95e percentile ; médiane 2,0°, moharrami2023) — ne pas transposer telle quelle à la marche."},
-    {"id": "trunk_lateral_lean", "metric_fr": "Inclinaison latérale du tronc", "metric_en": "Lateral trunk lean", "unit": "°", "plane": "frontal", "values": [], "ref": null, "confidence": "low", "status": "to_verify", "notes": "Pas de norme vérifiée. Règle proposée par défaut : comparer côté G vs D (asymétrie) plutôt qu'à une norme absolue."},
-    {"id": "trunk_sagittal_inclination", "metric_fr": "Inclinaison antérieure du tronc", "metric_en": "Sagittal trunk inclination", "unit": "°", "plane": "sagittal", "values": [], "ref": null, "confidence": "low", "status": "to_verify", "notes": "Pas de norme vérifiée pendant cette recherche."},
-    {"id": "fppa_knee", "metric_fr": "Angle de projection frontal du genou", "metric_en": "Frontal plane projection angle (FPPA)", "unit": "°", "plane": "frontal", "values": [], "ref": "willson2008", "confidence": "low", "status": "to_verify", "notes": "Le FPPA est validé surtout au squat unipodal / atterrissage (willson2008 : utile cliniquement mais ne quantifie pas les rotations 3D). Aucune norme de FPPA à la marche retrouvée."},
-    {"id": "step_width_older", "metric_fr": "Largeur de base (largeur de pas)", "metric_en": "Step width (base of support)", "unit": "cm", "plane": "frontal", "values": "voir older_adults_hollman2011.stepWidth (70 ans et +)", "ref": "hollman2011", "confidence": "high", "notes": "Normes < 70 ans non retrouvées (to_verify)."}
+    {
+      "id": "pelvic_drop_gait",
+      "metric_fr": "Chute pelvienne frontale controlatérale en appui",
+      "metric_en": "Contralateral pelvic drop (pelvic obliquity) in stance",
+      "unit": "°",
+      "plane": "frontal",
+      "values": [],
+      "ref": "kadaba1990",
+      "confidence": "low",
+      "status": "to_verify",
+      "notes": "Aucune norme de marche (moyenne ± ET) vérifiée pendant cette recherche. Repère seulement : en station debout, l'obliquité pelvienne radiologique normale va de 0 à 5,6° (95e percentile ; médiane 2,0°, moharrami2023) — ne pas transposer telle quelle à la marche."
+    },
+    {
+      "id": "trunk_lateral_lean",
+      "metric_fr": "Inclinaison latérale du tronc",
+      "metric_en": "Lateral trunk lean",
+      "unit": "°",
+      "plane": "frontal",
+      "values": [],
+      "ref": null,
+      "confidence": "low",
+      "status": "to_verify",
+      "notes": "Pas de norme vérifiée. Règle proposée par défaut : comparer côté G vs D (asymétrie) plutôt qu'à une norme absolue."
+    },
+    {
+      "id": "trunk_sagittal_inclination",
+      "metric_fr": "Inclinaison antérieure du tronc",
+      "metric_en": "Sagittal trunk inclination",
+      "unit": "°",
+      "plane": "sagittal",
+      "values": [],
+      "ref": null,
+      "confidence": "low",
+      "status": "to_verify",
+      "notes": "Pas de norme vérifiée pendant cette recherche."
+    },
+    {
+      "id": "fppa_knee",
+      "metric_fr": "Angle de projection frontal du genou",
+      "metric_en": "Frontal plane projection angle (FPPA)",
+      "unit": "°",
+      "plane": "frontal",
+      "values": [],
+      "ref": "willson2008",
+      "confidence": "low",
+      "status": "to_verify",
+      "notes": "Le FPPA est validé surtout au squat unipodal / atterrissage (willson2008 : utile cliniquement mais ne quantifie pas les rotations 3D). Aucune norme de FPPA à la marche retrouvée."
+    },
+    {
+      "id": "step_width_older",
+      "metric_fr": "Largeur de base (largeur de pas)",
+      "metric_en": "Step width (base of support)",
+      "unit": "cm",
+      "plane": "frontal",
+      "values": "voir older_adults_hollman2011.stepWidth (70 ans et +)",
+      "ref": "hollman2011",
+      "confidence": "high",
+      "notes": "Normes < 70 ans non retrouvées (to_verify)."
+    }
   ]
 }

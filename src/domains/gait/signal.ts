@@ -229,11 +229,7 @@ export function findPeaks(
 }
 
 /** Angle (degrés) au sommet `b` formé par a-b-c, dans le plan de l'image. */
-export function angle3(
-  a: { x: number; y: number },
-  b: { x: number; y: number },
-  c: { x: number; y: number },
-): number {
+export function angle3(a: { x: number; y: number }, b: { x: number; y: number }, c: { x: number; y: number }): number {
   const v1x = a.x - b.x;
   const v1y = a.y - b.y;
   const v2x = c.x - b.x;

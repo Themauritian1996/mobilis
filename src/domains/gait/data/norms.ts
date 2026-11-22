@@ -71,7 +71,8 @@ export interface Reference {
 
 function asNorms(x: unknown): NormsFile {
   const o = x as Partial<NormsFile>;
-  if (o.schemaVersion !== 1 || !o.phases || !Array.isArray(o.spatiotemporal)) throw new Error('norms.json : schéma inattendu');
+  if (o.schemaVersion !== 1 || !o.phases || !Array.isArray(o.spatiotemporal))
+    throw new Error('norms.json : schéma inattendu');
   return o as NormsFile;
 }
 
@@ -172,7 +173,12 @@ function selectRows(
   if (typeof block.values === 'string') return null;
   const rows = block.values.filter((r) => {
     if (patient.sex && r.sex && r.sex !== patient.sex && r.sex !== 'all') return false;
-    if (patient.ageYears !== undefined && r.ageGroup && r.ageGroup !== 'adult' && !inAgeGroup(patient.ageYears, r.ageGroup))
+    if (
+      patient.ageYears !== undefined &&
+      r.ageGroup &&
+      r.ageGroup !== 'adult' &&
+      !inAgeGroup(patient.ageYears, r.ageGroup)
+    )
       return false;
     return true;
   });

@@ -137,11 +137,7 @@ export function eventSignals(
  * Plages d'immobilité d'un repère dans l'image (vitesse < 15 % du 90e centile de la vitesse), d'au moins 15 % de la
  * période de foulée. Renvoie le début (`start`) ou la dernière trame (`end`) de chaque plage. Seuils de conception.
  */
-export function stationaryRuns(
-  speed: readonly number[],
-  periodFrames: number,
-  edge: 'start' | 'end',
-): number[] {
+export function stationaryRuns(speed: readonly number[], periodFrames: number, edge: 'start' | 'end'): number[] {
   const finite = speed.filter((x) => Number.isFinite(x)).sort((a, b) => a - b);
   const p90 = finite[Math.floor(finite.length * 0.9)] ?? 0;
   const ok = speed.map((x) => Number.isFinite(x) && x < 0.3 * p90);

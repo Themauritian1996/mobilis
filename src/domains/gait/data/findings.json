@@ -20,14 +20,64 @@
       "name_en": "Foot drop / steppage gait",
       "description": "Défaut de dorsiflexion en oscillation (insuffisance des releveurs, dorsiflexors) ; le patient compense par une flexion excessive de hanche et de genou (steppage) pour dégager le pied.",
       "criteria": [
-        {"metric": "ankle_angle", "phase": "MSw", "view": "lateral", "threshold": "< −5° (flexion plantaire) en oscillation moyenne, sur la majorité des cycles", "normReference": "cheville ≈ 0° en oscillation moyenne", "thresholdType": "proposed_heuristic", "refs": ["physiopedia_gait_cycle", "perry2010", "stenum2021"]},
-        {"metric": "ankle_angle", "phase": "IC", "view": "lateral", "threshold": "< −5° au contact initial (contact par l'avant-pied ou pied à plat)", "normReference": "cheville ≈ 0° au contact initial", "thresholdType": "proposed_heuristic", "refs": ["degheldere_normal_gait"]},
-        {"metric": "peak_hip_flexion_swing", "phase": "MSw", "view": "lateral", "threshold": "> norme + 10° du côté atteint ou > côté sain + 10° (steppage)", "thresholdType": "proposed_heuristic", "refs": ["perry2010"]},
-        {"metric": "peak_knee_flexion_swing", "phase": "ISw", "view": "lateral", "threshold": "> moyenne + 2 ET (Oberg 1994 : ~77–80° chez l'homme) avec cheville en flexion plantaire", "thresholdType": "norm_relative", "refs": ["oberg1994"]}
+        {
+          "metric": "ankle_angle",
+          "phase": "MSw",
+          "view": "lateral",
+          "threshold": "< −5° (flexion plantaire) en oscillation moyenne, sur la majorité des cycles",
+          "normReference": "cheville ≈ 0° en oscillation moyenne",
+          "thresholdType": "proposed_heuristic",
+          "refs": ["physiopedia_gait_cycle", "perry2010", "stenum2021"]
+        },
+        {
+          "metric": "ankle_angle",
+          "phase": "IC",
+          "view": "lateral",
+          "threshold": "< −5° au contact initial (contact par l'avant-pied ou pied à plat)",
+          "normReference": "cheville ≈ 0° au contact initial",
+          "thresholdType": "proposed_heuristic",
+          "refs": ["degheldere_normal_gait"]
+        },
+        {
+          "metric": "peak_hip_flexion_swing",
+          "phase": "MSw",
+          "view": "lateral",
+          "threshold": "> norme + 10° du côté atteint ou > côté sain + 10° (steppage)",
+          "thresholdType": "proposed_heuristic",
+          "refs": ["perry2010"]
+        },
+        {
+          "metric": "peak_knee_flexion_swing",
+          "phase": "ISw",
+          "view": "lateral",
+          "threshold": "> moyenne + 2 ET (Oberg 1994 : ~77–80° chez l'homme) avec cheville en flexion plantaire",
+          "thresholdType": "norm_relative",
+          "refs": ["oberg1994"]
+        }
       ],
-      "causes": ["Atteinte du nerf fibulaire commun (common peroneal neuropathy) au col de la fibula", "Radiculopathie L5 (L5 radiculopathy)", "Plexopathie lombosacrée / atteinte sciatique", "AVC, sclérose en plaques, lésion médullaire (atteinte centrale)", "Polyneuropathie (Charcot-Marie-Tooth, diabète)", "Maladies du motoneurone, myopathies distales", "Syndrome des loges, traumatisme"],
-      "differentials": ["Équin dynamique par spasticité/contracture du triceps (pas de faiblesse des releveurs)", "Genou raide en oscillation (dégagement insuffisant d'origine proximale)", "Foot slap (faiblesse excentrique seulement en réponse à la charge)", "Membre controlatéral long / inégalité de longueur"],
-      "management": ["Orthèse tibio-pédieuse (ankle-foot orthosis, AFO) : améliore vitesse et paramètres de marche après AVC (tyson2013)", "Stimulation électrique fonctionnelle du nerf fibulaire (FES) à discuter", "EMG/ENG pour localiser la lésion (stewart2008)", "Renforcement des releveurs si atteinte partielle ; étirement du triceps sural", "Entraînement à la marche, prévention des chutes", "Toxine botulique seulement si composante spastique associée (à évaluer)"],
+      "causes": [
+        "Atteinte du nerf fibulaire commun (common peroneal neuropathy) au col de la fibula",
+        "Radiculopathie L5 (L5 radiculopathy)",
+        "Plexopathie lombosacrée / atteinte sciatique",
+        "AVC, sclérose en plaques, lésion médullaire (atteinte centrale)",
+        "Polyneuropathie (Charcot-Marie-Tooth, diabète)",
+        "Maladies du motoneurone, myopathies distales",
+        "Syndrome des loges, traumatisme"
+      ],
+      "differentials": [
+        "Équin dynamique par spasticité/contracture du triceps (pas de faiblesse des releveurs)",
+        "Genou raide en oscillation (dégagement insuffisant d'origine proximale)",
+        "Foot slap (faiblesse excentrique seulement en réponse à la charge)",
+        "Membre controlatéral long / inégalité de longueur"
+      ],
+      "management": [
+        "Orthèse tibio-pédieuse (ankle-foot orthosis, AFO) : améliore vitesse et paramètres de marche après AVC (tyson2013)",
+        "Stimulation électrique fonctionnelle du nerf fibulaire (FES) à discuter",
+        "EMG/ENG pour localiser la lésion (stewart2008)",
+        "Renforcement des releveurs si atteinte partielle ; étirement du triceps sural",
+        "Entraînement à la marche, prévention des chutes",
+        "Toxine botulique seulement si composante spastique associée (à évaluer)"
+      ],
       "evidenceLevel": "systematic_review",
       "confidence": "medium",
       "camera2dLimits": "Cheville = articulation la moins précise en 2D (MAE ≈ 7,4°, stenum2021 ; MediaPipe peu fiable à la cheville, menychtas2023). Exiger des chaussures ou pieds bien visibles et un contraste avec le sol.",
@@ -39,12 +89,37 @@
       "name_en": "Foot slap",
       "description": "Flexion plantaire brutale et non contrôlée juste après le contact par le talon (réponse à la charge), souvent audible ; faiblesse excentrique des releveurs.",
       "criteria": [
-        {"metric": "ankle_plantarflexion_velocity", "phase": "LR", "view": "lateral", "threshold": "Pied à plat atteint en < 50 % de la durée normale de la réponse à la charge, ou vitesse angulaire de flexion plantaire > côté sain × 1,5", "thresholdType": "proposed_heuristic", "refs": ["perry2010"]},
-        {"metric": "ankle_angle", "phase": "IC", "view": "lateral", "threshold": "Cheville proche de 0° au contact (contact talon présent), ce qui distingue du pied tombant franc", "thresholdType": "proposed_heuristic", "refs": ["perry2010"]}
+        {
+          "metric": "ankle_plantarflexion_velocity",
+          "phase": "LR",
+          "view": "lateral",
+          "threshold": "Pied à plat atteint en < 50 % de la durée normale de la réponse à la charge, ou vitesse angulaire de flexion plantaire > côté sain × 1,5",
+          "thresholdType": "proposed_heuristic",
+          "refs": ["perry2010"]
+        },
+        {
+          "metric": "ankle_angle",
+          "phase": "IC",
+          "view": "lateral",
+          "threshold": "Cheville proche de 0° au contact (contact talon présent), ce qui distingue du pied tombant franc",
+          "thresholdType": "proposed_heuristic",
+          "refs": ["perry2010"]
+        }
       ],
-      "causes": ["Faiblesse légère à modérée du tibial antérieur (neuropathie fibulaire, L5)", "Polyneuropathie", "Phase de récupération d'un pied tombant"],
-      "differentials": ["Pied tombant (absence de contact talon)", "Chez l'amputé : talon prothétique trop mou (voir prosthetic-findings)"],
-      "management": ["Renforcement excentrique des releveurs", "AFO légère ou à butée postérieure selon la sévérité", "Exploration électrodiagnostique si nouveau"],
+      "causes": [
+        "Faiblesse légère à modérée du tibial antérieur (neuropathie fibulaire, L5)",
+        "Polyneuropathie",
+        "Phase de récupération d'un pied tombant"
+      ],
+      "differentials": [
+        "Pied tombant (absence de contact talon)",
+        "Chez l'amputé : talon prothétique trop mou (voir prosthetic-findings)"
+      ],
+      "management": [
+        "Renforcement excentrique des releveurs",
+        "AFO légère ou à butée postérieure selon la sévérité",
+        "Exploration électrodiagnostique si nouveau"
+      ],
       "evidenceLevel": "expert_textbook",
       "confidence": "low",
       "camera2dLimits": "Phase très brève (≈ 10 % du cycle) : nécessite ≥ 60 images/s ; le bruit sonore n'est pas exploité.",
@@ -56,12 +131,39 @@
       "name_en": "Circumduction",
       "description": "Le membre oscillant décrit un arc latéral (abduction de la cuisse) pour compenser un membre fonctionnellement trop long (genou raide, pied tombant, équin).",
       "criteria": [
-        {"metric": "foot_lateral_displacement_swing", "phase": "MSw", "view": "frontal|posterior", "threshold": "Déplacement latéral de la cheville en oscillation moyenne > largeur de base d'appui + 5 cm, ou > côté sain × 2", "thresholdType": "proposed_heuristic", "refs": ["kerrigan2000"]},
-        {"metric": "thigh_coronal_angle", "phase": "MSw", "view": "frontal|posterior", "threshold": "Angle coronal de la cuisse supérieur à la normale en oscillation moyenne (définition de Kerrigan 2000, sans seuil chiffré publié dans l'abstract)", "thresholdType": "published", "refs": ["kerrigan2000"]}
+        {
+          "metric": "foot_lateral_displacement_swing",
+          "phase": "MSw",
+          "view": "frontal|posterior",
+          "threshold": "Déplacement latéral de la cheville en oscillation moyenne > largeur de base d'appui + 5 cm, ou > côté sain × 2",
+          "thresholdType": "proposed_heuristic",
+          "refs": ["kerrigan2000"]
+        },
+        {
+          "metric": "thigh_coronal_angle",
+          "phase": "MSw",
+          "view": "frontal|posterior",
+          "threshold": "Angle coronal de la cuisse supérieur à la normale en oscillation moyenne (définition de Kerrigan 2000, sans seuil chiffré publié dans l'abstract)",
+          "thresholdType": "published",
+          "refs": ["kerrigan2000"]
+        }
       ],
-      "causes": ["Hémiparésie post-AVC avec genou raide (stiff-knee) et/ou pied tombant", "Spasticité du droit fémoral / quadriceps", "Équin dynamique", "Arthrodèse ou raideur du genou, orthèse de genou verrouillée"],
-      "differentials": ["Hip hiking (élévation du bassin plutôt qu'abduction)", "Vaulting (élévation sur la pointe du pied controlatéral)", "Base élargie par instabilité (les deux membres)"],
-      "management": ["Traiter la cause : AFO pour le pied tombant, toxine botulique du droit fémoral si genou raide spastique (à évaluer)", "Entraînement de la flexion de genou en pré-oscillation", "Étirements, renforcement des fléchisseurs de hanche"],
+      "causes": [
+        "Hémiparésie post-AVC avec genou raide (stiff-knee) et/ou pied tombant",
+        "Spasticité du droit fémoral / quadriceps",
+        "Équin dynamique",
+        "Arthrodèse ou raideur du genou, orthèse de genou verrouillée"
+      ],
+      "differentials": [
+        "Hip hiking (élévation du bassin plutôt qu'abduction)",
+        "Vaulting (élévation sur la pointe du pied controlatéral)",
+        "Base élargie par instabilité (les deux membres)"
+      ],
+      "management": [
+        "Traiter la cause : AFO pour le pied tombant, toxine botulique du droit fémoral si genou raide spastique (à évaluer)",
+        "Entraînement de la flexion de genou en pré-oscillation",
+        "Étirements, renforcement des fléchisseurs de hanche"
+      ],
       "evidenceLevel": "observational",
       "confidence": "medium",
       "camera2dLimits": "Nécessite la vue frontale ou postérieure ; la profondeur (patient qui s'approche) change l'échelle : normaliser par la largeur du bassin.",
@@ -73,10 +175,29 @@
       "name_en": "Vaulting",
       "description": "Flexion plantaire précoce de la cheville du membre en appui (montée sur la pointe en mi-appui) pour donner de la hauteur au membre oscillant controlatéral.",
       "criteria": [
-        {"metric": "heel_rise_timing", "phase": "MSt", "view": "lateral", "threshold": "Décollement du talon du membre en appui avant 31 % du cycle (fin du mi-appui) pendant l'oscillation du membre atteint", "normReference": "décollement du talon en appui terminal (31–50 %)", "thresholdType": "norm_relative", "refs": ["aapmr_normal_gait"]},
-        {"metric": "ankle_angle_stance_limb", "phase": "MSt", "view": "lateral", "threshold": "Cheville en flexion plantaire (< 0°) en mi-appui du côté sain", "normReference": "≈ +5° en mi-appui", "thresholdType": "proposed_heuristic", "refs": ["aapmr_normal_gait"]}
+        {
+          "metric": "heel_rise_timing",
+          "phase": "MSt",
+          "view": "lateral",
+          "threshold": "Décollement du talon du membre en appui avant 31 % du cycle (fin du mi-appui) pendant l'oscillation du membre atteint",
+          "normReference": "décollement du talon en appui terminal (31–50 %)",
+          "thresholdType": "norm_relative",
+          "refs": ["aapmr_normal_gait"]
+        },
+        {
+          "metric": "ankle_angle_stance_limb",
+          "phase": "MSt",
+          "view": "lateral",
+          "threshold": "Cheville en flexion plantaire (< 0°) en mi-appui du côté sain",
+          "normReference": "≈ +5° en mi-appui",
+          "thresholdType": "proposed_heuristic",
+          "refs": ["aapmr_normal_gait"]
+        }
       ],
-      "causes": ["Membre oscillant fonctionnellement long (genou raide, pied tombant, orthèse verrouillée)", "Prothèse trop longue (voir prosthetic-findings)"],
+      "causes": [
+        "Membre oscillant fonctionnellement long (genou raide, pied tombant, orthèse verrouillée)",
+        "Prothèse trop longue (voir prosthetic-findings)"
+      ],
       "differentials": ["Hip hiking", "Circumduction", "Marche sur la pointe bilatérale (équin)"],
       "management": ["Traiter la cause du membre long", "Entraînement à la marche, rétroaction visuelle"],
       "evidenceLevel": "expert_textbook",
@@ -90,11 +211,26 @@
       "name_en": "Hip hiking",
       "description": "Élévation de l'hémibassin du côté oscillant (par le carré des lombes / abducteurs controlatéraux) pour dégager le pied.",
       "criteria": [
-        {"metric": "pelvic_obliquity", "phase": "MSw", "view": "frontal|posterior", "threshold": "Hémibassin oscillant plus haut que l'hémibassin d'appui en oscillation moyenne (inverse de la chute pelvienne physiologique), > 3° sur la majorité des cycles", "thresholdType": "proposed_heuristic", "refs": ["kerrigan2000"]}
+        {
+          "metric": "pelvic_obliquity",
+          "phase": "MSw",
+          "view": "frontal|posterior",
+          "threshold": "Hémibassin oscillant plus haut que l'hémibassin d'appui en oscillation moyenne (inverse de la chute pelvienne physiologique), > 3° sur la majorité des cycles",
+          "thresholdType": "proposed_heuristic",
+          "refs": ["kerrigan2000"]
+        }
       ],
-      "causes": ["Hémiparésie avec genou raide et/ou pied tombant", "Faiblesse des fléchisseurs de hanche", "Membre long (prothèse, orthèse)"],
+      "causes": [
+        "Hémiparésie avec genou raide et/ou pied tombant",
+        "Faiblesse des fléchisseurs de hanche",
+        "Membre long (prothèse, orthèse)"
+      ],
       "differentials": ["Circumduction", "Vaulting", "Inégalité de longueur structurale"],
-      "management": ["Traiter la cause (AFO, toxine si spasticité, ajustement de longueur)", "Renforcement des fléchisseurs de hanche", "Entraînement à la marche"],
+      "management": [
+        "Traiter la cause (AFO, toxine si spasticité, ajustement de longueur)",
+        "Renforcement des fléchisseurs de hanche",
+        "Entraînement à la marche"
+      ],
       "evidenceLevel": "observational",
       "confidence": "low",
       "camera2dLimits": "Repères du bassin (EIAS/hanches) imprécis en 2D ; mesure de l'obliquité non validée à la marche (voir norms.frontalAndTrunk).",
@@ -106,11 +242,32 @@
       "name_en": "Trendelenburg gait (uncompensated)",
       "description": "Chute du bassin du côté oscillant pendant l'appui unipodal, par insuffisance des abducteurs de hanche du côté en appui.",
       "criteria": [
-        {"metric": "contralateral_pelvic_drop", "phase": "MSt", "view": "posterior|frontal", "threshold": "Chute pelvienne controlatérale > côté opposé + 3° ou > valeur normative + 2 ET (norme à confirmer)", "thresholdType": "proposed_heuristic", "refs": ["hardcastle1985"]}
+        {
+          "metric": "contralateral_pelvic_drop",
+          "phase": "MSt",
+          "view": "posterior|frontal",
+          "threshold": "Chute pelvienne controlatérale > côté opposé + 3° ou > valeur normative + 2 ET (norme à confirmer)",
+          "thresholdType": "proposed_heuristic",
+          "refs": ["hardcastle1985"]
+        }
       ],
-      "causes": ["Faiblesse/inhibition du moyen fessier (gluteus medius) : tendinopathie, rupture", "Arthrose de hanche, post-arthroplastie (voie d'abord), coxa vara", "Radiculopathie L5, atteinte du nerf glutéal supérieur", "Myopathie, dysplasie de hanche"],
-      "differentials": ["Trendelenburg compensé (tronc penché vers l'appui)", "Démarche antalgique de hanche", "Inégalité de longueur"],
-      "management": ["Renforcement des abducteurs de hanche", "Canne du côté controlatéral (sehgal2021)", "Investigation de la hanche (imagerie) et du nerf glutéal si nouveau", "Chirurgie à discuter selon la cause (réparation tendineuse, arthroplastie)"],
+      "causes": [
+        "Faiblesse/inhibition du moyen fessier (gluteus medius) : tendinopathie, rupture",
+        "Arthrose de hanche, post-arthroplastie (voie d'abord), coxa vara",
+        "Radiculopathie L5, atteinte du nerf glutéal supérieur",
+        "Myopathie, dysplasie de hanche"
+      ],
+      "differentials": [
+        "Trendelenburg compensé (tronc penché vers l'appui)",
+        "Démarche antalgique de hanche",
+        "Inégalité de longueur"
+      ],
+      "management": [
+        "Renforcement des abducteurs de hanche",
+        "Canne du côté controlatéral (sehgal2021)",
+        "Investigation de la hanche (imagerie) et du nerf glutéal si nouveau",
+        "Chirurgie à discuter selon la cause (réparation tendineuse, arthroplastie)"
+      ],
       "evidenceLevel": "expert_textbook",
       "confidence": "medium",
       "camera2dLimits": "Chute pelvienne en 2D non validée ; l'oscillation latérale et la rotation du bassin faussent l'angle. Afficher en « estimation ».",
@@ -122,9 +279,20 @@
       "name_en": "Compensated Trendelenburg (Duchenne lurch)",
       "description": "Inclinaison latérale du tronc vers le membre d'appui pour rapprocher le centre de masse de la hanche et réduire la demande sur les abducteurs (ou la charge articulaire).",
       "criteria": [
-        {"metric": "trunk_lateral_lean_toward_stance", "phase": "MSt", "view": "frontal|posterior", "threshold": "Inclinaison latérale du tronc vers le côté d'appui > côté opposé + 5°", "thresholdType": "proposed_heuristic", "refs": ["perry2010"]}
+        {
+          "metric": "trunk_lateral_lean_toward_stance",
+          "phase": "MSt",
+          "view": "frontal|posterior",
+          "threshold": "Inclinaison latérale du tronc vers le côté d'appui > côté opposé + 5°",
+          "thresholdType": "proposed_heuristic",
+          "refs": ["perry2010"]
+        }
       ],
-      "causes": ["Faiblesse des abducteurs", "Douleur de hanche (arthrose : réduction du moment adducteur)", "Prothèse trop courte ou mal alignée (voir prosthetic-findings)"],
+      "causes": [
+        "Faiblesse des abducteurs",
+        "Douleur de hanche (arthrose : réduction du moment adducteur)",
+        "Prothèse trop courte ou mal alignée (voir prosthetic-findings)"
+      ],
       "differentials": ["Démarche antalgique", "Ataxie (oscillations bilatérales irrégulières)"],
       "management": ["Canne controlatérale", "Renforcement des abducteurs", "Traitement de la douleur de hanche"],
       "evidenceLevel": "expert_textbook",
@@ -137,11 +305,27 @@
       "name_fr": "Diminution de la flexion de hanche en oscillation",
       "name_en": "Reduced hip flexion in swing",
       "criteria": [
-        {"metric": "peak_hip_flexion_swing", "phase": "MSw|TSw", "view": "lateral", "threshold": "< 20° (norme ≈ 25–30°) ou < côté sain − 10°", "normReference": "hanche ≈ 25–30° en oscillation moyenne/terminale", "thresholdType": "proposed_heuristic", "refs": ["physiopedia_gait_cycle", "degheldere_normal_gait", "stenum2021"]}
+        {
+          "metric": "peak_hip_flexion_swing",
+          "phase": "MSw|TSw",
+          "view": "lateral",
+          "threshold": "< 20° (norme ≈ 25–30°) ou < côté sain − 10°",
+          "normReference": "hanche ≈ 25–30° en oscillation moyenne/terminale",
+          "thresholdType": "proposed_heuristic",
+          "refs": ["physiopedia_gait_cycle", "degheldere_normal_gait", "stenum2021"]
+        }
       ],
-      "causes": ["Faiblesse des fléchisseurs de hanche (psoas) : AVC, lésion médullaire, radiculopathie L2–L3", "Douleur de hanche", "Raideur/arthrodèse de hanche"],
+      "causes": [
+        "Faiblesse des fléchisseurs de hanche (psoas) : AVC, lésion médullaire, radiculopathie L2–L3",
+        "Douleur de hanche",
+        "Raideur/arthrodèse de hanche"
+      ],
       "differentials": ["Longueur de pas courte par peur/instabilité", "Démarche parkinsonienne (pas courts)"],
-      "management": ["Renforcement des fléchisseurs de hanche", "Entraînement à la marche", "Évaluer douleur et amplitude passive"],
+      "management": [
+        "Renforcement des fléchisseurs de hanche",
+        "Entraînement à la marche",
+        "Évaluer douleur et amplitude passive"
+      ],
       "evidenceLevel": "expert_textbook",
       "confidence": "medium",
       "camera2dLimits": "Hanche ≈ 4° d'erreur en 2D ; convention cuisse–verticale vs cuisse–bassin à fixer.",
@@ -152,11 +336,29 @@
       "name_fr": "Diminution de l'extension de hanche en appui terminal",
       "name_en": "Reduced hip extension in terminal stance",
       "criteria": [
-        {"metric": "peak_hip_extension", "phase": "TSt", "view": "lateral", "threshold": "Hanche n'atteignant pas 0° (reste en flexion) en appui terminal, ou < côté sain − 10°", "normReference": "≈ 10° d'extension (convention cuisse–bassin)", "thresholdType": "proposed_heuristic", "refs": ["physiopedia_gait_cycle", "degheldere_normal_gait"]}
+        {
+          "metric": "peak_hip_extension",
+          "phase": "TSt",
+          "view": "lateral",
+          "threshold": "Hanche n'atteignant pas 0° (reste en flexion) en appui terminal, ou < côté sain − 10°",
+          "normReference": "≈ 10° d'extension (convention cuisse–bassin)",
+          "thresholdType": "proposed_heuristic",
+          "refs": ["physiopedia_gait_cycle", "degheldere_normal_gait"]
+        }
       ],
-      "causes": ["Flessum (contracture en flexion) de hanche : arthrose, alitement, amputé", "Faiblesse du triceps sural (propulsion réduite)", "Faiblesse des extenseurs de hanche", "Lombalgie / sténose spinale (posture penchée)", "Vieillissement, vitesse lente"],
+      "causes": [
+        "Flessum (contracture en flexion) de hanche : arthrose, alitement, amputé",
+        "Faiblesse du triceps sural (propulsion réduite)",
+        "Faiblesse des extenseurs de hanche",
+        "Lombalgie / sténose spinale (posture penchée)",
+        "Vieillissement, vitesse lente"
+      ],
       "differentials": ["Crouch (flexion globale)", "Longueur de pas réduite par simple lenteur"],
-      "management": ["Étirement des fléchisseurs de hanche (test de Thomas)", "Renforcement du triceps sural et des fessiers", "Entraînement à la marche avec pas plus longs"],
+      "management": [
+        "Étirement des fléchisseurs de hanche (test de Thomas)",
+        "Renforcement du triceps sural et des fessiers",
+        "Entraînement à la marche avec pas plus longs"
+      ],
       "evidenceLevel": "expert_textbook",
       "confidence": "medium",
       "camera2dLimits": "Sensible à l'estimation du bassin (inclinaison antérieure confondue avec l'extension).",
@@ -168,13 +370,47 @@
       "name_en": "Stiff-knee gait",
       "description": "Flexion maximale du genou en oscillation diminuée et/ou retardée, souvent par activité inappropriée du droit fémoral en pré-oscillation/oscillation initiale.",
       "criteria": [
-        {"metric": "peak_knee_flexion_swing", "phase": "ISw", "view": "lateral", "threshold": "< moyenne − 2 ET de la norme (Oberg 1994 : ≈ < 56° homme, < 51° femme) ou < côté sain − 15°", "thresholdType": "norm_relative", "refs": ["oberg1994", "stenum2021"]},
-        {"metric": "knee_flexion_at_toe_off", "phase": "PSw", "view": "lateral", "threshold": "< 25° au décollement des orteils (norme ≈ 35–40° en pré-oscillation)", "thresholdType": "proposed_heuristic", "refs": ["degheldere_normal_gait"]},
-        {"metric": "time_to_peak_knee_flexion", "phase": "ISw", "view": "lateral", "threshold": "Pic de flexion retardé au-delà de 75 % du cycle", "thresholdType": "proposed_heuristic", "refs": ["aapmr_normal_gait"]}
+        {
+          "metric": "peak_knee_flexion_swing",
+          "phase": "ISw",
+          "view": "lateral",
+          "threshold": "< moyenne − 2 ET de la norme (Oberg 1994 : ≈ < 56° homme, < 51° femme) ou < côté sain − 15°",
+          "thresholdType": "norm_relative",
+          "refs": ["oberg1994", "stenum2021"]
+        },
+        {
+          "metric": "knee_flexion_at_toe_off",
+          "phase": "PSw",
+          "view": "lateral",
+          "threshold": "< 25° au décollement des orteils (norme ≈ 35–40° en pré-oscillation)",
+          "thresholdType": "proposed_heuristic",
+          "refs": ["degheldere_normal_gait"]
+        },
+        {
+          "metric": "time_to_peak_knee_flexion",
+          "phase": "ISw",
+          "view": "lateral",
+          "threshold": "Pic de flexion retardé au-delà de 75 % du cycle",
+          "thresholdType": "proposed_heuristic",
+          "refs": ["aapmr_normal_gait"]
+        }
       ],
-      "causes": ["Spasticité du droit fémoral / quadriceps (AVC, SEP, paralysie cérébrale, lésion médullaire)", "Propulsion insuffisante (faiblesse du triceps sural, des fléchisseurs de hanche)", "Douleur ou raideur du genou, orthèse"],
-      "differentials": ["Vitesse très lente (la flexion maximale diminue avec la vitesse)", "Pied tombant isolé", "Genou raide post-chirurgical"],
-      "management": ["Toxine botulique du droit fémoral à évaluer (bloc diagnostique possible) (simpson2016)", "Étirements du quadriceps", "Renforcement des fléchisseurs de hanche et du triceps", "Chirurgie de transfert du droit fémoral à discuter (surtout paralysie cérébrale)"],
+      "causes": [
+        "Spasticité du droit fémoral / quadriceps (AVC, SEP, paralysie cérébrale, lésion médullaire)",
+        "Propulsion insuffisante (faiblesse du triceps sural, des fléchisseurs de hanche)",
+        "Douleur ou raideur du genou, orthèse"
+      ],
+      "differentials": [
+        "Vitesse très lente (la flexion maximale diminue avec la vitesse)",
+        "Pied tombant isolé",
+        "Genou raide post-chirurgical"
+      ],
+      "management": [
+        "Toxine botulique du droit fémoral à évaluer (bloc diagnostique possible) (simpson2016)",
+        "Étirements du quadriceps",
+        "Renforcement des fléchisseurs de hanche et du triceps",
+        "Chirurgie de transfert du droit fémoral à discuter (surtout paralysie cérébrale)"
+      ],
       "evidenceLevel": "observational",
       "confidence": "medium",
       "camera2dLimits": "Genou ≈ 5,6° d'erreur ; mesure à la vitesse confortable du patient (comparer à vitesse égale).",
@@ -185,11 +421,32 @@
       "name_fr": "Genu recurvatum dynamique",
       "name_en": "Dynamic genu recurvatum (knee hyperextension in stance)",
       "criteria": [
-        {"metric": "knee_angle_min_stance", "phase": "MSt|TSt", "view": "lateral", "threshold": "Extension du genou au-delà de 0° (≤ −5°) en appui, sur la majorité des cycles", "normReference": "genou ≈ 0–5° de flexion en mi-appui/appui terminal", "thresholdType": "proposed_heuristic", "refs": ["bleyenheuft2010", "physiopedia_gait_cycle"]}
+        {
+          "metric": "knee_angle_min_stance",
+          "phase": "MSt|TSt",
+          "view": "lateral",
+          "threshold": "Extension du genou au-delà de 0° (≤ −5°) en appui, sur la majorité des cycles",
+          "normReference": "genou ≈ 0–5° de flexion en mi-appui/appui terminal",
+          "thresholdType": "proposed_heuristic",
+          "refs": ["bleyenheuft2010", "physiopedia_gait_cycle"]
+        }
       ],
-      "causes": ["Faiblesse du quadriceps (verrouillage passif)", "Spasticité/contracture du triceps sural (équin poussant le tibia en arrière)", "Faiblesse des ischio-jambiers, laxité capsulaire postérieure", "Proprioception altérée (post-AVC)"],
-      "differentials": ["Erreur de mesure 2D (genou proche de 0° ; incertitude ≈ ±6°)", "Recurvatum constitutionnel (hyperlaxité)"],
-      "management": ["AFO limitant la flexion plantaire (butée) ou orthèse de genou", "Toxine botulique du triceps sural si équin spastique (à évaluer)", "Rétroaction (biofeedback), renforcement du quadriceps et des ischio-jambiers", "Synthèse : revue systématique de Bleyenheuft 2010"],
+      "causes": [
+        "Faiblesse du quadriceps (verrouillage passif)",
+        "Spasticité/contracture du triceps sural (équin poussant le tibia en arrière)",
+        "Faiblesse des ischio-jambiers, laxité capsulaire postérieure",
+        "Proprioception altérée (post-AVC)"
+      ],
+      "differentials": [
+        "Erreur de mesure 2D (genou proche de 0° ; incertitude ≈ ±6°)",
+        "Recurvatum constitutionnel (hyperlaxité)"
+      ],
+      "management": [
+        "AFO limitant la flexion plantaire (butée) ou orthèse de genou",
+        "Toxine botulique du triceps sural si équin spastique (à évaluer)",
+        "Rétroaction (biofeedback), renforcement du quadriceps et des ischio-jambiers",
+        "Synthèse : revue systématique de Bleyenheuft 2010"
+      ],
       "evidenceLevel": "systematic_review",
       "confidence": "medium",
       "camera2dLimits": "Seuil près de l'erreur de mesure : exiger concordance sur plusieurs cycles et caméra perpendiculaire.",
@@ -201,12 +458,40 @@
       "name_en": "Crouch gait",
       "description": "Flexion excessive du genou (et souvent de la hanche) pendant l'appui, avec dorsiflexion excessive de la cheville (Rodda & Graham).",
       "criteria": [
-        {"metric": "knee_flexion_midstance", "phase": "MSt", "view": "lateral", "threshold": "> moyenne + 2 ET (Oberg 1994 : ≈ > 30° homme, > 26° femme) pendant tout l'appui", "thresholdType": "norm_relative", "refs": ["oberg1994", "rodda2001"]},
-        {"metric": "ankle_dorsiflexion_stance", "phase": "MSt|TSt", "view": "lateral", "threshold": "Dorsiflexion > 15° en appui (crouch vrai) ; si cheville neutre ou en flexion plantaire → « équin apparent / jump » selon Rodda", "thresholdType": "proposed_heuristic", "refs": ["rodda2001"]}
+        {
+          "metric": "knee_flexion_midstance",
+          "phase": "MSt",
+          "view": "lateral",
+          "threshold": "> moyenne + 2 ET (Oberg 1994 : ≈ > 30° homme, > 26° femme) pendant tout l'appui",
+          "thresholdType": "norm_relative",
+          "refs": ["oberg1994", "rodda2001"]
+        },
+        {
+          "metric": "ankle_dorsiflexion_stance",
+          "phase": "MSt|TSt",
+          "view": "lateral",
+          "threshold": "Dorsiflexion > 15° en appui (crouch vrai) ; si cheville neutre ou en flexion plantaire → « équin apparent / jump » selon Rodda",
+          "thresholdType": "proposed_heuristic",
+          "refs": ["rodda2001"]
+        }
       ],
-      "causes": ["Paralysie cérébrale (diplégie spastique), souvent après allongement isolé du triceps", "Faiblesse du triceps sural / quadriceps", "Contracture des ischio-jambiers ou flessum de genou/hanche", "Torsions osseuses (lever-arm dysfunction)"],
-      "differentials": ["Douleur de genou (démarche antalgique en flexion)", "Démarche parkinsonienne fléchie", "Équin apparent (Rodda & Graham)"],
-      "management": ["Orthèse de réaction au sol (GRAFO) à discuter", "Toxine botulique des ischio-jambiers à évaluer", "Renforcement du quadriceps et du triceps", "Chirurgie multiniveau à discuter (paralysie cérébrale)"],
+      "causes": [
+        "Paralysie cérébrale (diplégie spastique), souvent après allongement isolé du triceps",
+        "Faiblesse du triceps sural / quadriceps",
+        "Contracture des ischio-jambiers ou flessum de genou/hanche",
+        "Torsions osseuses (lever-arm dysfunction)"
+      ],
+      "differentials": [
+        "Douleur de genou (démarche antalgique en flexion)",
+        "Démarche parkinsonienne fléchie",
+        "Équin apparent (Rodda & Graham)"
+      ],
+      "management": [
+        "Orthèse de réaction au sol (GRAFO) à discuter",
+        "Toxine botulique des ischio-jambiers à évaluer",
+        "Renforcement du quadriceps et du triceps",
+        "Chirurgie multiniveau à discuter (paralysie cérébrale)"
+      ],
       "evidenceLevel": "observational",
       "confidence": "medium",
       "camera2dLimits": "Classification de Rodda conçue pour l'observation sagittale : compatible avec une caméra latérale.",
@@ -218,12 +503,34 @@
       "name_en": "Antalgic gait",
       "description": "Réduction du temps d'appui sur le membre douloureux avec pas controlatéral raccourci.",
       "criteria": [
-        {"metric": "single_support_time_asymmetry", "phase": "stance", "view": "lateral", "threshold": "Temps d'appui unipodal du côté atteint < côté sain de > 10 %", "thresholdType": "proposed_heuristic", "refs": ["perry2010"]},
-        {"metric": "contralateral_step_length", "phase": "cycle", "view": "lateral", "threshold": "Pas du membre sain (qui atterrit après l'appui du membre douloureux) plus court de > 10 %", "thresholdType": "proposed_heuristic", "refs": ["perry2010"]}
+        {
+          "metric": "single_support_time_asymmetry",
+          "phase": "stance",
+          "view": "lateral",
+          "threshold": "Temps d'appui unipodal du côté atteint < côté sain de > 10 %",
+          "thresholdType": "proposed_heuristic",
+          "refs": ["perry2010"]
+        },
+        {
+          "metric": "contralateral_step_length",
+          "phase": "cycle",
+          "view": "lateral",
+          "threshold": "Pas du membre sain (qui atterrit après l'appui du membre douloureux) plus court de > 10 %",
+          "thresholdType": "proposed_heuristic",
+          "refs": ["perry2010"]
+        }
       ],
-      "causes": ["Arthrose, fracture, entorse, tendinopathie", "Lombosciatalgie", "Lésion du pied (fasciite, métatarsalgie)"],
+      "causes": [
+        "Arthrose, fracture, entorse, tendinopathie",
+        "Lombosciatalgie",
+        "Lésion du pied (fasciite, métatarsalgie)"
+      ],
       "differentials": ["Faiblesse (appui instable sans douleur)", "Inégalité de longueur", "Asymétrie prothétique"],
-      "management": ["Évaluer et traiter la douleur", "Aide technique controlatérale (canne) pour décharger (sehgal2021)", "Imagerie selon la clinique"],
+      "management": [
+        "Évaluer et traiter la douleur",
+        "Aide technique controlatérale (canne) pour décharger (sehgal2021)",
+        "Imagerie selon la clinique"
+      ],
       "evidenceLevel": "expert_textbook",
       "confidence": "medium",
       "camera2dLimits": "Paramètres temporels fiables en 2D (≈ 0,01–0,02 s) ; la douleur elle-même n'est pas mesurée : à corréler avec l'échelle de douleur saisie.",
@@ -235,13 +542,46 @@
       "name_en": "Dynamic equinus / equinovarus",
       "description": "Flexion plantaire excessive en appui et/ou oscillation par spasticité ou contracture du triceps sural ; composante varus par hyperactivité du tibial postérieur/antérieur.",
       "criteria": [
-        {"metric": "ankle_angle", "phase": "IC", "view": "lateral", "threshold": "< −10° (contact par l'avant-pied)", "thresholdType": "proposed_heuristic", "refs": ["rodda2001"]},
-        {"metric": "peak_ankle_dorsiflexion_stance", "phase": "MSt|TSt", "view": "lateral", "threshold": "< 0° (jamais de dorsiflexion en appui) ; norme ≈ +10° en appui terminal", "thresholdType": "proposed_heuristic", "refs": ["physiopedia_gait_cycle", "rodda2001"]},
-        {"metric": "hindfoot_varus", "phase": "stance", "view": "posterior", "threshold": "Arrière-pied en varus visible (estimation qualitative)", "thresholdType": "proposed_heuristic", "refs": []}
+        {
+          "metric": "ankle_angle",
+          "phase": "IC",
+          "view": "lateral",
+          "threshold": "< −10° (contact par l'avant-pied)",
+          "thresholdType": "proposed_heuristic",
+          "refs": ["rodda2001"]
+        },
+        {
+          "metric": "peak_ankle_dorsiflexion_stance",
+          "phase": "MSt|TSt",
+          "view": "lateral",
+          "threshold": "< 0° (jamais de dorsiflexion en appui) ; norme ≈ +10° en appui terminal",
+          "thresholdType": "proposed_heuristic",
+          "refs": ["physiopedia_gait_cycle", "rodda2001"]
+        },
+        {
+          "metric": "hindfoot_varus",
+          "phase": "stance",
+          "view": "posterior",
+          "threshold": "Arrière-pied en varus visible (estimation qualitative)",
+          "thresholdType": "proposed_heuristic",
+          "refs": []
+        }
       ],
-      "causes": ["Spasticité post-AVC, traumatisme crânien, paralysie cérébrale, SEP", "Contracture du triceps sural", "Pied creux varus neurologique"],
-      "differentials": ["Pied tombant flasque (pas de spasticité)", "Marche idiopathique sur la pointe", "Inégalité de longueur (pointe du côté court)"],
-      "management": ["Toxine botulique (gastrocnémiens, soléaire, tibial postérieur) à évaluer : niveau de preuve élevé pour la spasticité du membre inférieur (simpson2016, à relire)", "AFO (tyson2013), plâtres sériés, étirements", "Chirurgie (allongement, transfert du tibial antérieur) à discuter"],
+      "causes": [
+        "Spasticité post-AVC, traumatisme crânien, paralysie cérébrale, SEP",
+        "Contracture du triceps sural",
+        "Pied creux varus neurologique"
+      ],
+      "differentials": [
+        "Pied tombant flasque (pas de spasticité)",
+        "Marche idiopathique sur la pointe",
+        "Inégalité de longueur (pointe du côté court)"
+      ],
+      "management": [
+        "Toxine botulique (gastrocnémiens, soléaire, tibial postérieur) à évaluer : niveau de preuve élevé pour la spasticité du membre inférieur (simpson2016, à relire)",
+        "AFO (tyson2013), plâtres sériés, étirements",
+        "Chirurgie (allongement, transfert du tibial antérieur) à discuter"
+      ],
       "evidenceLevel": "guideline",
       "confidence": "medium",
       "camera2dLimits": "Le varus de l'arrière-pied n'est pas mesurable de façon fiable avec les repères de MediaPipe : affichage qualitatif seulement.",
@@ -252,11 +592,30 @@
       "name_fr": "Valgus ou varus dynamique du genou",
       "name_en": "Dynamic knee valgus / varus (thrust)",
       "criteria": [
-        {"metric": "fppa", "phase": "LR|MSt", "view": "frontal", "threshold": "Variation du FPPA en appui > côté opposé + 5° (valgus si médial, varus/thrust latéral si latéral)", "thresholdType": "proposed_heuristic", "refs": ["willson2008"]}
+        {
+          "metric": "fppa",
+          "phase": "LR|MSt",
+          "view": "frontal",
+          "threshold": "Variation du FPPA en appui > côté opposé + 5° (valgus si médial, varus/thrust latéral si latéral)",
+          "thresholdType": "proposed_heuristic",
+          "refs": ["willson2008"]
+        }
       ],
-      "causes": ["Faiblesse des abducteurs/rotateurs externes de hanche (valgus)", "Gonarthrose médiale avec thrust varus", "Laxité ligamentaire", "Pied pronateur"],
-      "differentials": ["Artefact de rotation (genou en flexion vu de face paraît en valgus)", "Déformation statique (genu valgum/varum) sans composante dynamique"],
-      "management": ["Renforcement de la hanche et contrôle neuromusculaire", "Orthèses plantaires, genouillère de décharge (gonarthrose) à discuter", "Évaluation orthopédique si thrust varus important"],
+      "causes": [
+        "Faiblesse des abducteurs/rotateurs externes de hanche (valgus)",
+        "Gonarthrose médiale avec thrust varus",
+        "Laxité ligamentaire",
+        "Pied pronateur"
+      ],
+      "differentials": [
+        "Artefact de rotation (genou en flexion vu de face paraît en valgus)",
+        "Déformation statique (genu valgum/varum) sans composante dynamique"
+      ],
+      "management": [
+        "Renforcement de la hanche et contrôle neuromusculaire",
+        "Orthèses plantaires, genouillère de décharge (gonarthrose) à discuter",
+        "Évaluation orthopédique si thrust varus important"
+      ],
       "evidenceLevel": "observational",
       "confidence": "low",
       "camera2dLimits": "FPPA validé au squat unipodal, pas à la marche ; la flexion du genou en appui et la rotation de hanche contaminent la projection. Estimation seulement.",
@@ -267,11 +626,33 @@
       "name_fr": "Appui asymétrique (asymétrie temporelle ou spatiale)",
       "name_en": "Asymmetric gait (temporal/spatial asymmetry)",
       "criteria": [
-        {"metric": "symmetry_index_stance_time", "phase": "cycle", "view": "lateral", "threshold": "|G − D| / moyenne(G, D) > 10 %", "thresholdType": "proposed_heuristic", "refs": []},
-        {"metric": "symmetry_index_step_length", "phase": "cycle", "view": "lateral", "threshold": "|G − D| / moyenne(G, D) > 10 %", "thresholdType": "proposed_heuristic", "refs": []}
+        {
+          "metric": "symmetry_index_stance_time",
+          "phase": "cycle",
+          "view": "lateral",
+          "threshold": "|G − D| / moyenne(G, D) > 10 %",
+          "thresholdType": "proposed_heuristic",
+          "refs": []
+        },
+        {
+          "metric": "symmetry_index_step_length",
+          "phase": "cycle",
+          "view": "lateral",
+          "threshold": "|G − D| / moyenne(G, D) > 10 %",
+          "thresholdType": "proposed_heuristic",
+          "refs": []
+        }
       ],
-      "causes": ["Hémiparésie", "Douleur unilatérale (antalgique)", "Amputation / prothèse", "Inégalité de longueur", "Pathologie orthopédique unilatérale"],
-      "differentials": ["Erreur de mesure : une vue latérale mesure mieux le membre proche de la caméra ; filmer les deux côtés"],
+      "causes": [
+        "Hémiparésie",
+        "Douleur unilatérale (antalgique)",
+        "Amputation / prothèse",
+        "Inégalité de longueur",
+        "Pathologie orthopédique unilatérale"
+      ],
+      "differentials": [
+        "Erreur de mesure : une vue latérale mesure mieux le membre proche de la caméra ; filmer les deux côtés"
+      ],
       "management": ["Selon la cause ; entraînement à la marche symétrique (métronome, tapis)"],
       "evidenceLevel": "expert_textbook",
       "confidence": "low",
@@ -283,31 +664,119 @@
       "name_fr": "Vitesse de marche réduite et risque de chute",
       "name_en": "Reduced gait speed and fall risk",
       "criteria": [
-        {"metric": "gait_speed", "phase": "cycle", "view": "lateral", "threshold": "< norme par âge/sexe − 2 ET (Bohannon 1997) ou < 80 % de la moyenne Bohannon & Andrews 2011", "thresholdType": "norm_relative", "refs": ["bohannon1997", "bohannon2011"]},
-        {"metric": "gait_speed", "phase": "cycle", "view": "lateral", "threshold": "< 0,8 m/s : prédicteur d'issues cliniques défavorables chez ≥ 70 ans ; < 0,6 m/s : déclin fonctionnel (Peel 2013, via SRALab)", "thresholdType": "published", "refs": ["peel2013", "sralab2024"]},
-        {"metric": "gait_speed", "phase": "cycle", "view": "lateral", "threshold": "< 0,7 m/s chez ≥ 75 ans : événements indésirables ; nouvelles chutes à 2 ans ≈ 60 % (< 0,7) vs 12 % (> 1,1 m/s) (Montero-Odasso 2005, via SRALab)", "thresholdType": "published", "refs": ["monteroodasso2005", "sralab2024"]},
-        {"metric": "gait_speed", "phase": "cycle", "view": "lateral", "threshold": "Post-AVC : < 0,4 m/s marche à domicile ; 0,4–0,8 m/s communautaire limitée ; > 0,8 m/s communautaire (Perry 1995, valeurs à relire)", "thresholdType": "published", "refs": ["perry1995"], "status": "to_verify"},
-        {"metric": "gait_speed_change", "phase": "cycle", "view": "lateral", "threshold": "Changement ≥ 0,05 m/s (petit) / ≥ 0,10 m/s (substantiel) chez l'aîné", "thresholdType": "published", "refs": ["perera2006"], "status": "to_verify"}
+        {
+          "metric": "gait_speed",
+          "phase": "cycle",
+          "view": "lateral",
+          "threshold": "< norme par âge/sexe − 2 ET (Bohannon 1997) ou < 80 % de la moyenne Bohannon & Andrews 2011",
+          "thresholdType": "norm_relative",
+          "refs": ["bohannon1997", "bohannon2011"]
+        },
+        {
+          "metric": "gait_speed",
+          "phase": "cycle",
+          "view": "lateral",
+          "threshold": "< 0,8 m/s : prédicteur d'issues cliniques défavorables chez ≥ 70 ans ; < 0,6 m/s : déclin fonctionnel (Peel 2013, via SRALab)",
+          "thresholdType": "published",
+          "refs": ["peel2013", "sralab2024"]
+        },
+        {
+          "metric": "gait_speed",
+          "phase": "cycle",
+          "view": "lateral",
+          "threshold": "< 0,7 m/s chez ≥ 75 ans : événements indésirables ; nouvelles chutes à 2 ans ≈ 60 % (< 0,7) vs 12 % (> 1,1 m/s) (Montero-Odasso 2005, via SRALab)",
+          "thresholdType": "published",
+          "refs": ["monteroodasso2005", "sralab2024"]
+        },
+        {
+          "metric": "gait_speed",
+          "phase": "cycle",
+          "view": "lateral",
+          "threshold": "Post-AVC : < 0,4 m/s marche à domicile ; 0,4–0,8 m/s communautaire limitée ; > 0,8 m/s communautaire (Perry 1995, valeurs à relire)",
+          "thresholdType": "published",
+          "refs": ["perry1995"],
+          "status": "to_verify"
+        },
+        {
+          "metric": "gait_speed_change",
+          "phase": "cycle",
+          "view": "lateral",
+          "threshold": "Changement ≥ 0,05 m/s (petit) / ≥ 0,10 m/s (substantiel) chez l'aîné",
+          "thresholdType": "published",
+          "refs": ["perera2006"],
+          "status": "to_verify"
+        }
       ],
-      "causes": ["Sarcopénie, fragilité", "Atteintes neurologiques (AVC, Parkinson, neuropathie)", "Douleur (arthrose), insuffisance cardiorespiratoire", "Peur de tomber, déficit visuel ou vestibulaire"],
-      "differentials": ["Lenteur volontaire (consigne mal comprise, chaussures, sol)", "Erreur d'échelle (taille saisie incorrecte)"],
-      "management": ["Évaluation multifactorielle du risque de chute (monteroodasso2022)", "Exercices d'équilibre et de renforcement progressifs", "Révision des médicaments, vision, chaussures, domicile", "Aide technique adaptée (assistive-devices.json)"],
+      "causes": [
+        "Sarcopénie, fragilité",
+        "Atteintes neurologiques (AVC, Parkinson, neuropathie)",
+        "Douleur (arthrose), insuffisance cardiorespiratoire",
+        "Peur de tomber, déficit visuel ou vestibulaire"
+      ],
+      "differentials": [
+        "Lenteur volontaire (consigne mal comprise, chaussures, sol)",
+        "Erreur d'échelle (taille saisie incorrecte)"
+      ],
+      "management": [
+        "Évaluation multifactorielle du risque de chute (monteroodasso2022)",
+        "Exercices d'équilibre et de renforcement progressifs",
+        "Révision des médicaments, vision, chaussures, domicile",
+        "Aide technique adaptée (assistive-devices.json)"
+      ],
       "evidenceLevel": "guideline",
       "confidence": "high",
       "camera2dLimits": "Vitesse fiable si l'échelle est bonne (< 0,10 m/s d'écart, stenum2021). Les études de seuils utilisent souvent un chronométrage sur 4–10 m avec départ lancé ou arrêté : préciser le protocole.",
-      "refs": ["bohannon1997", "bohannon2011", "peel2013", "monteroodasso2005", "perry1995", "perera2006", "monteroodasso2022", "studenski2011", "fritz2009", "cesari2005"]
+      "refs": [
+        "bohannon1997",
+        "bohannon2011",
+        "peel2013",
+        "monteroodasso2005",
+        "perry1995",
+        "perera2006",
+        "monteroodasso2022",
+        "studenski2011",
+        "fritz2009",
+        "cesari2005"
+      ]
     },
     {
       "id": "wide_base_ataxia",
       "name_fr": "Base élargie / démarche ataxique",
       "name_en": "Wide-based gait / ataxic gait",
       "criteria": [
-        {"metric": "step_width", "phase": "cycle", "view": "frontal|posterior", "threshold": "> norme + 2 ET (Hollman 2011 pour ≥ 70 ans ; norme < 70 ans à confirmer)", "thresholdType": "norm_relative", "refs": ["hollman2011"]},
-        {"metric": "step_length_and_time_variability", "phase": "cycle", "view": "lateral", "threshold": "Coefficient de variation de la longueur/du temps de pas augmenté (caractéristique de l'ataxie cérébelleuse) ; seuil à définir", "thresholdType": "published", "refs": ["stolze2002"]}
+        {
+          "metric": "step_width",
+          "phase": "cycle",
+          "view": "frontal|posterior",
+          "threshold": "> norme + 2 ET (Hollman 2011 pour ≥ 70 ans ; norme < 70 ans à confirmer)",
+          "thresholdType": "norm_relative",
+          "refs": ["hollman2011"]
+        },
+        {
+          "metric": "step_length_and_time_variability",
+          "phase": "cycle",
+          "view": "lateral",
+          "threshold": "Coefficient de variation de la longueur/du temps de pas augmenté (caractéristique de l'ataxie cérébelleuse) ; seuil à définir",
+          "thresholdType": "published",
+          "refs": ["stolze2002"]
+        }
       ],
-      "causes": ["Ataxie cérébelleuse (AVC, alcool, dégénérative, SEP)", "Ataxie sensitive (neuropathie, myélopathie, B12)", "Atteinte vestibulaire", "Peur de tomber"],
-      "differentials": ["Hydrocéphalie à pression normale (base élargie, pas courts « magnétiques »)", "Base élargie prudente du sujet âgé", "Abduction prothétique (voir prosthetic-findings)"],
-      "management": ["Bilan neurologique étiologique", "Rééducation de l'équilibre", "Déambulateur ou canne selon la sévérité (sehgal2021 : canne simple si ataxie légère, déambulateur si ataxie cérébelleuse)"],
+      "causes": [
+        "Ataxie cérébelleuse (AVC, alcool, dégénérative, SEP)",
+        "Ataxie sensitive (neuropathie, myélopathie, B12)",
+        "Atteinte vestibulaire",
+        "Peur de tomber"
+      ],
+      "differentials": [
+        "Hydrocéphalie à pression normale (base élargie, pas courts « magnétiques »)",
+        "Base élargie prudente du sujet âgé",
+        "Abduction prothétique (voir prosthetic-findings)"
+      ],
+      "management": [
+        "Bilan neurologique étiologique",
+        "Rééducation de l'équilibre",
+        "Déambulateur ou canne selon la sévérité (sehgal2021 : canne simple si ataxie légère, déambulateur si ataxie cérébelleuse)"
+      ],
       "evidenceLevel": "observational",
       "confidence": "medium",
       "camera2dLimits": "Largeur de base en vue frontale : profondeur variable ; aucune validation 2D retrouvée. La variabilité exige ≥ 10 pas.",

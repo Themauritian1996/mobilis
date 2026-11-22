@@ -94,7 +94,8 @@ export const NORMAL_PARAMS: SyntheticParams = {
   swingAnkle: { L: 0, R: 0 },
 };
 
-export type Variant = 'normal' | 'foot_drop' | 'trendelenburg' | 'stiff_knee' | 'circumduction' | 'prosthetic_asymmetry';
+export type Variant =
+  'normal' | 'foot_drop' | 'trendelenburg' | 'stiff_knee' | 'circumduction' | 'prosthetic_asymmetry';
 
 /** Variantes pathologiques (côté atteint : gauche). */
 export function variantParams(v: Variant, base: Partial<SyntheticParams> = {}): SyntheticParams {
@@ -115,7 +116,12 @@ export function variantParams(v: Variant, base: Partial<SyntheticParams> = {}): 
     case 'trendelenburg':
       return { ...p, pelvicDrop: L(p.pelvicDrop, 11) };
     case 'stiff_knee':
-      return { ...p, swingLift: L(p.swingLift, 0), footPitchTO: L(p.footPitchTO, -25), footPitchMidSwing: L(p.footPitchMidSwing, -27) };
+      return {
+        ...p,
+        swingLift: L(p.swingLift, 0),
+        footPitchTO: L(p.footPitchTO, -25),
+        footPitchMidSwing: L(p.footPitchMidSwing, -27),
+      };
     case 'circumduction':
       return { ...p, circumduction: L(p.circumduction, 0.12) };
     case 'prosthetic_asymmetry':
@@ -310,7 +316,8 @@ export function generateGait(input: Partial<SyntheticParams> = {}): { frames: Ga
       const dW = pelvisW(t) - L.ankle.w;
       const dLat = hipLat - L.ankle.lat;
       const off = sigma(s) * (hipW / 2) * Math.sin(o);
-      const reach = (len: number): number => L.ankle.up + Math.sqrt(Math.max(0, len * len - dW * dW - dLat * dLat)) - off;
+      const reach = (len: number): number =>
+        L.ankle.up + Math.sqrt(Math.max(0, len * len - dW * dW - dLat * dLat)) - off;
       up = Math.min(up, reach((Lt + Ls) * 0.999));
       if (t >= ts && L.phase === 'stance' && L.tau < 0.45) up = Math.min(up, reach(legLen(kneeTarget(s, L.tau))));
     }
@@ -324,69 +331,70 @@ export function generateGait(input: Partial<SyntheticParams> = {}): { frames: Ga
   });
 
   // Squelette 3D complet.
-  const buildSkel = (): V3[][] => times.map((t, i) => {
-    const o = obliq(t) * D2R;
-    const pw = pelvisW(t);
-    const center: V3 = { w: pw, lat: sway(t), up: hipUp[i]! };
-    const hip = (s: Side): V3 => ({
-      w: pw,
-      lat: center.lat + sigma(s) * (hipW / 2) * Math.cos(o),
-      up: center.up + sigma(s) * (hipW / 2) * Math.sin(o),
-    });
-    const knee = (s: Side): V3 => {
-      const h = hip(s);
-      const a = limbs[i]![s].ankle;
-      const dx = { w: a.w - h.w, lat: a.lat - h.lat, up: a.up - h.up };
-      const d = Math.hypot(dx.w, dx.lat, dx.up);
-      const u = { w: dx.w / d, lat: dx.lat / d, up: dx.up / d };
-      // Direction de flexion : composante de l'avant (+W) perpendiculaire à hanche→cheville.
-      const dot = u.w;
-      let nn = { w: 1 - dot * u.w, lat: -dot * u.lat, up: -dot * u.up };
-      const nl = Math.hypot(nn.w, nn.lat, nn.up) || 1;
-      nn = { w: nn.w / nl, lat: nn.lat / nl, up: nn.up / nl };
-      const cb = Math.max(-1, Math.min(1, (Lt * Lt + d * d - Ls * Ls) / (2 * Lt * d)));
-      const b = Math.acos(cb);
-      return {
-        w: h.w + Lt * (Math.cos(b) * u.w + Math.sin(b) * nn.w),
-        lat: h.lat + Lt * (Math.cos(b) * u.lat + Math.sin(b) * nn.lat),
-        up: h.up + Lt * (Math.cos(b) * u.up + Math.sin(b) * nn.up),
+  const buildSkel = (): V3[][] =>
+    times.map((t, i) => {
+      const o = obliq(t) * D2R;
+      const pw = pelvisW(t);
+      const center: V3 = { w: pw, lat: sway(t), up: hipUp[i]! };
+      const hip = (s: Side): V3 => ({
+        w: pw,
+        lat: center.lat + sigma(s) * (hipW / 2) * Math.cos(o),
+        up: center.up + sigma(s) * (hipW / 2) * Math.sin(o),
+      });
+      const knee = (s: Side): V3 => {
+        const h = hip(s);
+        const a = limbs[i]![s].ankle;
+        const dx = { w: a.w - h.w, lat: a.lat - h.lat, up: a.up - h.up };
+        const d = Math.hypot(dx.w, dx.lat, dx.up);
+        const u = { w: dx.w / d, lat: dx.lat / d, up: dx.up / d };
+        // Direction de flexion : composante de l'avant (+W) perpendiculaire à hanche→cheville.
+        const dot = u.w;
+        let nn = { w: 1 - dot * u.w, lat: -dot * u.lat, up: -dot * u.up };
+        const nl = Math.hypot(nn.w, nn.lat, nn.up) || 1;
+        nn = { w: nn.w / nl, lat: nn.lat / nl, up: nn.up / nl };
+        const cb = Math.max(-1, Math.min(1, (Lt * Lt + d * d - Ls * Ls) / (2 * Lt * d)));
+        const b = Math.acos(cb);
+        return {
+          w: h.w + Lt * (Math.cos(b) * u.w + Math.sin(b) * nn.w),
+          lat: h.lat + Lt * (Math.cos(b) * u.lat + Math.sin(b) * nn.lat),
+          up: h.up + Lt * (Math.cos(b) * u.up + Math.sin(b) * nn.up),
+        };
       };
-    };
-    const le = lean(t) * D2R;
-    const fl = (walking(t) ? p.trunkForwardLean : 0) * D2R;
-    const shC: V3 = {
-      w: pw + trunk * Math.sin(fl),
-      lat: center.lat + trunk * Math.sin(le),
-      up: center.up + trunk * Math.cos(le) * Math.cos(fl),
-    };
-    const sh = (s: Side): V3 => ({ ...shC, lat: shC.lat + sigma(s) * (shW / 2) });
-    const L = limbs[i]!;
-    const pts: V3[] = new Array<V3>(33);
-    const nose: V3 = { w: shC.w + 0.06, lat: shC.lat, up: shC.up + 0.11 * H };
-    for (let k = 0; k <= 10; k++) pts[k] = { ...nose, lat: nose.lat + (k % 2 ? 0.03 : -0.03) * (k ? 1 : 0) };
-    pts[11] = sh('L');
-    pts[12] = sh('R');
-    for (const [s, e, wr] of [
-      ['L', 13, 15],
-      ['R', 14, 16],
-    ] as const) {
-      const S0 = sh(s);
-      pts[e] = { w: S0.w, lat: S0.lat + sigma(s) * 0.03, up: S0.up - 0.186 * H };
-      pts[wr] = { w: S0.w + 0.03, lat: S0.lat + sigma(s) * 0.04, up: S0.up - 0.333 * H };
-    }
-    for (let k = 17; k <= 22; k++) pts[k] = { ...pts[k % 2 ? 15 : 16]!, up: pts[k % 2 ? 15 : 16]!.up - 0.05 };
-    pts[23] = hip('L');
-    pts[24] = hip('R');
-    pts[25] = knee('L');
-    pts[26] = knee('R');
-    pts[27] = L.L.ankle;
-    pts[28] = L.R.ankle;
-    pts[29] = L.L.heel;
-    pts[30] = L.R.heel;
-    pts[31] = L.L.toe;
-    pts[32] = L.R.toe;
-    return pts;
-  });
+      const le = lean(t) * D2R;
+      const fl = (walking(t) ? p.trunkForwardLean : 0) * D2R;
+      const shC: V3 = {
+        w: pw + trunk * Math.sin(fl),
+        lat: center.lat + trunk * Math.sin(le),
+        up: center.up + trunk * Math.cos(le) * Math.cos(fl),
+      };
+      const sh = (s: Side): V3 => ({ ...shC, lat: shC.lat + sigma(s) * (shW / 2) });
+      const L = limbs[i]!;
+      const pts: V3[] = new Array<V3>(33);
+      const nose: V3 = { w: shC.w + 0.06, lat: shC.lat, up: shC.up + 0.11 * H };
+      for (let k = 0; k <= 10; k++) pts[k] = { ...nose, lat: nose.lat + (k % 2 ? 0.03 : -0.03) * (k ? 1 : 0) };
+      pts[11] = sh('L');
+      pts[12] = sh('R');
+      for (const [s, e, wr] of [
+        ['L', 13, 15],
+        ['R', 14, 16],
+      ] as const) {
+        const S0 = sh(s);
+        pts[e] = { w: S0.w, lat: S0.lat + sigma(s) * 0.03, up: S0.up - 0.186 * H };
+        pts[wr] = { w: S0.w + 0.03, lat: S0.lat + sigma(s) * 0.04, up: S0.up - 0.333 * H };
+      }
+      for (let k = 17; k <= 22; k++) pts[k] = { ...pts[k % 2 ? 15 : 16]!, up: pts[k % 2 ? 15 : 16]!.up - 0.05 };
+      pts[23] = hip('L');
+      pts[24] = hip('R');
+      pts[25] = knee('L');
+      pts[26] = knee('R');
+      pts[27] = L.L.ankle;
+      pts[28] = L.R.ankle;
+      pts[29] = L.L.heel;
+      pts[30] = L.R.heel;
+      pts[31] = L.L.toe;
+      pts[32] = L.R.toe;
+      return pts;
+    });
   let skel = buildSkel();
   // 2e passe : orientation du pied en oscillation par rapport à la jambe (cheville cible).
   for (let i = 0; i < n; i++)
@@ -479,7 +487,10 @@ export function generateGait(input: Partial<SyntheticParams> = {}): { frames: Ga
       if (tto < dur) events.push({ side: s, type: 'TO', t: tto, frame: Math.round(tto * p.fps) });
     }
   }
-  const angles = { L: { hip: [] as number[], knee: [] as number[], ankle: [] as number[] }, R: { hip: [] as number[], knee: [] as number[], ankle: [] as number[] } };
+  const angles = {
+    L: { hip: [] as number[], knee: [] as number[], ankle: [] as number[] },
+    R: { hip: [] as number[], knee: [] as number[], ankle: [] as number[] },
+  };
   const fromVert = (a: V3, b: V3): number => Math.atan2(b.w - a.w, a.up - b.up) / D2R;
   for (const pts of skel)
     for (const [s, h, k, a, he, to] of [

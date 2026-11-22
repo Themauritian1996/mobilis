@@ -285,7 +285,8 @@ const DEFS: readonly Def[] = [
         metric: 'peak_hip_flexion_swing',
         thresholdType: 'proposed_heuristic',
         refs: ['physiopedia_gait_cycle', 'degheldere_normal_gait', 'stenum2021'],
-        evaluate: (src, side) => threshold(pick.self('peak_hip_flexion_swing'), 'below', 20 + src.config.doubtBandDeg.hip, 20)(src, side),
+        evaluate: (src, side) =>
+          threshold(pick.self('peak_hip_flexion_swing'), 'below', 20 + src.config.doubtBandDeg.hip, 20)(src, side),
       },
       {
         id: 'hip_flexion_vs_other',
@@ -309,7 +310,8 @@ const DEFS: readonly Def[] = [
         metric: 'peak_hip_extension',
         thresholdType: 'proposed_heuristic',
         refs: ['physiopedia_gait_cycle', 'degheldere_normal_gait'],
-        evaluate: (src, side) => threshold(pick.self('peak_hip_extension'), 'above', 0, src.config.doubtBandDeg.hip)(src, side),
+        evaluate: (src, side) =>
+          threshold(pick.self('peak_hip_extension'), 'above', 0, src.config.doubtBandDeg.hip)(src, side),
       },
       {
         id: 'hip_extension_vs_other',
@@ -562,7 +564,6 @@ const DEFS: readonly Def[] = [
     ],
   },
 ];
-
 
 export const GAIT_FINDINGS: readonly FindingDefinition[] = DEFS.map((d) => {
   const j = FINDINGS_JSON.find((f) => f.id === d.id);

@@ -64,9 +64,7 @@ interface IndicatorSpec {
   readonly alwaysUncertain?: boolean;
 }
 
-const fixed =
-  (lo: number, hi: number, band: number) =>
-  (): Range => ({ lo, hi, band });
+const fixed = (lo: number, hi: number, band: number) => (): Range => ({ lo, hi, band });
 const fromNorm =
   (band: (cfg: GaitConfig) => number) =>
   (m: GaitMetric, cfg: GaitConfig): Range | null =>

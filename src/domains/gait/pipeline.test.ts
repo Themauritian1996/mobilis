@@ -13,7 +13,11 @@ function run(view: GaitView, extra: Parameters<typeof variantParams>[1] = {}, sc
     ...(scaleObject
       ? {
           // Ruban de 1 m posé au sol dans le plan de marche : longueur image = f / D (unités de hauteur).
-          scaleObject: { lengthM: 1, a: { x: 0.4, y: 0.9 }, b: { x: 0.4 + 1 / truth.metersPerUnit / truth.imageAspect, y: 0.9 } },
+          scaleObject: {
+            lengthM: 1,
+            a: { x: 0.4, y: 0.9 },
+            b: { x: 0.4 + 1 / truth.metersPerUnit / truth.imageAspect, y: 0.9 },
+          },
         }
       : {}),
   };
@@ -30,7 +34,9 @@ function steadyTruth(truth: SyntheticTruth) {
 
 function eventErrors(a: GaitAnalysis, truth: SyntheticTruth): number[] {
   return steadyTruth(truth).map((e) => {
-    const cands = a.events.filter((d) => d.side === e.side && d.type === e.type).map((d) => Math.abs(d.frame - e.frame));
+    const cands = a.events
+      .filter((d) => d.side === e.side && d.type === e.type)
+      .map((d) => Math.abs(d.frame - e.frame));
     return cands.length ? Math.min(...cands) : Infinity;
   });
 }
@@ -100,8 +106,7 @@ describe('pipeline sagittal — squelette synthétique', () => {
         fps,
       );
       const curves: number[][] = [];
-      for (let k = 0; k + 1 < steady.length; k++)
-        curves.push(resample(times, ref, steady[k]!.t, steady[k + 1]!.t));
+      for (let k = 0; k + 1 < steady.length; k++) curves.push(resample(times, ref, steady[k]!.t, steady[k + 1]!.t));
       const truthMean = Array.from({ length: 101 }, (_, i) => mean(curves.map((c) => c[i]!)));
       const est = analysis.curves.find((c) => c.id === `${joint}_angle` && c.side === 'L')!;
       const err = est.mean.map((v, i) => Math.abs(v - truthMean[i]!));

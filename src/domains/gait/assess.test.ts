@@ -16,7 +16,10 @@ function views(v: Variant, views: readonly GaitView[] = ['sagittal-left', 'front
       k,
       views.map((view) => {
         const { frames, truth } = generateGait(
-          variantParams(v, { view, ...(view === 'frontal' || view === 'posterior' ? { noise: 0.0007, standingS: 2 } : {}) }),
+          variantParams(v, {
+            view,
+            ...(view === 'frontal' || view === 'posterior' ? { noise: 0.0007, standingS: 2 } : {}),
+          }),
         );
         return analyzeGait({ frames, view, patient: { heightCm: 175 }, options: { imageAspect: truth.imageAspect } });
       }),
@@ -65,7 +68,10 @@ describe('moteur de règles — variantes pathologiques synthétiques (côté at
     expect(f.requiresClinicianValidation).toBe(true);
     expect(f.determinants).toEqual(['foot_ankle_rockers', 'knee_ankle_interaction']);
     expect(f.suggestions[0]).toMatch(/^Déterminant 4/);
-    expect(f.unvalidatedThresholds).toContainEqual({ criterion: 'ankle_msw_plantarflexed', type: 'proposed_heuristic' });
+    expect(f.unvalidatedThresholds).toContainEqual({
+      criterion: 'ankle_msw_plantarflexed',
+      type: 'proposed_heuristic',
+    });
   });
 
   it('pied tombant : bande « doute » (0 à −5°) et seuils configurables', () => {
@@ -161,7 +167,11 @@ describe('prothèses', () => {
     const by = (id: string) => p.deviations.find((d) => d.id === id)!;
     expect(by('uneven_step_length_timing').status).toBe('probable');
     for (const id of ['lateral_trunk_bending', 'prosthetic_hip_hiking', 'prosthetic_vaulting', 'knee_instability'])
-      expect(`${id}:${by(id).status}:${by(id).why.map((c) => `${c.id}=${c.value}`).join()}`).not.toMatch(/probable/);
+      expect(
+        `${id}:${by(id).status}:${by(id)
+          .why.map((c) => `${c.id}=${c.value}`)
+          .join()}`,
+      ).not.toMatch(/probable/);
     expect(by('pistoning').status).toBe('observe');
     expect(by('pistoning').estimate).toBe(true);
     for (const d of p.deviations) {
