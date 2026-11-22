@@ -6,7 +6,7 @@
 import { normalizeCycle, phaseWindow } from './cycles.ts';
 import { normFor } from './data/norms.ts';
 import { isSagittal, nearSide } from './events.ts';
-import { idx, LM } from './landmarks.ts';
+import { idx } from './landmarks.ts';
 import type { Track } from './preprocess.ts';
 import { derivative, mean, sd } from './signal.ts';
 import type {
@@ -99,6 +99,7 @@ function metric(
     confidence,
     estimate: opts.estimate ?? false,
     n: v.length,
+    ...(values.length > 1 ? { perCycle: [...values] } : {}),
     ...(norm ? { norm } : {}),
     ...(opts.warning ? { warning: opts.warning } : {}),
   };
@@ -384,6 +385,11 @@ export function sagittalMetrics(ctx: MetricContext): GaitMetric[] {
 
 // ------------------------------------------------------------------------------------------------ Frontal / postérieur
 
+/**
+ * Mesures frontales/postérieures (toutes `estimate: true`). Le repère de hanche étant proche de son homologue dans
+ * l'image (largeur du bassin ≈ quelques % de l'image), le bruit de pose pèse lourd : chaque mesure est prise sur la
+ * courbe MOYENNE des cycles (pic dans la fenêtre de phase), puis la valeur de chaque cycle est lue au même instant.
+ */
 export function frontalMetrics(ctx: MetricContext): GaitMetric[] {
   const f = ctx.frontal;
   const off = ctx.frontalOffsets;
@@ -392,93 +398,84 @@ export function frontalMetrics(ctx: MetricContext): GaitMetric[] {
   const out: GaitMetric[] = [];
   const scaleAt = (i: number): number => ctx.scale.series[i] ?? ctx.scale.metersPerUnit;
   const est = { estimate: true as const };
-  const frameAt = (c: GaitCycle, pct: number): number =>
-    c.startFrame + Math.round(((c.endFrame - c.startFrame) * pct) / 100);
-  const range = (c: GaitCycle, a: number, b: number): number[] => {
-    const r: number[] = [];
-    for (let i = frameAt(c, a); i <= frameAt(c, b); i++) r.push(i);
-    return r;
+  const avgPhase = (cyc: GaitCycle[], id: Parameters<typeof phaseWindow>[1], k: 'startPct' | 'endPct'): number =>
+    mean(cyc.map((c) => phaseWindow(c, id)[k]));
+  /** Pic (max | min | |max|) de la courbe moyenne dans [a, b] % ; renvoie les valeurs par cycle à cet instant. */
+  const peak = (
+    cyc: GaitCycle[],
+    series: readonly number[],
+    a: number,
+    b: number,
+    kind: 'max' | 'min' | 'abs',
+  ): number[] => {
+    if (!cyc.length) return [];
+    const curves = cyc.map((c) => normalizeCycle(track, series, c));
+    const m = meanCurve('x', 'L', '', curves).mean;
+    let best = Math.round(a);
+    for (let k = Math.round(a); k <= Math.min(100, Math.round(b)); k++) {
+      const v = m[k]!;
+      const cur = m[best]!;
+      if (kind === 'max' ? v > cur : kind === 'min' ? v < cur : Math.abs(v) > Math.abs(cur)) best = k;
+    }
+    return curves.map((c) => c[best]!);
   };
   for (const side of ['L', 'R'] as const) {
     const cyc = valid(ctx, side);
-    const sgn = side === 'L' ? -1 : 1; // obliquityRLow > 0 ⇒ hanche droite basse : chute controlatérale si appui G.
-    const oblContra = (i: number): number => -sgn * (f.obliquityRLow[i]! - off.obliquity);
-    // Chute pelvienne controlatérale en appui (pic, simple appui).
+    if (!cyc.length) continue;
+    const lrS = avgPhase(cyc, 'LR', 'startPct');
+    const mstE = avgPhase(cyc, 'MSt', 'endPct');
+    const tstE = avgPhase(cyc, 'TSt', 'endPct');
+    const iswS = avgPhase(cyc, 'ISw', 'startPct');
+    const mswE = avgPhase(cyc, 'MSw', 'endPct');
+    const tswS = avgPhase(cyc, 'TSw', 'startPct');
+    // obliquityRLow > 0 ⇒ hanche droite plus basse : chute controlatérale si l'appui est à gauche.
+    const sgn = side === 'L' ? 1 : -1;
+    const oblContra = f.obliquityRLow.map((v) => sgn * (v - off.obliquity));
     out.push(
-      metric(
-        ctx,
-        'contralateral_pelvic_drop',
-        cyc.map((c) => maxOf(range(c, phaseWindow(c, 'LR').startPct, phaseWindow(c, 'TSt').endPct).map(oblContra))),
-        '°',
-        { side, ...est, warning: 'Estimation : aucune validation 2D ni norme de marche vérifiée (to_verify).' },
-      ),
+      metric(ctx, 'contralateral_pelvic_drop', peak(cyc, oblContra, lrS, tstE, 'max'), '°', {
+        side,
+        ...est,
+        warning: 'Estimation : aucune validation 2D ni norme de marche vérifiée (to_verify).',
+      }),
     );
-    // Obliquité en oscillation moyenne : négatif = hémibassin oscillant plus haut (hip hiking).
+    // Obliquité de l'hémibassin oscillant (ce côté) en oscillation : négatif = plus haut que l'appui (hip hiking).
+    const oblSelf = oblContra.map((v) => -v);
+    out.push(metric(ctx, 'pelvic_obliquity_swing', peak(cyc, oblSelf, iswS, mswE, 'min'), '°', { side, ...est }));
+    const leanToward = f.trunkLeanLeft.map((v) => (side === 'L' ? 1 : -1) * (v - off.trunk));
     out.push(
-      metric(
-        ctx,
-        'pelvic_obliquity_swing',
-        cyc.map((c) =>
-          minOf(range(c, phaseWindow(c, 'ISw').startPct, phaseWindow(c, 'MSw').endPct).map((i) => -oblContra(i))),
-        ),
-        '°',
-        { side, ...est },
-      ),
+      metric(ctx, 'trunk_lateral_lean_toward_stance', peak(cyc, leanToward, lrS, tstE, 'max'), '°', { side, ...est }),
     );
-    // Inclinaison latérale du tronc vers le côté d'appui.
-    const leanToward = (i: number): number => (side === 'L' ? 1 : -1) * (f.trunkLeanLeft[i]! - off.trunk);
+    const fp = f.fppa[side].map((v) => v - off.fppa[side]);
     out.push(
-      metric(
-        ctx,
-        'trunk_lateral_lean_toward_stance',
-        cyc.map((c) => maxOf(range(c, phaseWindow(c, 'LR').startPct, phaseWindow(c, 'TSt').endPct).map(leanToward))),
-        '°',
-        { side, ...est },
-      ),
+      metric(ctx, 'fppa_peak_stance', peak(cyc, fp, 0, mstE, 'abs'), '°', {
+        side,
+        ...est,
+        warning: 'FPPA validé surtout au squat unipodal (willson2008) : estimation à la marche.',
+      }),
     );
-    // FPPA : pic de valgus en LR–MSt et variation depuis le contact.
-    const fp = (i: number): number => f.fppa[side][i]! - off.fppa[side];
-    out.push(
-      metric(
-        ctx,
-        'fppa_peak_stance',
-        cyc.map((c) => {
-          const w = range(c, 0, phaseWindow(c, 'MSt').endPct).map(fp);
-          const mx = maxOf(w);
-          const mn = minOf(w);
-          return Math.abs(mx) >= Math.abs(mn) ? mx : mn;
-        }),
-        '°',
-        { side, ...est, warning: 'FPPA validé surtout au squat unipodal (willson2008) : estimation à la marche.' },
-      ),
-    );
-    if (ctx.view === 'posterior')
+    if (ctx.view === 'posterior') {
+      const he = f.heel[side].map((v) => v - off.heel[side]);
       out.push(
-        metric(
-          ctx,
-          'heel_alignment_stance',
-          cyc.map((c) => mean(range(c, phaseWindow(c, 'LR').endPct, phaseWindow(c, 'MSt').endPct).map((i) => f.heel[side][i]! - off.heel[side]))),
-          '°',
-          { side, ...est, conf: 0.4, warning: 'Alignement du talon : estimation grossière (2 repères MediaPipe).' },
-        ),
-      );
-    // Déplacement latéral du pied en oscillation (circumduction) : écart vers l'extérieur de la cheville par rapport au
-    // bassin, en oscillation moyenne, comparé à sa position aux contacts initiaux qui encadrent le cycle (m).
-    const outward = side === 'L' ? 1 : -1;
-    const latRel = (i: number): number => outward * (f.ankleLat[side][i]! - f.pelvisLat[i]!) * scaleAt(i);
-    out.push(
-      metric(
-        ctx,
-        'foot_lateral_excursion_swing',
-        cyc.map((c) => {
-          const base = (latRel(c.startFrame) + latRel(c.endFrame)) / 2;
-          return maxOf(range(c, phaseWindow(c, 'ISw').startPct, phaseWindow(c, 'TSw').startPct).map(latRel)) - base;
+        metric(ctx, 'heel_alignment_stance', peak(cyc, he, lrS, mstE, 'abs'), '°', {
+          side,
+          ...est,
+          conf: 0.4,
+          warning: 'Alignement du talon : estimation grossière (2 repères MediaPipe).',
         }),
-        'm',
-        { side, ...est },
-      ),
-    );
-    // Largeur de base au contact initial (m).
+      );
+    }
+    // Écart latéral de la cheville (vers l'extérieur) par rapport au bassin, en mètres, relatif à sa valeur aux
+    // contacts initiaux qui encadrent le cycle : arc d'oscillation (circumduction).
+    const outward = side === 'L' ? 1 : -1;
+    const latRel = f.ankleLat[side].map((v, i) => outward * (v - f.pelvisLat[i]!) * scaleAt(i));
+    const exc = cyc.map((c) => {
+      const base = (latRel[c.startFrame]! + latRel[c.endFrame]!) / 2;
+      return normalizeCycle(track, latRel, c).map((v) => v - base);
+    });
+    const em = meanCurve('x', side, 'm', exc).mean;
+    let kb = Math.round(iswS);
+    for (let k = Math.round(iswS); k <= Math.round(tswS); k++) if (em[k]! > em[kb]!) kb = k;
+    out.push(metric(ctx, 'foot_lateral_excursion_swing', exc.map((c) => c[kb]!), 'm', { side, ...est }));
     out.push(
       metric(
         ctx,
@@ -489,17 +486,12 @@ export function frontalMetrics(ctx: MetricContext): GaitMetric[] {
       ),
     );
   }
-  // Largeur de base globale.
   const sw = out.filter((m) => m.id === 'step_width' && m.value !== null).map((m) => m.value!);
-  if (sw.length)
-    out.push(
-      metric(ctx, 'step_width_mean', [mean(sw)], 'm', { estimate: true, normId: 'step_width', conf: 0.8 }),
-    );
-  // Déplacement latéral du bassin (crête à crête par foulée, m).
+  if (sw.length) out.push(metric(ctx, 'step_width_mean', [mean(sw)], 'm', { estimate: true, normId: 'step_width', conf: 0.8 }));
+  // Déplacement latéral du bassin (crête à crête par foulée, m), après retrait de la dérive linéaire.
   const pel = valid(ctx, 'L').map((c) => {
     const vals: number[] = [];
     for (let i = c.startFrame; i <= c.endFrame; i++) vals.push(f.pelvisLat[i]! * scaleAt(i));
-    // Retrait de la dérive linéaire (perspective, trajectoire non centrée).
     const n = vals.length;
     const a = vals[0]!;
     const b = vals[n - 1]!;
@@ -509,7 +501,5 @@ export function frontalMetrics(ctx: MetricContext): GaitMetric[] {
   out.push(metric(ctx, 'lateral_pelvic_displacement', pel, 'm', { estimate: true, conf: 0.7 }));
   for (const id of ['contralateral_pelvic_drop', 'trunk_lateral_lean_toward_stance', 'foot_lateral_excursion_swing'])
     addSymmetry(ctx, out, id);
-  // Rotation pelvienne transverse : uniquement avec les repères « monde » (profondeur z MediaPipe, peu fiable).
-  void LM;
   return out;
 }

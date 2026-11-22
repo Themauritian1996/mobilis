@@ -7,10 +7,11 @@
  * orteils (TO) = minimum de la position de l'orteil par rapport au bassin. Le sens de marche est détecté par la vitesse
  * médiane du bassin (les allers-retours ne sont pas gérés : un seul sens par enregistrement).
  *
- * Vues frontale/postérieure — adaptation (non validée, confiance plus basse) : avec une caméra à hauteur de hanche, un
- * point au sol plus proche de la caméra apparaît plus bas dans l'image. La position verticale du talon par rapport au
- * bassin, normalisée par la taille apparente (longueur du tronc), joue donc le rôle de la position antéropostérieure :
- * IC = maximum (vue frontale) ou minimum (vue postérieure) ; TO = extremum opposé du signal de l'orteil.
+ * Vues frontale/postérieure — adaptation (non validée, confiance plus basse) : la caméra étant fixe, un pied en appui
+ * est immobile dans l'image alors qu'il se déplace vite en oscillation. La vitesse du talon (et de l'orteil) dans l'image,
+ * rapportée à la taille apparente (longueur du tronc), délimite des plages d'immobilité : début de plage du talon = IC,
+ * fin de plage de l'orteil = TO. Les mouvements verticaux du pied en oscillation se confondant avec la profondeur dans
+ * ces vues, l'extremum de type Zeni n'y est pas utilisé.
  */
 import { idx, LM } from './landmarks.ts';
 import { mid, type Track } from './preprocess.ts';
@@ -90,28 +91,86 @@ function visibilityAt(track: Track, ks: number[], i: number): number {
   return ks.reduce((s, k) => s + (track.vis[k]![i] ?? 0), 0) / ks.length;
 }
 
-/** Signaux « type Zeni » (talon et orteil relatifs au bassin) pour un côté. */
-export function eventSignals(track: Track, view: GaitView, side: Side, direction: 1 | -1 | 0): { heel: number[]; toe: number[] } {
+/**
+ * Signaux « type Zeni » (talon et orteil relatifs au bassin) pour un côté.
+ *
+ * Vue frontale/postérieure : avec R = (Y_pied − Y_bassin) / longueur du tronc, et la caméra à hauteur de hanche,
+ * R ≈ k · Z_bassin / Z_pied (k = hauteur de caméra / longueur du tronc, estimé par la médiane de R). Le décalage
+ * antéropostérieur pied–bassin vaut alors Z_bassin · (1 − k / R), et Z_bassin ∝ 1 / longueur apparente du tronc ;
+ * le signal (1 − k / R) / tronc est donc proportionnel à ce décalage, sans la dérive due à l'approche de la caméra.
+ */
+export function eventSignals(
+  track: Track,
+  view: GaitView,
+  side: Side,
+  direction: 1 | -1 | 0,
+): { heel: number[]; toe: number[] } {
   const n = track.t.length;
-  const heel: number[] = [];
-  const toe: number[] = [];
   const hk = idx(side, 'heel');
   const tk = idx(side, 'toe');
-  for (let i = 0; i < n; i++) {
-    const p = mid(track, LM.leftHip, LM.rightHip, i);
-    if (isSagittal(view)) {
-      const d = direction || 1;
+  if (isSagittal(view)) {
+    const d = direction || 1;
+    const heel: number[] = [];
+    const toe: number[] = [];
+    for (let i = 0; i < n; i++) {
+      const p = mid(track, LM.leftHip, LM.rightHip, i);
       heel.push(d * (track.X[hk]![i]! - p.x));
       toe.push(d * (track.X[tk]![i]! - p.x));
-    } else {
-      const s = mid(track, LM.leftShoulder, LM.rightShoulder, i);
-      const trunk = Math.hypot(s.x - p.x, s.y - p.y) || NaN;
-      const sign = view === 'frontal' ? 1 : -1;
-      heel.push((sign * (track.Y[hk]![i]! - p.y)) / trunk);
-      toe.push((sign * (track.Y[tk]![i]! - p.y)) / trunk);
     }
+    return { heel, toe };
   }
-  return { heel, toe };
+  const trunk = track.t.map((_, i) => {
+    const p = mid(track, LM.leftHip, LM.rightHip, i);
+    const s = mid(track, LM.leftShoulder, LM.rightShoulder, i);
+    return Math.hypot(s.x - p.x, s.y - p.y) || NaN;
+  });
+  const ratio = (k: number): number[] =>
+    track.t.map((_, i) => (track.Y[k]![i]! - mid(track, LM.leftHip, LM.rightHip, i).y) / trunk[i]!);
+  // k : médiane des rapports des deux talons (pieds en moyenne à l'aplomb du bassin).
+  const kk = median([...ratio(idx('L', 'heel')), ...ratio(idx('R', 'heel'))]);
+  const sign = view === 'frontal' ? 1 : -1;
+  const sig = (r: number[]): number[] => r.map((v, i) => (sign * (1 - kk / v)) / trunk[i]!);
+  return { heel: sig(ratio(hk)), toe: sig(ratio(tk)) };
+}
+
+/**
+ * Plages d'immobilité d'un repère dans l'image (vitesse < 15 % du 90e centile de la vitesse), d'au moins 15 % de la
+ * période de foulée. Renvoie le début (`start`) ou la dernière trame (`end`) de chaque plage. Seuils de conception.
+ */
+export function stationaryRuns(
+  speed: readonly number[],
+  periodFrames: number,
+  edge: 'start' | 'end',
+): number[] {
+  const finite = speed.filter((x) => Number.isFinite(x)).sort((a, b) => a - b);
+  const p90 = finite[Math.floor(finite.length * 0.9)] ?? 0;
+  const ok = speed.map((x) => Number.isFinite(x) && x < 0.3 * p90);
+  const minLen = Math.max(2, Math.round(periodFrames * 0.15));
+  const out: number[] = [];
+  let i = 0;
+  while (i < ok.length) {
+    if (!ok[i]) {
+      i++;
+      continue;
+    }
+    let j = i;
+    while (j < ok.length && ok[j]) j++;
+    if (j - i >= minLen && i > 0 && j < ok.length) out.push(edge === 'start' ? i : j - 1);
+    i = j;
+  }
+  return out;
+}
+
+/** Vitesse d'un repère dans l'image, en longueurs de tronc par seconde. */
+export function imageSpeed(track: Track, k: number): number[] {
+  const dt = 1 / track.fps;
+  const vx = derivative(track.X[k]!, dt);
+  const vy = derivative(track.Y[k]!, dt);
+  return vx.map((x, i) => {
+    const p = mid(track, LM.leftHip, LM.rightHip, i);
+    const s = mid(track, LM.leftShoulder, LM.rightShoulder, i);
+    return Math.hypot(x, vy[i]!) / (Math.hypot(s.x - p.x, s.y - p.y) || NaN);
+  });
 }
 
 export function detectEvents(track: Track, view: GaitView): EventDetection {
@@ -132,8 +191,12 @@ export function detectEvents(track: Track, view: GaitView): EventDetection {
     const promH = range(heel) * 0.25;
     const promT = range(toe) * 0.25;
     // Vue postérieure : le pied en avant est plus loin → plus haut dans l'image ; le signe a déjà été inversé.
-    const ics = findPeaks(heel, 'max', minDist, promH);
-    const tos = findPeaks(toe, 'min', minDist, promT);
+    const ics = isSagittal(view)
+      ? findPeaks(heel, 'max', minDist, promH)
+      : stationaryRuns(imageSpeed(track, idx(side, 'heel')), period, 'start');
+    const tos = isSagittal(view)
+      ? findPeaks(toe, 'min', minDist, promT)
+      : stationaryRuns(imageSpeed(track, idx(side, 'toe')), period, 'end');
     for (const i of ics)
       events.push({
         type: 'IC',
@@ -152,5 +215,15 @@ export function detectEvents(track: Track, view: GaitView): EventDetection {
       });
   }
   events.sort((a, b) => a.frame - b.frame);
-  return { events, direction, stridePeriodS: period / fps };
+  // Nettoyage : un même type d'événement d'un même pied ne peut se répéter à moins de 0,6 période ; IC et TO d'un
+  // même pied doivent alterner (on garde le premier de deux événements consécutifs de même type).
+  const kept: GaitEvent[] = [];
+  for (const e of events) {
+    const prevSame = [...kept].reverse().find((k) => k.side === e.side && k.type === e.type);
+    if (prevSame && e.frame - prevSame.frame < minDist) continue;
+    const prevSide = [...kept].reverse().find((k) => k.side === e.side);
+    if (prevSide && prevSide.type === e.type) continue;
+    kept.push(e);
+  }
+  return { events: kept, direction, stridePeriodS: period / fps };
 }

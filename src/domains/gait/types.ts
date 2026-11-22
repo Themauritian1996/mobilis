@@ -136,6 +136,13 @@ export interface GaitMetric {
   readonly n?: number;
   readonly norm?: NormComparison;
   readonly warning?: string;
+  /** Valeurs par cycle (même ordre que les cycles valides du côté), pour la règle de concordance (≥ 2/3 des cycles). */
+  readonly perCycle?: readonly number[];
+  /**
+   * Pour une estimation : `true` si elle est un facteur limitant potentiel de la marche (liée à un défaut retenu ou à
+   * un déterminant altéré) ; sinon elle reste informative. Renseigné par `assessGait`.
+   */
+  readonly limitingFactor?: boolean;
 }
 
 export type PerryPhaseId = 'IC' | 'LR' | 'MSt' | 'TSt' | 'PSw' | 'ISw' | 'MSw' | 'TSw';

@@ -75,10 +75,10 @@ export const NORMAL_PARAMS: SyntheticParams = {
   noise: 0.0015,
   seed: 1,
   dropoutRate: 0.02,
-  footPitchIC: { L: 22, R: 22 },
-  footPitchTO: { L: -45, R: -45 },
-  footPitchMidSwing: { L: 5, R: 5 },
-  swingLift: { L: 0.2, R: 0.2 },
+  footPitchIC: { L: 18, R: 18 },
+  footPitchTO: { L: -55, R: -55 },
+  footPitchMidSwing: { L: -33, R: -33 },
+  swingLift: { L: 0.04, R: 0.04 },
   stanceKneeFlexion: { L: 18, R: 18 },
   baseWidth: 0.1,
   pelvicDrop: { L: 4, R: 4 },
@@ -101,15 +101,14 @@ export function variantParams(v: Variant, base: Partial<SyntheticParams> = {}): 
       // Pointe du pied tombante en oscillation, contact pied à plat, steppage (élévation accrue).
       return {
         ...p,
-        footPitchIC: L(p.footPitchIC, 4),
-        footPitchMidSwing: L(p.footPitchMidSwing, -25),
-        footPitchTO: L(p.footPitchTO, -50),
-        swingLift: L(p.swingLift, 0.3),
+        footPitchIC: L(p.footPitchIC, 2),
+        footPitchMidSwing: L(p.footPitchMidSwing, -55),
+        swingLift: L(p.swingLift, 0.12),
       };
     case 'trendelenburg':
       return { ...p, pelvicDrop: L(p.pelvicDrop, 11) };
     case 'stiff_knee':
-      return { ...p, swingLift: L(p.swingLift, 0.06), footPitchTO: L(p.footPitchTO, -25) };
+      return { ...p, swingLift: L(p.swingLift, 0), footPitchTO: L(p.footPitchTO, -25), footPitchMidSwing: L(p.footPitchMidSwing, -27) };
     case 'circumduction':
       return { ...p, circumduction: L(p.circumduction, 0.12) };
     case 'prosthetic_asymmetry':

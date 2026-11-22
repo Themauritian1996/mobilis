@@ -5,6 +5,7 @@
  */
 import normsJson from './norms.json';
 import referencesJson from './references.json';
+import { DEFAULT_GAIT_CONFIG, type GaitConfig } from '../config.ts';
 import type { EvidenceStatus, GaitPatientInput, PerryPhaseId } from '../types.ts';
 
 export interface PhaseNorm {
@@ -215,20 +216,23 @@ const hollman = (key: string) => (r: RowValue) => {
 /**
  * Norme applicable à une métrique pour ce patient, ou null s'il n'y en a pas (ex. chute pelvienne : norme vide,
  * `to_verify`). Règles de sélection (choix de conception, à valider — docs/gait-literature/README.md, questions 1 et 7) :
- * vitesse : Bohannon 1997 (avec ET) de 20 à 79 ans, Hollman 2011 à partir de 70 ans si l'âge est connu (repli :
- * Bohannon & Andrews 2011, sans ET) ; cadence et longueur de pas : Oberg 1993 (Hollman 2011 ≥ 70 ans) ;
+ * vitesse : Bohannon 1997 (avec ET) avant 70 ans, Hollman 2011 de 70 à 79 ans, Bohannon & Andrews 2011 seul (sans ET)
+ * de 80 à 99 ans ; pas de normes pédiatriques ; autres paramètres ≥ 70 ans : Hollman 2011 ; cadence et longueur de pas : Oberg 1993 (Hollman 2011 ≥ 70 ans) ;
  * angles : Oberg 1994.
  */
-export function normFor(metricId: string, patient: GaitPatientInput): NormValue | null {
+export function normFor(
+  metricId: string,
+  patient: GaitPatientInput,
+  config: GaitConfig = DEFAULT_GAIT_CONFIG,
+): NormValue | null {
   const age = patient.ageYears;
-  const older = age !== undefined && age >= 70;
+  if (age !== undefined && age < 18) return null; // pas de normes pédiatriques (hors périmètre)
+  const older = age !== undefined && age >= config.olderAdults.hollmanFromAge;
   switch (metricId) {
     case 'gait_speed':
-      if (older)
-        return (
-          fromBlock('older_adults_hollman2011', patient, 'm/s', 0.01, hollman('speed')) ??
-          fromBlock('speed_meta_bohannon2011', patient, 'm/s', 1)
-        );
+      if (age !== undefined && age >= config.olderAdults.bohannon2011SpeedFromAge)
+        return fromBlock('speed_meta_bohannon2011', patient, 'm/s', 1);
+      if (older) return fromBlock('older_adults_hollman2011', patient, 'm/s', 0.01, hollman('speed'));
       return patient.speedCondition === 'fast'
         ? fromBlock('speed_max_bohannon1997', patient, 'm/s', 0.01)
         : fromBlock('speed_comfortable_bohannon1997', patient, 'm/s', 0.01);
