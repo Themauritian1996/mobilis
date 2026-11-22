@@ -123,7 +123,7 @@ export interface ReportData {
   condition: {
     pathology: ReportName;
     region: string | null;
-    phase: string | null | undefined;
+    phase: number | string | null | undefined;
     week: number | string | null | undefined;
     protocol: ReportProtocol | null;
     clinician: string;
