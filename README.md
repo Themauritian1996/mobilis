@@ -169,10 +169,17 @@ Il faut une signature stable et le fichier Firebase Android :
 ## Tester en local
 ```
 npm install
-npm test            # le compteur doit compter 5/5 sur tous les exercices suivis
+npm test            # Vitest : nouveaux tests + les 22 scripts v1.15 (le compteur doit compter 5/5…)
 npm run fetch-model # modèles de pose et de main hors ligne
-npm run serve       # http://localhost:3000 (la caméra exige https ou localhost)
+npm run build       # construit dist/ (site + APK) à partir de www/ et src/
+npm run serve:dist  # http://localhost:3000 (la caméra exige https ou localhost) — ou `npm run dev`
+npm run check       # tout : lint, types, tests, build
 ```
+
+### Mobilis v2 (branche `dev-v2`)
+Nouvelle architecture TypeScript + Vite, migration progressive du code `www/js` vers `src/` :
+[spécification](docs/spec-v2.md) · [architecture](docs/architecture.md) · [décisions (ADR)](docs/adr/README.md) ·
+[plan de migration](docs/MIGRATION.md). Sur `dev-v2`, Capacitor embarque `dist/` (`npm run android:sync` construit d'abord).
 
 ## Personnaliser le contenu clinique
 - **Langues** : après avoir modifié un texte FR/EN du contenu, lance `node scripts/i18n-dump.mjs` (liste anglaise de référence), ajoute les nouvelles lignes dans `i18n-src/<langue>.text.tsv`, puis `node scripts/build-lang.mjs` (il signale tout texte manquant).
