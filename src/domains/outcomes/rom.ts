@@ -27,6 +27,7 @@ export interface RomTestInfo {
   readonly how: L10n;
   readonly note: L10n;
   readonly view: string;
+  readonly region?: string;
   readonly scope?: string;
   readonly sided?: boolean;
   readonly dir?: number;

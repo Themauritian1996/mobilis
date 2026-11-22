@@ -193,8 +193,8 @@ function schematic(T: RomTestInfo): string {
 // =====================================================================================================================
 export interface RomRx {
   rom?: unknown;
-  pathology?: string;
-  region?: string;
+  pathology?: string | null | undefined;
+  region?: string | null | undefined;
 }
 export interface RomSection {
   html: string;
