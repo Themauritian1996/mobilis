@@ -1,0 +1,68 @@
+NOTICE — Licences des composants tiers
+
+Mobilis
+Copyright (c) 2026 Christophe Ah-Yan. Tous droits réservés. Voir le fichier LICENSE.
+
+Ce fichier liste les composants tiers réellement distribués avec l'application web et l'APK, ainsi que les dépendances de développement. La licence de chaque composant a été relevée dans `node_modules/<paquet>/package.json` (après `npm ci`) ou dans l'en-tête du fichier fourni dans `www/`. Ce fichier n'est pas un avis juridique.
+
+Date de la vérification : 2026-11-22.
+
+## 1. Composants distribués (web et APK)
+
+| Composant | Version | Licence | Emplacement dans Mobilis | Source de la licence |
+|---|---|---|---|---|
+| MediaPipe Tasks Vision (`@mediapipe/tasks-vision`) | 1.1.1 | Apache-2.0 | `www/vendor/mediapipe/` (`vision_bundle.mjs`, `wasm/`) | `node_modules/@mediapipe/tasks-vision/package.json` |
+| Firebase (`firebase`) | 12.19.0 | Apache-2.0 | `www/vendor/firebase.js` | `package.json` ; en-tête du bundle : « Licensed under the Apache License, Version 2.0 » |
+| Capacitor, cœur (`@capacitor/core`) | 8.5.3 | MIT | `www/vendor/capacitor.js` | `package.json` ; en-tête du bundle : « Capacitor — MIT License » |
+| Capacitor, Android (`@capacitor/android`) | 8.5.3 | MIT | APK Android (projet natif généré par `cap sync`) | `node_modules/@capacitor/android/package.json` |
+| Capacitor, App (`@capacitor/app`) | 8.1.2 | MIT | `www/vendor/capacitor.js` | `node_modules/@capacitor/app/package.json` |
+| Capacitor, Browser (`@capacitor/browser`) | 8.0.5 | MIT | `www/vendor/capacitor.js` | `node_modules/@capacitor/browser/package.json` |
+| Capacitor, Filesystem (`@capacitor/filesystem`) | 8.1.5 | MIT | `www/vendor/capacitor.js` | `node_modules/@capacitor/filesystem/package.json` |
+| Capacitor, Local Notifications (`@capacitor/local-notifications`) | 8.3.1 | MIT | `www/vendor/capacitor.js` | `node_modules/@capacitor/local-notifications/package.json` |
+| Capacitor, Share (`@capacitor/share`) | 8.0.3 | MIT | `www/vendor/capacitor.js` | `node_modules/@capacitor/share/package.json` |
+| Reconnaissance vocale Capacitor (`@capacitor-community/speech-recognition`) | 7.0.1 | MIT | `www/vendor/capacitor.js` | `node_modules/@capacitor-community/speech-recognition/package.json` |
+| Synthèse vocale Capacitor (`@capacitor-community/text-to-speech`) | 8.0.2 | MIT | `www/vendor/capacitor.js` | `node_modules/@capacitor-community/text-to-speech/package.json` |
+| jsPDF | 4.2.1 | MIT | `www/vendor/jspdf.umd.min.js` | En-tête du fichier : texte de la licence MIT (« Permission is hereby granted, free of charge… ») ; copyright des contributeurs jsPDF (James Hall, yWorks GmbH, et autres) |
+| qrcode-generator | 2.0.4 | MIT | `www/vendor/qrcode.js` (généré par `scripts/qrcode-entry.js`) | `node_modules/qrcode-generator/package.json` |
+| Manrope (police de caractères) | non précisée | SIL Open Font License 1.1 | `www/fonts/manrope-latin.woff2`, `manrope-latin-ext.woff2` | `www/fonts/OFL.txt` (Copyright 2019 The Manrope Project Authors) |
+
+## 2. Modèles d'apprentissage téléchargés (non versionnés)
+
+| Modèle | Source | Licence | Statut |
+|---|---|---|---|
+| `pose_landmarker_lite.task` (pose corporelle) | `scripts/fetch-model.sh`, stockage MediaPipe de Google | À VÉRIFIER | Les conditions d'utilisation de ce modèle ne sont pas dans le dépôt. À relever sur la page officielle de MediaPipe avant distribution. |
+| `hand_landmarker.task` (main) | `scripts/fetch-model.sh`, stockage MediaPipe de Google | À VÉRIFIER | Même vérification que ci-dessus. |
+
+Les fichiers `www/models/*.task` sont exclus du dépôt (`.gitignore`) et téléchargés par le script.
+
+## 3. Services externes (non distribués dans le code)
+
+- Gemini (API Google) : utilisé par le coach IA selon les conditions du fournisseur. Ce n'est pas une licence de logiciel ; les conditions d'utilisation de l'API s'appliquent.
+- Firebase (Google Cloud) : services d'authentification et de base de données ; conditions du fournisseur.
+
+## 4. Dépendances de développement (non distribuées)
+
+Ces paquets servent à construire, tester et vérifier le projet. Ils ne sont pas inclus dans l'APK ni dans le site publié.
+
+| Paquet | Version | Licence |
+|---|---|---|
+| vite | 8.3.8 | MIT |
+| vitest | 5.1.1 | MIT |
+| typescript | 6.0.3 | Apache-2.0 |
+| eslint | 10.15.0 | MIT |
+| @eslint/js | 10.0.1 | MIT |
+| typescript-eslint | 8.73.0 | MIT |
+| eslint-config-prettier | 10.1.8 | MIT |
+| globals | 17.14.0 | MIT |
+| prettier | 3.10.1 | MIT |
+| esbuild | 0.28.2 | MIT |
+| dependency-cruiser | 18.8.0 | MIT |
+| playwright | 1.63.0 | Apache-2.0 |
+| @capacitor/cli | 8.5.3 | MIT |
+| @types/node | 22.20.5 | MIT |
+
+## 5. Limites de cet inventaire
+
+- Les dépendances transitives des bundles `www/vendor/*.js` (par exemple les sous-paquets `@firebase/*`) ne sont pas listées une à une.
+- Les dépendances natives Android (Gradle, AndroidX, etc.) ne sont pas listées.
+- Avant toute distribution commerciale, produire un inventaire complet avec un outil de relevé de licences, puis compléter ce fichier.
