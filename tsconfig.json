@@ -23,6 +23,7 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "useUnknownInCatchVariables": true,
+    "erasableSyntaxOnly": true,
     "forceConsistentCasingInFileNames": true,
 
     "allowJs": true,

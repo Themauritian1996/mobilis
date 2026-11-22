@@ -26,12 +26,19 @@ const wwwFiles = walk(WWW);
 for (const f of wwwFiles) {
   const d = path.join(DIST, f);
   if (!fs.existsSync(d)) errors.push(`manquant dans dist : ${f}`);
-  else if (!/^js\/.*\.js$/.test(f) && !fs.readFileSync(path.join(WWW, f)).equals(fs.readFileSync(d))) {
+  else if (f === 'sw.js') {
+    // Seule différence permise : modules js/v2 ajoutés au pré-cache (entre marqueurs) + empreinte du nom de cache.
+    const restored = fs
+      .readFileSync(d, 'utf8')
+      .replace(/, \/\* v2:begin \*\/[^]*?\/\* v2:end \*\//, '')
+      .replace(/(const CACHE = '[^']+?)-[0-9a-f]{8}(';)/, '$1$2');
+    if (restored !== fs.readFileSync(path.join(WWW, f), 'utf8')) errors.push('sw.js modifié au-delà du pré-cache v2');
+  } else if (!/^js\/.*\.js$/.test(f) && !fs.readFileSync(path.join(WWW, f)).equals(fs.readFileSync(d))) {
     errors.push(`copie modifiée : ${f}`);
   }
 }
 
-const sw = fs.readFileSync(path.join(WWW, 'sw.js'), 'utf8');
+const sw = fs.readFileSync(path.join(DIST, 'sw.js'), 'utf8');
 const core = sw.match(/const CORE = \[([\s\S]*?)\];/);
 if (!core) errors.push('liste CORE introuvable dans sw.js');
 else {
@@ -39,6 +46,16 @@ else {
   for (const e of entries) if (!fs.existsSync(path.join(DIST, e))) errors.push(`pré-cache SW absent de dist : ${e}`);
   console.log(`pré-cache du service worker : ${entries.length} fichiers vérifiés`);
 }
+
+// Tout module js/v2 importé (statiquement) par le code legacy doit être pré-caché pour le hors-ligne.
+const v2Imported = new Set();
+for (const f of walk(path.join(DIST, 'js')).filter((x) => !x.startsWith('v2/'))) {
+  const code = fs.readFileSync(path.join(DIST, 'js', f), 'utf8');
+  for (const m of code.matchAll(/from "(\.{1,2}\/[^"]*v2\/[^"]+)"/g)) {
+    v2Imported.add(path.posix.normalize(path.posix.join('js', path.posix.dirname(f), m[1])));
+  }
+}
+for (const f of v2Imported) if (!sw.includes(`'${f}'`)) errors.push(`module v2 importé mais non pré-caché : ${f}`);
 
 if (fs.existsSync(path.join(DIST, 'assets'))) errors.push('dist/assets/ ne devrait pas exister (fichiers hachés)');
 if (!fs.existsSync(path.join(DIST, 'js/v2/main.js'))) errors.push('dist/js/v2/main.js absent (build du nouveau code)');

@@ -11,6 +11,7 @@
  *    ces modules sont émis sous dist/js/v2/… (chemins stables).
  *  - Tout le reste de www/ est copié à l'identique dans dist/ (qui est le webDir de Capacitor).
  */
+import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -71,8 +72,55 @@ function copyLegacyWww(): Plugin {
   return {
     name: 'mobilis:copy-legacy-www',
     apply: 'build',
-    writeBundle() {
-      copyDir(WWW, OUT);
+    writeBundle: {
+      sequential: true,
+      handler() {
+        copyDir(WWW, OUT);
+      },
+    },
+  };
+}
+
+/**
+ * Hors ligne : tout module émis sous js/v2/ (nouveau code + petits utilitaires du bundler) qui est atteignable depuis
+ * js/app.js doit être pré-caché par le service worker, sinon l'app ne démarrerait plus hors ligne. On ajoute ces chemins
+ * à la liste CORE de dist/sw.js (entre marqueurs) et on suffixe le nom du cache par une empreinte de cette liste.
+ * www/sw.js n'est jamais modifié ; scripts/check-dist.mjs vérifie le résultat.
+ */
+function precacheV2Modules(): Plugin {
+  let reachable: string[] = [];
+  return {
+    name: 'mobilis:precache-v2-modules',
+    apply: 'build',
+    generateBundle(_opts, bundle) {
+      const entry = Object.values(bundle).find((c) => c.type === 'chunk' && c.isEntry && c.fileName === 'js/app.js');
+      if (!entry || entry.type !== 'chunk') return;
+      const seen = new Set<string>();
+      const queue = [entry.fileName];
+      while (queue.length) {
+        const f = queue.pop()!;
+        if (seen.has(f)) continue;
+        seen.add(f);
+        const c = bundle[f];
+        if (c?.type === 'chunk') queue.push(...c.imports, ...c.dynamicImports);
+      }
+      reachable = [...seen].filter((f) => f.startsWith('js/v2/')).sort();
+    },
+    writeBundle: {
+      sequential: true,
+      order: 'post',
+      handler() {
+        if (!reachable.length) return;
+        const swPath = path.join(OUT, 'sw.js');
+        const sw = fs.readFileSync(path.join(WWW, 'sw.js'), 'utf8');
+        const list = reachable.map((f) => `'${f}'`).join(', ');
+        const hash = createHash('sha256').update(list).digest('hex').slice(0, 8);
+        const patched = sw
+          .replace(/(const CORE = \[[\s\S]*?)(\];)/, `$1, /* v2:begin */ ${list} /* v2:end */$2`)
+          .replace(/(const CACHE = ')([^']+)(';)/, `$1$2-${hash}$3`);
+        if (!patched.includes('/* v2:begin */')) throw new Error('sw.js : liste CORE introuvable');
+        fs.writeFileSync(swPath, patched);
+      },
     },
   };
 }
@@ -99,7 +147,7 @@ export default defineConfig({
     // `npm run dev` sert www/ tel quel et autorise les imports de ../src (TypeScript transpilé à la volée).
     fs: { allow: [ROOT] },
   },
-  plugins: [externalLegacyVendor(), keepLegacyImportMetaUrl(), copyLegacyWww()],
+  plugins: [externalLegacyVendor(), keepLegacyImportMetaUrl(), copyLegacyWww(), precacheV2Modules()],
   build: {
     outDir: OUT,
     emptyOutDir: true,

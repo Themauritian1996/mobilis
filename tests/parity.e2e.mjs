@@ -2,6 +2,8 @@
 // depuis le build Vite (dist), doit afficher EXACTEMENT le même texte sur chaque écran, sans erreur de page, en patient et
 // en clinicien, dans plusieurs langues (dont l'arabe, chargé par import dynamique).
 //   npm run build && node tests/parity.e2e.mjs    — sans Playwright/Chromium ou sans dist/ : ignoré (code 0).
+//   Dès qu'un module legacy réexporte src/, www/ n'est plus servable seul : comparer à v1.15 avec
+//   git worktree add ../mobilis-v115 main && MOBILIS_BASE=../mobilis-v115/www npm run test:parity
 import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import http from 'node:http';
@@ -9,7 +11,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const A = path.resolve(HERE, '../www');
+// MOBILIS_BASE : app de référence (par défaut www/ ; pendant la migration : www/ d'une copie de main / v1.15).
+const A = path.resolve(process.env.MOBILIS_BASE || path.join(HERE, '../www'));
 const B = path.resolve(process.env.MOBILIS_WWW || path.join(HERE, '../dist'));
 const skip = (why) => { console.log(`Parité www/dist : IGNORÉ — ${why}`); process.exit(0); };
 if (!fs.existsSync(path.join(B, 'index.html'))) skip(`${B} absent (npm run build)`);
@@ -36,8 +39,9 @@ const CASES = [
 ];
 
 async function snapshot(browser, origin, c) {
-  const ctx = await browser.newContext({ viewport: { width: 390, height: 800 }, serviceWorkers: 'block', timezoneId: 'America/Montreal', locale: 'fr-CA' });
-  await ctx.addInitScript(() => { const fixed = 1_763_800_000_000; const D = Date; Date.now = () => fixed; globalThis.Math.random = () => 0.42; void D; });
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 800 }, serviceWorkers: 'block', timezoneId: 'America/Montreal', locale: 'fr-CA', reducedMotion: 'reduce' });
+  // Temps figé (Date, performance, animations des schémas) et hasard fixe : deux rendus identiques image pour image.
+  await ctx.addInitScript(() => { const fixed = 1_763_800_000_000; Date.now = () => fixed; performance.now = () => 1000; Math.random = () => 0.42; });
   const p = await ctx.newPage();
   const errors = [];
   p.on('pageerror', (e) => errors.push(e.message));

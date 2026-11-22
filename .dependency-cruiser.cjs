@@ -36,15 +36,12 @@ module.exports = {
       to: { path: '^src/services/[^/]+/(?!port\\.ts$)' },
     },
     {
-      name: 'domains-independent',
+      name: 'domains-internal-private',
       severity: 'error',
       comment:
-        "Un domaine n'importe pas l'intérieur d'un autre domaine ; seul son index public (domains/<x>/index.ts) est permis.",
-      from: { path: '^src/domains/([^/]+)/' },
-      to: {
-        path: '^src/domains/',
-        pathNot: ['^src/domains/$1/', '^src/domains/[^/]+/index\\.ts$', '^src/domains/types\\.ts$'],
-      },
+        "API publique d'un domaine = ses fichiers hors de internal/. Un autre domaine (ou l'interface) n'importe jamais domains/<x>/internal/.",
+      from: { path: '^src/(domains/([^/]+)|ui|vision|services|platform|core)/' },
+      to: { path: '^src/domains/([^/]+)/internal/', pathNot: '^src/domains/$2/internal/' },
     },
     {
       name: 'core-is-pure',
