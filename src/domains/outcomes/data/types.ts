@@ -143,3 +143,70 @@ export interface Protocol {
   readonly phases: readonly ProtocolPhase[];
   readonly redFlags: readonly Bilingual[];
 }
+
+// ---------------------------------------------------------------- Tests d'amplitude (ROM)
+
+/** Référence de valeur normale : valeur, plage et source (AAOS / AMA, indicatif). */
+export interface RomNormal {
+  readonly ref: number;
+  readonly lo: number;
+  readonly hi: number;
+  readonly src: string;
+}
+
+/** Schéma : axes en degrés d'écran (0 = vers la droite, 90 = vers le bas) — segment fixe, départ, arrivée. */
+export interface RomSchema {
+  readonly fix: number;
+  readonly from: number;
+  readonly to: number;
+}
+
+/** Aide au placement de départ (voir START) ; `{side}` dans `go` est remplacé par « droite » / « gauche ». */
+export interface RomStart {
+  /** Partie du corps nommée [clé, genre grammatical m / f] ; null = sans côté. */
+  readonly part: readonly [string, 'm' | 'f'] | null;
+  /** 'near' : profil, côté testé vers le téléphone ; 'front' : de face ; 'dir' : de face, côté = sens de rotation ; 'profile' : profil sans côté. */
+  readonly mode: 'near' | 'front' | 'dir' | 'profile';
+  readonly lying?: boolean;
+  /** Plage acceptée pour la valeur du test à la position de départ. */
+  readonly lo: number;
+  readonly hi: number;
+  /** Segment censé rester immobile. */
+  readonly fixed: readonly [string, string];
+  readonly instr: Bilingual;
+  readonly go: Bilingual;
+}
+
+/** Test d'amplitude. `calc` est la fonction de goniométrie (src/vision/goniometry.ts). */
+export interface RomTest<Calc = unknown> {
+  readonly id: string;
+  readonly region: string;
+  readonly name: Bilingual;
+  readonly plane: string;
+  readonly view: string;
+  readonly scope: string;
+  readonly sided: boolean;
+  readonly dir: number;
+  readonly unit: string;
+  readonly joints: readonly string[];
+  readonly both?: readonly string[];
+  readonly minTravel: number;
+  readonly maxConf: number;
+  readonly calc: Calc;
+  readonly deficit?: boolean;
+  readonly needsHand?: boolean;
+  readonly lowConfidence?: boolean;
+  readonly ratio?: boolean;
+  readonly optional?: boolean;
+  readonly unitLabel?: Bilingual;
+  readonly normal: RomNormal;
+  readonly pos: Bilingual;
+  readonly how: Bilingual;
+  readonly cam: Bilingual;
+  readonly note: Bilingual;
+  readonly sch: RomSchema;
+  readonly start?: RomStart | undefined;
+}
+
+/** Ensemble suggéré au clinicien : [test, côtés ('LR', 'L', 'R' ou '')]. */
+export type RomSuggestion = readonly (readonly [string, string])[];
