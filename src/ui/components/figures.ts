@@ -74,8 +74,12 @@ export function figureBlock(id: string, { keys = true }: { keys?: boolean } = {}
     ${figSvg(id, { keys, anat: on })}</div>
     ${has ? `<div class="legend" data-anat-legend ${on ? '' : 'hidden'}>${kinds.map((k) => `<span><i style="background:var(${legend[k ?? '']![0]})"></i>${legend[k ?? '']![1]}</span>`).join('')}</div>` : ''}`;
 }
+// Écouteurs globaux (absents sous Node : le module reste importable par les tests)
+const onClick = (fn: (e: MouseEvent) => void): void => {
+  if (typeof document !== 'undefined') document.addEventListener('click', fn);
+};
 // Lecture de la démonstration : pause, ralenti, consignes lues à voix haute
-document.addEventListener('click', (e) => {
+onClick((e) => {
   const c = (e.target as Element).closest('[data-fig-play],[data-fig-slow],[data-fig-say]');
   if (!c) return;
   const wrap = c.closest<HTMLElement>('[data-figblock]');
@@ -106,7 +110,7 @@ document.addEventListener('click', (e) => {
     );
   }
 });
-document.addEventListener('click', (e) => {
+onClick((e) => {
   const b = (e.target as Element).closest('[data-anat-toggle]');
   if (!b) return;
   const on = !store.settings().anatomy;
