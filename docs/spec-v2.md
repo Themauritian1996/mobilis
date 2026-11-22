@@ -87,3 +87,20 @@ Documentation attendue : `docs/architecture.md` (diagrammes Mermaid), `docs/adr/
 5. Amputés, plan de traitement, aides techniques, recherche : écrans fonctionnels, données enregistrées, export CSV/JSON/PDF.
 6. i18n complète (FR/EN/ES/PT/AR/ZH) pour les nouveaux textes.
 7. Audit indépendant final (agent distinct) listant les écarts ; corrections appliquées.
+
+## 10. Décisions cliniques validées (22 nov. 2026)
+Cadre : viser une marche la plus proche possible de la normale, analysée selon les **6 déterminants de la marche efficace** (Saunders, Inman & Eberhart 1953), y compris pathologies et amputés. Pas de score global : pour chaque déterminant et chaque articulation/phase, afficher ce qui est **affecté**, **préservé** ou **incertain**, avec l'explication.
+1. Vitesse : norme Bohannon 1997 par défaut ; afficher % de la norme et score z.
+2. Anomalie : au-delà de ±2 ET (dépistage) ; en suivi, changement au-delà du MDC.
+3. Hanche : angle cuisse–verticale (Perry).
+4. Pied tombant : cheville < 0° en oscillation moyenne = anomalie ; < −5° = confiant, 0 à −5° = doute ; corrélation obligatoire avec les vues sagittale et frontale/postérieure (compensations). Même logique pour les autres défauts.
+5. Mesures frontales non validées en 2D : affichées comme « estimation », mises en avant seulement si elles constituent un facteur limitant potentiel de la marche.
+6. ≥ 3 cycles valides par côté, défaut retenu si présent dans ≥ 2/3 des cycles ; nombre de cycles configurable par patient.
+7. Normes âgées : Hollman 2011 dès 70 ans, Bohannon 2011 de 80 à 99 ans ; pas de pédiatrie.
+8. Rapport patient : exercices et aides techniques ; toxine, chirurgie, orthèse et ajustements de prothèse dans la vue clinicien. **Suivi post-intervention** : le patient enregistre une ou des mesures (douleur, PROM, amplitude, marche…) à des moments définis après une chirurgie, une injection de toxine, une infiltration (douleur MSK) ou autre ; calendrier réglé par le clinicien ou par le patient.
+9. Aides techniques : repères anatomiques (trochanter, pli du poignet) et vérification par caméra du coude à 20–30° ; pas de formule par la taille.
+10. Amputés : toutes les déviations du catalogue génèrent des alertes (fouets médial/latéral, pistonnage, rotation du pied compris ; marquées « estimation » si non fiables en 2D). L'évaluation de la prothèse est destinée au clinicien et au prothésiste.
+11. **Comparaisons en direct** : refaire une capture après une modification (canne, prothèse, consigne) et comparer A/B immédiatement (deltas tenant compte de l'erreur de mesure). Annotations et sauvegardes dans le **dossier du patient** :
+    - clinicien connecté : enregistrement direct au dossier du patient ;
+    - patient avec compte : enregistrement dans son compte, transmis au clinicien, avec **création automatique du dossier patient** chez le clinicien s'il n'existe pas.
+12. Amputés comparés à la norme générale (la symétrie reste rapportée).
