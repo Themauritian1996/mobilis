@@ -6,3 +6,4 @@ www/review.html
 /dist/
 /coverage/
 *.tsbuildinfo
+.claude/
