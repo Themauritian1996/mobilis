@@ -123,8 +123,9 @@ export function variantParams(v: Variant, base: Partial<SyntheticParams> = {}): 
       return {
         ...p,
         stance: { L: 0.59, R: 0.65 },
-        stepLength: { L: 0.62, R: 0.76 },
+        stepLength: { L: 0.6, R: 0.72 },
         rightPhase: 0.47,
+        stanceKneeFlexion: L(p.stanceKneeFlexion, 12),
       };
   }
 }
@@ -315,7 +316,7 @@ export function generateGait(input: Partial<SyntheticParams> = {}): { frames: Ga
     }
     return up;
   });
-  const w = Math.max(1, Math.round(0.12 * p.fps));
+  const w = Math.max(1, Math.round(0.06 * p.fps));
   const eroded = raw.map((_, i) => Math.min(...raw.slice(Math.max(0, i - w), i + w + 1)));
   const hipUp = eroded.map((_, i) => {
     const s = eroded.slice(Math.max(0, i - w), i + w + 1);
