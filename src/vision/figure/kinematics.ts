@@ -167,7 +167,15 @@ export const add = (p: Pt, v: Pt): Pt => [p[0] + v[0], p[1] + v[1]];
 const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
 export const ease = (t: number): number => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
 
-const SIDE_DEFAULT: Readonly<Record<string, number>> = { trunk: 0, head: 0, uarm: 180, farm: 175, thigh: 180, shank: 180, foot: 90 };
+const SIDE_DEFAULT: Readonly<Record<string, number>> = {
+  trunk: 0,
+  head: 0,
+  uarm: 180,
+  farm: 175,
+  thigh: 180,
+  shank: 180,
+  foot: 90,
+};
 const FRONT_DEFAULT: Readonly<Record<string, number>> = {
   trunk: 0,
   head: 0,
