@@ -54,12 +54,45 @@ export interface HistState {
   more: number;
 }
 
+/** Candidat de diagnostic / de pathologie (triage). */
+export interface PathCandidate {
+  id: string;
+  score?: number;
+}
+
+/** État de l'assistant d'accueil (onboarding), conservé dans `state.ob`. */
+export interface OnboardState {
+  step: string;
+  hist: string[];
+  name: string;
+  role: string;
+  text: string;
+  matches: PathCandidate[] | null;
+  region: string | null | undefined;
+  answers: Record<number, number>;
+  pathology: string | null | undefined;
+  start: Record<string, string>;
+  painBase: number;
+  irritability: string;
+  days: number[];
+  flags: Set<number>;
+  noFlag: boolean;
+  candidates?: PathCandidate[];
+  showAll?: boolean;
+  share?: boolean;
+  code?: string;
+}
+
 export interface AppState {
-  user: unknown;
+  user: { name?: string; [key: string]: unknown } | null;
   data: AppData | null;
-  ob: Record<string, unknown> | null;
+  ob: OnboardState | null;
+  obTest?: boolean;
+  obChange?: boolean;
+  /** Import d'un programme du clinicien en cours (`#/rx/<code>`). */
+  rxo?: OnboardState | null;
   lib: { region: string; q: string };
-  cal: { month: number | null; sel: number | string | null };
+  cal: { month: Date | null; sel: string | null };
   clinic: unknown;
   /** Plage de dates choisie (écran Progrès / Historique) ; absente tant que l'utilisateur n'a rien choisi. */
   range?: string | undefined;
