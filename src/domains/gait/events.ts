@@ -113,9 +113,9 @@ export function eventSignals(
     const heel: number[] = [];
     const toe: number[] = [];
     for (let i = 0; i < n; i++) {
-      const p = mid(track, LM.leftHip, LM.rightHip, i);
-      heel.push(d * (track.X[hk]![i]! - p.x));
-      toe.push(d * (track.X[tk]![i]! - p.x));
+      const px = (track.Xe[LM.leftHip]![i]! + track.Xe[LM.rightHip]![i]!) / 2;
+      heel.push(d * (track.Xe[hk]![i]! - px));
+      toe.push(d * (track.Xe[tk]![i]! - px));
     }
     return { heel, toe };
   }

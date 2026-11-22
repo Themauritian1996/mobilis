@@ -16,6 +16,11 @@ export interface Track {
   /** X[landmark][frame], Y[landmark][frame] filtrés (NaN si non reconstructible). */
   readonly X: readonly (readonly number[])[];
   readonly Y: readonly (readonly number[])[];
+  /**
+   * Positions X filtrées plus légèrement (coupure 12 Hz, bornée à 0,4 × fréquence d'images) pour la détection des
+   * événements : un filtre à 6 Hz arrondit l'arrêt brusque du talon au contact et décale l'extremum (≈ 25–30 ms).
+   */
+  readonly Xe: readonly (readonly number[])[];
   /** Repère reconstruit par interpolation à cette trame. */
   readonly filled: readonly (readonly boolean[])[];
   /** Visibilité brute (0–1). */
@@ -23,6 +28,9 @@ export interface Track {
   /** Trame utilisable : tous les repères requis disponibles (mesurés ou interpolés). */
   readonly usable: readonly boolean[];
 }
+
+/** Coupure du filtre des signaux d'événements (choix de conception). */
+export const EVENT_CUTOFF_HZ = 12;
 
 export const DEFAULTS = {
   cutoffHz: 6,
@@ -45,6 +53,7 @@ export function buildTrack(frames: readonly GaitPoseFrame[], options: GaitAnalys
   const cutoff = options.cutoffHz ?? DEFAULTS.cutoffHz;
 
   const X: number[][] = [];
+  const Xe: number[][] = [];
   const Y: number[][] = [];
   const filled: boolean[][] = [];
   const vis: number[][] = [];
@@ -63,12 +72,13 @@ export function buildTrack(frames: readonly GaitPoseFrame[], options: GaitAnalys
     const ix = interpolateGaps(rawX, maxGap);
     const iy = interpolateGaps(rawY, maxGap);
     X.push(lowPass(ix.values, cutoff, fps));
+    Xe.push(lowPass(ix.values, Math.min(EVENT_CUTOFF_HZ, fps * 0.4), fps));
     Y.push(lowPass(iy.values, cutoff, fps));
     filled.push(ix.filled.map((b, i) => b || iy.filled[i]!));
     vis.push(v);
   }
   const usable = frames.map((_, i) => REQUIRED_LANDMARKS.every((k) => Number.isFinite(X[k]![i]!)));
-  return { t, fps, X, Y, filled, vis, usable };
+  return { t, fps, X, Y, Xe, filled, vis, usable };
 }
 
 /** Contrôle de qualité (visibilité des pieds, % de trames utilisables, fréquence d'images). */

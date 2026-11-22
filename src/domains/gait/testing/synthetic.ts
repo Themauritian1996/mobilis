@@ -200,7 +200,7 @@ export function generateGait(input: Partial<SyntheticParams> = {}): { frames: Ga
   const icStart: SideParams<number> = { L: tau0, R: tau0 + p.rightPhase * T };
   const lead = 0.2 * S;
   const pelvisW = (t: number): number => (t < ts ? -lead + v * (ts - tau0) : v * (t - tau0) - lead);
-  const heelOffFrac = (s: Side): number => Math.max(0.15, p.stance[s] * 0.5);
+  const heelOffFrac = (s: Side): number => Math.max(0.15, p.stance[s] * 0.62);
   const ffFrac = 0.08;
   const sigma = (s: Side): number => (s === 'L' ? 1 : -1);
   const landing = (s: Side, k: number): number => (s === 'L' ? 0 : p.stepLength.R) + k * S;
@@ -315,7 +315,7 @@ export function generateGait(input: Partial<SyntheticParams> = {}): { frames: Ga
     }
     return up;
   });
-  const w = Math.max(1, Math.round(0.06 * p.fps));
+  const w = Math.max(1, Math.round(0.12 * p.fps));
   const eroded = raw.map((_, i) => Math.min(...raw.slice(Math.max(0, i - w), i + w + 1)));
   const hipUp = eroded.map((_, i) => {
     const s = eroded.slice(Math.max(0, i - w), i + w + 1);
