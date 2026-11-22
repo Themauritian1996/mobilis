@@ -9,3 +9,11 @@ export const DOMAIN = {
   id: 'prosthetics',
   featureFlag: 'gait',
 } as const satisfies DomainDescriptor;
+
+export {
+  assessProstheticGait,
+  catalogLevel,
+  PROSTHETIC_CATALOG,
+  PROSTHETIC_DEVIATIONS,
+  type ProstheticAssessment,
+} from './deviations.ts';

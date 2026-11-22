@@ -60,6 +60,11 @@ export interface SyntheticParams {
   /** Déplacement latéral du bassin (amplitude, m). */
   readonly pelvisSway: number;
   readonly trunkForwardLean: number;
+  /**
+   * Cheville cible en oscillation (°, convention clinique) : le pied est réorienté par rapport à la jambe pendant
+   * l'oscillation (pondération sin²), null = calendrier de l'angle du pied seul.
+   */
+  readonly swingAnkle: SideParams<number | null>;
 }
 
 export const NORMAL_PARAMS: SyntheticParams = {
@@ -86,6 +91,7 @@ export const NORMAL_PARAMS: SyntheticParams = {
   circumduction: { L: 0, R: 0 },
   pelvisSway: 0.02,
   trunkForwardLean: 4,
+  swingAnkle: { L: 0, R: 0 },
 };
 
 export type Variant = 'normal' | 'foot_drop' | 'trendelenburg' | 'stiff_knee' | 'circumduction' | 'prosthetic_asymmetry';
@@ -103,6 +109,7 @@ export function variantParams(v: Variant, base: Partial<SyntheticParams> = {}): 
         ...p,
         footPitchIC: L(p.footPitchIC, 2),
         footPitchMidSwing: L(p.footPitchMidSwing, -55),
+        swingAnkle: L(p.swingAnkle, -15),
         swingLift: L(p.swingLift, 0.12),
       };
     case 'trendelenburg':
@@ -115,9 +122,9 @@ export function variantParams(v: Variant, base: Partial<SyntheticParams> = {}): 
       // Prothèse transtibiale gauche : appui prothétique plus court, pas asymétriques, contact du pied sain précipité.
       return {
         ...p,
-        stance: { L: 0.56, R: 0.66 },
+        stance: { L: 0.59, R: 0.65 },
         stepLength: { L: 0.62, R: 0.76 },
-        rightPhase: 0.44,
+        rightPhase: 0.47,
       };
   }
 }
@@ -285,7 +292,7 @@ export function generateGait(input: Partial<SyntheticParams> = {}): { frames: Ga
   const lean = (t: number): number =>
     walking(t) * (p.trunkLean.L * bump(tauOf('L', t), 'L') - p.trunkLean.R * bump(tauOf('R', t), 'R'));
 
-  const limbs = times.map((t) => ({ L: limb('L', t), R: limb('R', t) }));
+  const limbs: { L: LimbState; R: LimbState }[] = times.map((t) => ({ L: limb('L', t), R: limb('R', t) }));
   // Hauteur du centre du bassin : flexion de genou d'appui cible, contraintes de longueur, enveloppe inférieure lissée.
   const legLen = (kappa: number): number => Math.sqrt(Lt * Lt + Ls * Ls + 2 * Lt * Ls * Math.cos(kappa * D2R));
   const kneeTarget = (s: Side, tau: number): number => {
@@ -316,7 +323,7 @@ export function generateGait(input: Partial<SyntheticParams> = {}): { frames: Ga
   });
 
   // Squelette 3D complet.
-  const skel = times.map((t, i) => {
+  const buildSkel = (): V3[][] => times.map((t, i) => {
     const o = obliq(t) * D2R;
     const pw = pelvisW(t);
     const center: V3 = { w: pw, lat: sway(t), up: hipUp[i]! };
@@ -379,6 +386,26 @@ export function generateGait(input: Partial<SyntheticParams> = {}): { frames: Ga
     pts[32] = L.R.toe;
     return pts;
   });
+  let skel = buildSkel();
+  // 2e passe : orientation du pied en oscillation par rapport à la jambe (cheville cible).
+  for (let i = 0; i < n; i++)
+    for (const [s, k, a] of [
+      ['L', 25, 27],
+      ['R', 26, 28],
+    ] as const) {
+      const L0 = limbs[i]![s];
+      const target = p.swingAnkle[s];
+      if (L0.phase !== 'swing' || target === null) continue;
+      const u = (L0.tau - p.stance[s]) / (1 - p.stance[s]);
+      const wgt = Math.sin(Math.PI * u) ** 2;
+      const kn = skel[i]![k]!;
+      const an = skel[i]![a]!;
+      const shank = Math.atan2(an.w - kn.w, kn.up - an.up) / D2R;
+      const old = Math.atan2(L0.toe.up - L0.heel.up, L0.toe.w - L0.heel.w) / D2R;
+      const phi = (1 - wgt) * old + wgt * (shank + target);
+      limbs[i]![s] = { ...L0, ...footFrom(L0.heel, phi) };
+    }
+  skel = buildSkel();
 
   // Caméra sténopé.
   const sagittal = p.view === 'sagittal-left' || p.view === 'sagittal-right';
