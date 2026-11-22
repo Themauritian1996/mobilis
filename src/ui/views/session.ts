@@ -5,7 +5,7 @@ import { t, tr } from '../../../www/js/i18n.js';
 import { EXERCISES as EXERCISE_DATA, EQUIP as EQUIP_DATA } from '../../../www/js/data/exercises.js';
 import { LAY as LAY_DATA } from '../../../www/js/data/triage.js';
 import * as P from '../../../www/js/program.js';
-import { doseText } from '../../../www/js/train.js';
+import { doseText } from '../../domains/rehab/training.ts';
 import { EQUIP_IDS, haveList, missing, alternatives } from '../../../www/js/equip.js';
 import { state, go, profile, todaySession, updateProfile, type Profile } from '../app-state.ts';
 import { esc } from '../components/html.ts';

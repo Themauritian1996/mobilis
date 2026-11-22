@@ -102,7 +102,7 @@ export interface AppState {
   equipOpen?: boolean;
   /** Séance refaite le même jour (exercice ou file d'exercices). */
   redo?: boolean;
-  redoQueue?: string[];
+  redoQueue?: string[] | null;
 }
 
 export const state: AppState = {

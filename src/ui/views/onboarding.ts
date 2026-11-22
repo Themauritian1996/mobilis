@@ -20,7 +20,7 @@ import { protocolById } from '../../../www/js/data/protocols.js';
 import * as P from '../../../www/js/program.js';
 import * as store from '../../../www/js/store.js';
 import { canToggleDay, toggleDay } from '../../../www/js/longterm.js';
-import { doseText } from '../../../www/js/train.js';
+import { doseText } from '../../domains/rehab/training.ts';
 import { rxExtrasRom } from '../../domains/outcomes/rom.ts';
 import { scheduleReminders } from '../../domains/rehab/calendar.ts';
 import {
