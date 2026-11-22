@@ -173,3 +173,19 @@ export interface TriageQuestion {
   readonly q: Bilingual;
   readonly opts: readonly TriageOption[];
 }
+
+/** Question de départ : durée du problème, exercices déjà commencés. */
+export interface StartOption {
+  readonly v: string;
+  readonly t: Bilingual;
+}
+
+export interface StartQuestion {
+  readonly id: string;
+  readonly q: Bilingual;
+  readonly opts: readonly StartOption[];
+  /** Question posée seulement si cette condition est vraie pour les réponses déjà données. */
+  readonly when?: (answers: StartAnswers) => unknown;
+}
+
+export type StartAnswers = Readonly<Record<string, string | undefined>>;
