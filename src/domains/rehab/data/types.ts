@@ -133,3 +133,43 @@ export interface Exercise {
   readonly track: ExerciseTrack | null;
   readonly caption?: Bilingual;
 }
+
+// ---------------------------------------------------------------- Régions, pathologies, triage
+
+export interface Region {
+  readonly id: string;
+  readonly name: Bilingual;
+  readonly icon: string;
+}
+
+/** Nom simple (affiché au patient) + mots-clés pour reconnaître un diagnostic écrit librement. */
+export interface LayEntry {
+  readonly name: Bilingual;
+  readonly kw: readonly string[];
+}
+
+/**
+ * Pathologie MSK. Phases : 1 = semaines 1–2, 2 = semaines 3–6, 3 = semaine 7+ (identifiants d'exercices).
+ * `painMax` : douleur acceptable pendant l'exercice (retour à la base en moins de 24 h).
+ */
+export interface Pathology {
+  readonly id: string;
+  readonly region: string;
+  readonly name: Bilingual;
+  readonly painMax: number;
+  readonly lay?: LayEntry;
+  readonly phases: { readonly 1: readonly string[]; readonly 2: readonly string[]; readonly 3: readonly string[] };
+  readonly edu: BilingualList;
+  readonly avoid: BilingualList;
+}
+
+/** Réponse d'une question de triage : texte et points par pathologie. */
+export interface TriageOption {
+  readonly t: Bilingual;
+  readonly s: Readonly<Record<string, number>>;
+}
+
+export interface TriageQuestion {
+  readonly q: Bilingual;
+  readonly opts: readonly TriageOption[];
+}
