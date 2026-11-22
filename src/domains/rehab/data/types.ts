@@ -189,3 +189,19 @@ export interface StartQuestion {
 }
 
 export type StartAnswers = Readonly<Record<string, string | undefined>>;
+
+// ---------------------------------------------------------------- Objets de remplacement du matériel
+
+/** Charge approximative en kg : un nombre, ou [min, max] quand elle se règle. */
+export type KgValue = number | readonly [number, number];
+
+/** Objet de maison qui remplace un matériel manquant. `fits` : types de mouvement adaptés ('any' = tous). */
+export interface Substitute {
+  readonly id: string;
+  readonly equip: string;
+  readonly name: Bilingual;
+  readonly kg: KgValue;
+  readonly fits: readonly string[];
+  readonly grip: Bilingual;
+  readonly safety: Bilingual;
+}
