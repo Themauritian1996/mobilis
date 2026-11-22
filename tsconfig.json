@@ -1,0 +1,37 @@
+{
+  // TypeScript strict pour le nouveau code (src/). Le code legacy (www/js) est inclus avec allowJs mais N'EST PAS vérifié
+  // (checkJs: false) : il pourra l'être fichier par fichier (// @ts-check) pendant la migration. Voir docs/adr/0001.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "moduleDetection": "force",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "useUnknownInCatchVariables": true,
+    "forceConsistentCasingInFileNames": true,
+
+    "allowJs": true,
+    "checkJs": false,
+    "maxNodeModuleJsDepth": 0,
+
+    "types": ["node", "vite/client"],
+    "paths": { "@src/*": ["./src/*"] }
+  },
+  "include": ["src/**/*.ts", "tests/**/*.ts", "www/js/**/*.js", "vite.config.ts", "vitest.config.ts"],
+  "exclude": ["node_modules", "dist", "android", "www/vendor", "www/js/lang", "docs/gait-literature"]
+}

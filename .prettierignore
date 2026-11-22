@@ -1,0 +1,22 @@
+# Prettier ne s'applique qu'au nouveau code (src/, configs). Le code legacy garde son style compact jusqu'à sa migration.
+node_modules/
+dist/
+android/
+www/
+i18n-src/
+functions/
+brand/
+docs/gait-literature/
+package-lock.json
+*.md
+# Legacy (scripts et tests v1.15) : style d'origine conservé
+tests/**/*.mjs
+tests/fixtures/**
+scripts/build-lang.mjs
+scripts/i18n-dump.mjs
+scripts/*-entry.js
+*.sh
+firestore.rules
+capacitor.config.json
+package.json
+.github/

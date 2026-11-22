@@ -3,3 +3,6 @@ node_modules/
 www/models/*.task
 .DS_Store
 www/review.html
+/dist/
+/coverage/
+*.tsbuildinfo

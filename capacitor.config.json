@@ -1,7 +1,7 @@
 {
   "appId": "ca.mobilis.app",
   "appName": "Mobilis",
-  "webDir": "www",
+  "webDir": "dist",
   "android": {
     "allowMixedContent": false
   },
