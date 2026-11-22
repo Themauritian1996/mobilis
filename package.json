@@ -24,7 +24,9 @@
     "vendor": "bash scripts/vendor.sh",
     "serve": "npx serve www",
     "serve:dist": "npx serve dist",
-    "android:sync": "npm run build && npx cap sync android"
+    "android:sync": "npm run build && npx cap sync android",
+    "test:parity": "node tests/parity.e2e.mjs",
+    "android:prepare": "bash scripts/android-prepare.sh"
   },
   "dependencies": {
     "@capacitor-community/speech-recognition": "^7.0.1",

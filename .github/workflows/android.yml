@@ -37,6 +37,10 @@ jobs:
       - name: Modèle de pose (hors ligne)
         run: bash scripts/fetch-model.sh
 
+      # v2 : le webDir de Capacitor est dist/ (build Vite de www/ + src/). Sans effet sur main tant que dev-v2 n'y est pas fusionnée.
+      - name: Build web (Vite → dist)
+        run: npm run build
+
       - name: Projet Android
         run: |
           npx cap add android

@@ -1,0 +1,106 @@
+# CI de la branche dev-v2 (Mobilis v2) : lint, types, tests, build web, e2e, APK de TEST.
+# - Ne se déclenche jamais sur main (la CI de main reste android.yml + pages.yml, inchangées dans leur comportement).
+# - Ne publie RIEN : pas de GitHub Pages, pas de Release ; l'APK de debug est un artefact d'exécution (rétention courte).
+# - N'utilise aucun secret.
+name: CI v2 (dev-v2)
+
+on:
+  push:
+    branches: [dev-v2, 'dev-v2-*']
+  pull_request:
+    branches: [dev-v2]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-v2-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Lint, types, tests, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Dépendances
+        run: npm ci --no-audit --no-fund
+      - name: Lint (ESLint, dépendances, Prettier)
+        run: npm run lint
+      - name: Types (TypeScript)
+        run: npm run typecheck
+      - name: Tests (Vitest + scripts v1.15)
+        run: npm test
+      - name: Build web (Vite → dist)
+        run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mobilis-v2-web
+          path: dist
+          retention-days: 7
+
+  e2e:
+    name: Bout en bout (Playwright, sur dist)
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Dépendances
+        run: npm ci --no-audit --no-fund
+      - name: Chromium + ffmpeg
+        run: |
+          npx playwright install --with-deps chromium
+          sudo apt-get install -y --no-install-recommends ffmpeg
+      - name: Modèles MediaPipe (hors ligne)
+        run: bash scripts/fetch-model.sh
+      - name: Build web
+        run: npm run build
+      - name: Parité www ↔ dist
+        run: npm run test:parity
+      - name: Tests e2e v1.15 sur dist
+        run: npm run test:e2e:dist
+
+  apk:
+    name: APK de test (debug, sans release)
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Dépendances
+        run: npm ci --no-audit --no-fund
+      - name: Modèles MediaPipe (hors ligne)
+        run: bash scripts/fetch-model.sh
+      - name: Build web
+        run: npm run build
+      - name: Projet Android
+        run: npm run android:prepare
+      - name: Synchroniser dist dans l'app
+        run: npx cap sync android
+      - name: Compiler l'APK (debug, non signé pour la diffusion)
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+          cp app/build/outputs/apk/debug/app-debug.apk "../Mobilis-v2-dev-${GITHUB_SHA::7}.apk"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Mobilis-v2-dev-apk
+          path: Mobilis-v2-dev-*.apk
+          retention-days: 7

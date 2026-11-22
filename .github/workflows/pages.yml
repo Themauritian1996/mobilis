@@ -1,4 +1,4 @@
-# Publie le site (dossier www) sur GitHub Pages à chaque envoi sur main.
+# Publie le site (dossier dist, construit depuis www + src) sur GitHub Pages à chaque envoi sur main.
 name: Site web (GitHub Pages)
 
 on:
@@ -17,17 +17,27 @@ concurrency:
 
 jobs:
   deploy:
+    # Garde-fou v2 : ne jamais publier une autre branche que main (ex. lancement manuel depuis dev-v2).
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Dépendances
+        run: npm ci --no-audit --no-fund
       - name: Modèle de pose (hors ligne)
         run: bash scripts/fetch-model.sh
+      # v2 : le site publié est dist/ (build Vite de www/ + src/, fichiers aux mêmes chemins). Voir docs/adr/0005-strangler.md.
+      - name: Build web (Vite → dist)
+        run: npm run build
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: www
+          path: dist
       - id: deployment
         uses: actions/deploy-pages@v4
