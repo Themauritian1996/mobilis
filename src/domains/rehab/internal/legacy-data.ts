@@ -75,12 +75,12 @@ export const PATHOLOGIES = RAW_PATHOLOGIES as unknown as readonly PathologyDef[]
 export const SUBSTITUTES = RAW_SUBSTITUTES as unknown as readonly SubstituteDef[];
 
 export const protocolById = rawProtocolById as (id: string) => ProtocolDef | null;
-export const protocolPhases = rawProtocolPhases as (
+export const protocolPhases = rawProtocolPhases as unknown as (
   protocol: ProtocolDef,
   variantId?: string | null,
 ) => ProtocolPhaseDef[];
 export const exerciseEntry = rawExerciseEntry as (e: string | ProtocolExerciseEntry) => ProtocolExerciseEntry;
 export const promSummary = rawPromSummary as (profile: Profile) => Record<string, unknown>;
-export const subsOf = rawSubsOf as (equipId: string) => SubstituteDef[];
+export const subsOf = rawSubsOf as unknown as (equipId: string) => SubstituteDef[];
 export const moveOf = rawMoveOf as (exId: string, equipId: string) => string;
 export const targetKg = rawTargetKg as (exId: string, level?: number) => number | null;
