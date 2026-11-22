@@ -36,3 +36,100 @@ export interface AnatomyStructure {
   readonly at?: string;
   readonly r?: number;
 }
+
+// ---------------------------------------------------------------- Exercices
+
+/** Point important numéroté sur le schéma : articulation `j`, consigne bilingue, décalage [x, y] de l'étiquette. */
+export interface ExerciseKey {
+  readonly j: string;
+  readonly fr: string;
+  readonly en: string;
+  readonly off: readonly [number, number];
+}
+
+export type DoseType = 'reps' | 'hold';
+
+/** Dose de base (niveau 3) ; le moteur de progression l'ajuste. */
+export interface Dose {
+  readonly type: DoseType;
+  readonly sets: number;
+  readonly reps: number;
+  readonly holdTop?: number;
+  readonly hold?: number;
+  readonly tempo?: string;
+}
+
+/** Paramètres d'une position clé du bonhomme : angles (degrés) par segment, plus quelques indicateurs. */
+export type FigureFrame = Readonly<Record<string, number | string | boolean>>;
+
+/** Accessoire ou objet tenu : identifiant seul, ou [identifiant, point d'attache ou position, …]. */
+export type FigureItem = string | readonly (string | number | readonly number[])[];
+
+/** Schéma cinétique (voir figure.js) : positions clés, trajectoire, angle affiché. */
+export interface ExerciseFigure {
+  readonly view: 'side' | 'front' | 'hand' | 'foot' | 'footBack' | 'palm' | 'end';
+  readonly ground?: boolean;
+  readonly zoom?: number;
+  readonly crop?: readonly string[];
+  readonly anchor?: { readonly j: string; readonly x: number; readonly y: number };
+  readonly frames: readonly FigureFrame[];
+  /** Segment dont on dessine la trajectoire. */
+  readonly trace?: string | null;
+  readonly period?: number;
+  /** Angle affiché : trois articulations. */
+  readonly arc?: readonly string[];
+  readonly held?: readonly FigureItem[];
+  readonly props?: readonly FigureItem[];
+  readonly mm?: boolean;
+}
+
+/** Erreur détectée pendant un exercice -> consigne vocale (`cue`). */
+export interface TrackCheck {
+  readonly m: string;
+  readonly rel?: boolean;
+  readonly abs?: boolean;
+  readonly max?: number;
+  readonly min?: number;
+  readonly cue: string;
+}
+
+/** Suivi caméra 2D dans un plan (`side` = sagittal, `front` = frontal, `hand` = main). */
+export interface TrackPlane {
+  readonly metric: string;
+  readonly rel?: boolean;
+  readonly delta?: number;
+  readonly holdTop?: number;
+  readonly checks?: readonly TrackCheck[];
+  readonly abs?: boolean;
+  readonly from?: number;
+  readonly to?: number;
+  readonly both?: boolean;
+  readonly side?: string;
+  readonly angular?: boolean;
+  readonly absRel?: boolean;
+  readonly min?: number;
+  readonly max?: number;
+  readonly minRepSec?: number;
+  readonly guard?: TrackCheck;
+}
+
+/** Suivi caméra : mode 'reps' (métrique de `from` à `to`) ou 'hold' (temps compté entre min et max). */
+export interface ExerciseTrack {
+  readonly mode: 'reps' | 'hold';
+  readonly kind?: 'hand';
+  readonly cam?: Bilingual;
+  readonly planes: Readonly<Record<string, TrackPlane>>;
+}
+
+export interface Exercise {
+  readonly name: Bilingual;
+  readonly region: string;
+  readonly equip: readonly string[];
+  readonly steps: BilingualList;
+  readonly keys: readonly ExerciseKey[];
+  readonly dose: Dose;
+  readonly fig: ExerciseFigure;
+  /** null = exercice guidé (minuterie + voix), non mesurable de façon fiable en 2D. */
+  readonly track: ExerciseTrack | null;
+  readonly caption?: Bilingual;
+}
