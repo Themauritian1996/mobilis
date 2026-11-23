@@ -20,3 +20,4 @@ firestore.rules
 capacitor.config.json
 package.json
 .github/
+.claude/
