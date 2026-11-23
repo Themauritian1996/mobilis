@@ -1,6 +1,6 @@
 import { STRUCTURES } from '../../domains/rehab/data/anatomy.ts';
 import type { AnatomyStructure, Bilingual } from '../../domains/rehab/data/types.ts';
-import { tr } from '../../../www/js/i18n.js';
+import { tr } from './l10n.ts';
 import {
   add,
   dir,
