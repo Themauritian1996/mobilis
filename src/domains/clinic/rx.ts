@@ -169,10 +169,26 @@ export const linkOf = (rx: Pick<StoredRx, 'code' | 'packed' | 'lang'>): string =
 export const shareMessage = (code: string | null | undefined): string =>
   code ? t('shareMsgCode').replace('{code}', store.fmtCode(code) ?? '') : t('shareMsgLink');
 
+/** Générateur de QR (www/vendor/qrcode.js) : seuls les membres appelés sont décrits. */
+interface QrModule {
+  default: (
+    typeNumber: number,
+    level: string,
+  ) => {
+    addData(data: string): void;
+    make(): void;
+    createSvgTag(o: { cellSize: number; margin: number; scalable: boolean }): string;
+  };
+}
+
 /** QR du lien d'import (SVG en ligne) ; chaîne vide si le générateur est indisponible. */
 export async function qrSvg(link: string): Promise<string> {
   try {
-    const { default: qrcode } = await import('../../../www/vendor/qrcode.js');
+    // Chemin calculé : Vite ne doit pas réécrire la copie vendue (le service worker attend `vendor/qrcode.js`).
+    // Dans dist/, ce module est émis sous js/v2/domains/clinic/ ; hors build, sous src/domains/clinic/.
+    const built = import.meta.url.includes('/js/v2/');
+    const url = new URL((built ? '../../../../' : '../../../www/') + 'vendor/qrcode.js', import.meta.url).href;
+    const { default: qrcode } = (await import(/* @vite-ignore */ url)) as QrModule;
     const qr = qrcode(0, 'M');
     qr.addData(link);
     qr.make();
