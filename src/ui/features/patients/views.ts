@@ -6,6 +6,7 @@ import {
   buildTimeline,
   deletePatientRecord,
   ensureSelfPatient,
+  conditionSummary,
   loadPatientRecords,
   newPatient,
   newRecordId,
@@ -210,7 +211,7 @@ function itemHtml(it: TimelineItem, patientId: string, selectable: boolean): str
       const a = it.doc;
       const href = resultHref(a);
       return `<article class="card pt-item" data-kind="assessment"><header class="row between"><div class="grow"><span class="eyebrow">${esc(fmtDate(it.at))}</span><h3>${esc(tp(`kind_${a.kind}`))}</h3>
-        <div class="small muted">${esc(tp('nFindings', { n: a.findings.length }))}${a.conditions && Object.keys(a.conditions).length ? ' · ' + esc(Object.values(a.conditions).filter(Boolean).join(' · ')) : ''}</div>${shareChip('assessments', a.id)}</div>
+        <div class="small muted">${esc(tp('nFindings', { n: a.findings.length }))}${conditionSummary(a.conditions).length ? ' · ' + esc(conditionSummary(a.conditions).join(' · ')) : ''}</div>${shareChip('assessments', a.id)}</div>
         ${selectable ? `<label class="pt-cmp"><input type="checkbox" data-cmp="${esc(a.id)}"> <span class="small">${esc(tp('compareSel'))}</span></label>` : ''}</header>
         ${href ? `<button class="btn sm ghost" data-go="${esc(href)}">${esc(tp('open'))}</button>` : ''}
         <div data-notes="${esc(a.id)}"></div></article>`;

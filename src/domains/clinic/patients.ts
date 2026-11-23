@@ -15,6 +15,7 @@ import type {
   ProstheticProfile,
   Side,
 } from '../../core/types/clinical.ts';
+import { STUDY_CONDITION_KEY } from '../../core/types/clinical.ts';
 import type { IsoDateTime } from '../../core/types/common.ts';
 import type { DatabasePort } from '../../services/db/port.ts';
 
@@ -186,6 +187,17 @@ export interface PatientRecords {
 
 /** Chronologie du plus récent au plus ancien. Les notes d'une évaluation lui sont rattachées ; une note sur deux
  * évaluations (comparaison A/B) forme une entrée « comparaison ». */
+/**
+ * Résumé lisible des conditions d'une évaluation pour la chronologie : seulement les textes saisis (modification,
+ * consigne, condition d'étude). Les codes techniques (`none`, `shoes`, `comfortable`, `fps:frontal`…) ne s'affichent pas.
+ */
+export function conditionSummary(c: Readonly<Record<string, string>> | undefined): string[] {
+  if (!c) return [];
+  return [c['modification'], c['instruction'], c[STUDY_CONDITION_KEY]]
+    .map((s) => (s ?? '').trim())
+    .filter((s, i, all) => s !== '' && all.indexOf(s) === i);
+}
+
 export function buildTimeline(r: PatientRecords): TimelineItem[] {
   const byAssessment = new Map<string, Annotation[]>();
   const comparisons = new Map<string, Annotation[]>();
