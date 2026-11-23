@@ -93,7 +93,12 @@ export async function renderCompare(ctx: FeatureRouteContext): Promise<void> {
     ${banner()}${sideBySide(A, B)}
     <p class="card flat" role="status">${esc(t('cmp_summary', { n: nSig, total: rows.length }))}</p>
     ${deltaSection(rows)}
-    ${changesSection('sec_detChanges', determinantChanges(cmp), (c) => detName(c.id), (s) => statusLabel(s as 'affected' | 'preserved' | 'uncertain'))}
+    ${changesSection(
+      'sec_detChanges',
+      determinantChanges(cmp),
+      (c) => detName(c.id),
+      (s) => statusLabel(s as 'affected' | 'preserved' | 'uncertain'),
+    )}
     ${changesSection('sec_findChanges', findingChanges(cmp), (c) => findName(c.id), findStatus)}
     ${overlaySection(overlayCharts(ra.analyses, rb.analyses), label(A), label(B))}
     <section class="gc-sec" aria-labelledby="gc-h-annot"><h2 id="gc-h-annot">${esc(t('sec_annotations'))}</h2>
@@ -139,5 +144,6 @@ export async function renderCompare(ctx: FeatureRouteContext): Promise<void> {
       window.print();
     };
   const js = $<HTMLButtonElement>('json');
-  if (js) js.onclick = () => void exportJson({ comparison: cmp, a: A.id, b: B?.id }, `mobilis-marche-ab-${idA}-${idB}.json`);
+  if (js)
+    js.onclick = () => void exportJson({ comparison: cmp, a: A.id, b: B?.id }, `mobilis-marche-ab-${idA}-${idB}.json`);
 }

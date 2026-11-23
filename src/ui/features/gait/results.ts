@@ -108,7 +108,10 @@ export async function renderResults(ctx: FeatureRouteContext): Promise<void> {
   if (!location.hash.startsWith('#/marche-res/')) return;
   const otherOpts = others
     .filter((o) => o.id !== a.id)
-    .map((o) => `<option value="${esc(o.id)}">${esc(dateLabel(o.performedAt, locale))} — ${esc(o.conditions?.['modification'] ?? o.conditions?.['instruction'] ?? t(o.kind === 'prosthetic_gait' ? 'kind_prosthetic' : 'kind_gait'))}</option>`)
+    .map(
+      (o) =>
+        `<option value="${esc(o.id)}">${esc(dateLabel(o.performedAt, locale))} — ${esc(o.conditions?.['modification'] ?? o.conditions?.['instruction'] ?? t(o.kind === 'prosthetic_gait' ? 'kind_prosthetic' : 'kind_gait'))}</option>`,
+    )
     .join('');
 
   const actions =

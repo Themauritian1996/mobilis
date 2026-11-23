@@ -32,7 +32,12 @@ describe('formulaire de capture', () => {
 
   it('active le mode prothèse avec le profil prothétique ; niveau « other » à choisir', () => {
     const f = defaultsFromPatient(patient({ prosthesis: { level: 'transtibial', side: 'left' } }));
-    expect(f).toMatchObject({ prostheticMode: true, prosthesisLevel: 'transtibial', prosthesisSide: 'L', footwear: 'prosthesis' });
+    expect(f).toMatchObject({
+      prostheticMode: true,
+      prosthesisLevel: 'transtibial',
+      prosthesisSide: 'L',
+      footwear: 'prosthesis',
+    });
     const g = defaultsFromPatient(patient({ prosthesis: { level: 'other', side: 'bilateral' } }));
     expect(g.prosthesisLevel).toBe('');
     expect(g.prosthesisSide).toBe('');
@@ -50,22 +55,56 @@ describe('formulaire de capture', () => {
   it('valide le nombre de cycles (défaut 3, entier 1–10)', () => {
     const base: CaptureFormState = { ...defaultsFromPatient(patient()), heightCm: '170' };
     expect(validateForm({ ...base, targetCycles: '' })).toMatchObject({ ok: true, settings: { targetCycles: 3 } });
-    expect(validateForm({ ...base, targetCycles: '2.5' })).toMatchObject({ ok: false, errors: { targetCycles: 'integer' } });
-    expect(validateForm({ ...base, targetCycles: '11' })).toMatchObject({ ok: false, errors: { targetCycles: 'range' } });
+    expect(validateForm({ ...base, targetCycles: '2.5' })).toMatchObject({
+      ok: false,
+      errors: { targetCycles: 'integer' },
+    });
+    expect(validateForm({ ...base, targetCycles: '11' })).toMatchObject({
+      ok: false,
+      errors: { targetCycles: 'range' },
+    });
   });
 
   it('en mode prothèse : niveau et côté requis, le côté atteint suit la prothèse', () => {
     const base: CaptureFormState = { ...defaultsFromPatient(patient()), heightCm: '170', prostheticMode: true };
-    expect(validateForm(base)).toMatchObject({ ok: false, errors: { prosthesisLevel: 'required', prosthesisSide: 'required' } });
+    expect(validateForm(base)).toMatchObject({
+      ok: false,
+      errors: { prosthesisLevel: 'required', prosthesisSide: 'required' },
+    });
     const r = validateForm({ ...base, prosthesisLevel: 'transfemoral', prosthesisSide: 'R' });
-    expect(r.ok && r.settings).toMatchObject({ prosthesis: { level: 'transfemoral', side: 'R' }, affectedSide: 'R', footwear: 'prosthesis' });
+    expect(r.ok && r.settings).toMatchObject({
+      prosthesis: { level: 'transfemoral', side: 'R' },
+      affectedSide: 'R',
+      footwear: 'prosthesis',
+    });
   });
 
   it('« refaire » exige la note de modification et reprend les réglages', () => {
     const base: CaptureFormState = { ...defaultsFromPatient(patient()), heightCm: '170' };
-    expect(validateForm(base, { requireModificationNote: true })).toMatchObject({ ok: false, errors: { modificationNote: 'required' } });
-    const f = formFromAssessment({ conditions: { heightCm: '180', assistiveDevice: 'cane', speed: 'fast', targetCycles: '4', footwear: 'barefoot' } }, base);
-    expect(f).toMatchObject({ heightCm: '180', assistiveDevice: 'cane', speed: 'fast', targetCycles: '4', footwear: 'barefoot', modificationNote: '' });
+    expect(validateForm(base, { requireModificationNote: true })).toMatchObject({
+      ok: false,
+      errors: { modificationNote: 'required' },
+    });
+    const f = formFromAssessment(
+      {
+        conditions: {
+          heightCm: '180',
+          assistiveDevice: 'cane',
+          speed: 'fast',
+          targetCycles: '4',
+          footwear: 'barefoot',
+        },
+      },
+      base,
+    );
+    expect(f).toMatchObject({
+      heightCm: '180',
+      assistiveDevice: 'cane',
+      speed: 'fast',
+      targetCycles: '4',
+      footwear: 'barefoot',
+      modificationNote: '',
+    });
   });
 });
 
@@ -73,7 +112,9 @@ describe('vues et entrée du moteur', () => {
   it('recommande trois vues ; la latérale suit le côté atteint', () => {
     expect(recommendedViews({ affectedSide: 'L' })).toEqual(['sagittal-left', 'frontal', 'posterior']);
     expect(recommendedViews({ affectedSide: 'R' })).toEqual(['sagittal-right', 'frontal', 'posterior']);
-    expect(recommendedViews({ affectedSide: 'none', prosthesis: { level: 'transtibial', side: 'R' } })[0]).toBe('sagittal-right');
+    expect(recommendedViews({ affectedSide: 'none', prosthesis: { level: 'transtibial', side: 'R' } })[0]).toBe(
+      'sagittal-right',
+    );
   });
 
   it('construit l’entrée patient (âge, sexe) du dossier', () => {

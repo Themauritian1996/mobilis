@@ -74,7 +74,8 @@ export function computeCustomMeasures(
     if (m.kind === 'custom_angle' && m.landmarks) {
       for (const s of sides) {
         const rec =
-          recs.find((r) => isSagittalView(r.view) && nearSide(r.view) === s) ?? recs.find((r) => isSagittalView(r.view));
+          recs.find((r) => isSagittalView(r.view) && nearSide(r.view) === s) ??
+          recs.find((r) => isSagittalView(r.view));
         if (!rec) continue;
         try {
           const prep = prepareRecording({
@@ -93,7 +94,11 @@ export function computeCustomMeasures(
             reference: 'fromStanding',
           });
           if (r.value !== null && Number.isFinite(r.value))
-            out[key(s)] = { value: Math.round(r.value * 100) / 100, unit: '°', confidence: Math.round(r.confidence * 100) / 100 };
+            out[key(s)] = {
+              value: Math.round(r.value * 100) / 100,
+              unit: '°',
+              confidence: Math.round(r.confidence * 100) / 100,
+            };
         } catch {
           /* mesure non calculable sur cet enregistrement */
         }
@@ -102,7 +107,11 @@ export function computeCustomMeasures(
       for (const s of sides) {
         const g = src.get(m.metricId, s) ?? src.get(m.metricId);
         if (g && g.value !== null && Number.isFinite(g.value))
-          out[key(s)] = { value: Math.round(g.value * 10000) / 10000, unit: g.unit, confidence: Math.round(g.confidence * 100) / 100 };
+          out[key(s)] = {
+            value: Math.round(g.value * 10000) / 10000,
+            unit: g.unit,
+            confidence: Math.round(g.confidence * 100) / 100,
+          };
       }
     }
   }

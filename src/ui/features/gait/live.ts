@@ -4,11 +4,7 @@
  * d'images réelle, tampon de trames de pose (AUCUNE vidéo), compteur de cycles en direct et règles de fin automatique.
  */
 import { prepareRecording } from '../../../domains/gait/index.ts';
-import {
-  assessPlacement,
-  type PlacementIssue,
-  type PlacementResult,
-} from '../../../vision/placement.ts';
+import { assessPlacement, type PlacementIssue, type PlacementResult } from '../../../vision/placement.ts';
 import type { Landmark } from '../../../vision/index.ts';
 import type { GaitCycle, GaitPatientInput, GaitPoseFrame, GaitView, Side } from '../../../domains/gait/index.ts';
 import { isSagittalView, nearSide } from './model.ts';

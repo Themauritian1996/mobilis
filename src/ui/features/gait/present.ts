@@ -238,7 +238,11 @@ export interface DeterminantView {
 }
 
 /** Les six déterminants, dans l'ordre de Saunders, sans score global : statut + explication de chacun. */
-export function determinantViews(list: readonly DeterminantResult[], lang: string, locale = 'fr-CA'): DeterminantView[] {
+export function determinantViews(
+  list: readonly DeterminantResult[],
+  lang: string,
+  locale = 'fr-CA',
+): DeterminantView[] {
   return [...list]
     .sort((a, b) => a.n - b.n)
     .map((d) => {
@@ -284,7 +288,11 @@ export interface JointCell {
 export interface JointPhaseTable {
   /** Phases présentes, dans l'ordre de Perry. */
   readonly phases: readonly string[];
-  readonly rows: readonly { readonly joint: JointPhaseResult['joint']; readonly side: Side; readonly cells: readonly (JointCell | null)[] }[];
+  readonly rows: readonly {
+    readonly joint: JointPhaseResult['joint'];
+    readonly side: Side;
+    readonly cells: readonly (JointCell | null)[];
+  }[];
 }
 
 export function jointPhaseTable(list: readonly JointPhaseResult[], locale = 'fr-CA'): JointPhaseTable {
@@ -320,7 +328,13 @@ export function jointPhaseTable(list: readonly JointPhaseResult[], locale = 'fr-
 
 // ---------------------------------------------------------------------------------------------------- Défauts probables
 export const FINDING_SHOWN: readonly string[] = ['probable', 'possible', 'observe'];
-const FINDING_RANK: Readonly<Record<string, number>> = { probable: 0, possible: 1, observe: 2, insufficient_data: 3, absent: 4 };
+const FINDING_RANK: Readonly<Record<string, number>> = {
+  probable: 0,
+  possible: 1,
+  observe: 2,
+  insufficient_data: 3,
+  absent: 4,
+};
 
 export interface CriterionView {
   readonly role: string;
@@ -491,7 +505,9 @@ export function jointCharts(analyses: readonly GaitAnalysis[]): JointChartData[]
 }
 
 /** Valeurs clés d'une courbe (pour la description textuelle et la vérification) : minimum, maximum et leur position. */
-export function curveExtremes(mean: readonly number[]): { min: number; minAt: number; max: number; maxAt: number } | null {
+export function curveExtremes(
+  mean: readonly number[],
+): { min: number; minAt: number; max: number; maxAt: number } | null {
   let min = Infinity;
   let max = -Infinity;
   let minAt = 0;
@@ -549,7 +565,12 @@ export function deltaRows(cmp: GaitComparison, locale = 'fr-CA'): DeltaRow[] {
   };
   return [...cmp.metrics]
     .map(mk)
-    .sort((x, y) => Number(y.significant) - Number(x.significant) || x.id.localeCompare(y.id) || (x.side ?? '').localeCompare(y.side ?? ''));
+    .sort(
+      (x, y) =>
+        Number(y.significant) - Number(x.significant) ||
+        x.id.localeCompare(y.id) ||
+        (x.side ?? '').localeCompare(y.side ?? ''),
+    );
 }
 
 export interface StatusChange {

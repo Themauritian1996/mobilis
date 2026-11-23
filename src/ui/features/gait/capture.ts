@@ -75,7 +75,12 @@ export async function renderCapture(ctx: FeatureRouteContext): Promise<void> {
   let settings: CaptureSettings | null = null;
   let views: GaitView[] = baseline?.views?.length
     ? orderViews(baseline.views.map(fromCoreView))
-    : recommendedViews({ affectedSide: F.affectedSide, ...(F.prostheticMode && F.prosthesisLevel && F.prosthesisSide ? { prosthesis: { level: F.prosthesisLevel, side: F.prosthesisSide } } : {}) });
+    : recommendedViews({
+        affectedSide: F.affectedSide,
+        ...(F.prostheticMode && F.prosthesisLevel && F.prosthesisSide
+          ? { prosthesis: { level: F.prosthesisLevel, side: F.prosthesisSide } }
+          : {}),
+      });
   let overlay: OverlayHandle | null = null;
   const destroyOverlay = (): void => {
     overlay?.destroy();
@@ -84,7 +89,9 @@ export async function renderCapture(ctx: FeatureRouteContext): Promise<void> {
   ctx.cleanup.push(destroyOverlay);
 
   const err = (k: keyof FormErrors): string =>
-    errors[k] ? `<small class="gc-err" id="gc-e-${k}" role="alert">${esc(t(`err_${errors[k]}`, { min: MIN_TARGET_CYCLES, max: MAX_TARGET_CYCLES }))}</small>` : '';
+    errors[k]
+      ? `<small class="gc-err" id="gc-e-${k}" role="alert">${esc(t(`err_${errors[k]}`, { min: MIN_TARGET_CYCLES, max: MAX_TARGET_CYCLES }))}</small>`
+      : '';
   const inv = (k: keyof FormErrors): string => (errors[k] ? ` aria-invalid="true" aria-describedby="gc-e-${k}"` : '');
 
   // ---------------------------------------------------------------- Étape 1 : formulaire
@@ -150,7 +157,8 @@ export async function renderCapture(ctx: FeatureRouteContext): Promise<void> {
         if (key === 'prostheticMode') {
           if (F.prostheticMode) {
             F.footwear = 'prosthesis';
-            if (F.prosthesisSide === '' && (F.affectedSide === 'L' || F.affectedSide === 'R')) F.prosthesisSide = F.affectedSide;
+            if (F.prosthesisSide === '' && (F.affectedSide === 'L' || F.affectedSide === 'R'))
+              F.prosthesisSide = F.affectedSide;
           } else if (F.footwear === 'prosthesis') F.footwear = 'shoes';
           errors = {};
           show();

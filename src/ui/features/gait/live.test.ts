@@ -14,7 +14,11 @@ import {
   walkingDirectionIssue,
 } from './live.ts';
 
-type Lm = { x: number; y: number; visibility: number };
+interface Lm {
+  x: number;
+  y: number;
+  visibility: number;
+}
 /** Corps debout fictif : 33 repères, tête en haut, pieds en bas, centré. */
 function body(cx = 0.5, top = 0.12, bottom = 0.9, vis = 1, spread = 0.1): Lm[] {
   const lm: Lm[] = Array.from({ length: 33 }, () => ({ x: cx, y: top, visibility: vis }));
@@ -23,13 +27,20 @@ function body(cx = 0.5, top = 0.12, bottom = 0.9, vis = 1, spread = 0.1): Lm[] {
     lm[i] = { x: cx + dx, y: top + h * f, visibility: vis };
   };
   set(0, 0, 0);
-  set(7, -0.02, 0.02); set(8, 0.02, 0.02);
-  set(11, spread, 0.2); set(12, -spread, 0.2);
-  set(23, spread * 0.6, 0.5); set(24, -spread * 0.6, 0.5);
-  set(25, spread * 0.6, 0.73); set(26, -spread * 0.6, 0.73);
-  set(27, spread * 0.6, 0.94); set(28, -spread * 0.6, 0.94);
-  set(29, spread * 0.6, 0.97); set(30, -spread * 0.6, 0.97);
-  set(31, spread * 0.6, 1); set(32, -spread * 0.6, 1);
+  set(7, -0.02, 0.02);
+  set(8, 0.02, 0.02);
+  set(11, spread, 0.2);
+  set(12, -spread, 0.2);
+  set(23, spread * 0.6, 0.5);
+  set(24, -spread * 0.6, 0.5);
+  set(25, spread * 0.6, 0.73);
+  set(26, -spread * 0.6, 0.73);
+  set(27, spread * 0.6, 0.94);
+  set(28, -spread * 0.6, 0.94);
+  set(29, spread * 0.6, 0.97);
+  set(30, -spread * 0.6, 0.97);
+  set(31, spread * 0.6, 1);
+  set(32, -spread * 0.6, 1);
   return lm;
 }
 
@@ -109,10 +120,10 @@ describe('consignes et fin automatique', () => {
   });
   it('HoldGate : stable après la durée, tolère une brève coupure', () => {
     const g = new HoldGate(1000, 300);
-    let r = g.push(true, 0);
-    r = g.push(false, 200);
-    r = g.push(true, 400);
-    r = g.push(true, 1000);
+    g.push(true, 0);
+    g.push(false, 200);
+    g.push(true, 400);
+    const r = g.push(true, 1000);
     expect(r.stable).toBe(true);
     expect(g.push(false, 1200).progress).toBeGreaterThan(0);
     expect(g.push(false, 2000).progress).toBe(0);

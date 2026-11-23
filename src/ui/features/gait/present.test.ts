@@ -146,7 +146,13 @@ describe('courbes', () => {
     expect(svg).toContain('<title id="gc-t-t">Genou &lt;test&gt;</title>');
     expect(svg).toContain('gc-band');
     expect(svg.match(/gc-line/g)?.length).toBe(1);
-    expect(linePath([1, NaN, 2], (i) => i, (v) => v)).toBe('M0 1M2 2');
+    expect(
+      linePath(
+        [1, NaN, 2],
+        (i) => i,
+        (v) => v,
+      ),
+    ).toBe('M0 1M2 2');
     expect(niceStep(37)).toBe(5);
     const d = yDomain({ series: [{ id: 'a', label: '', mean: [-3, 12], cls: 's0' }] });
     expect(d.lo).toBeLessThanOrEqual(-3);
@@ -168,7 +174,13 @@ describe('enregistrement et comparaison A/B', () => {
   });
 
   it('respecte le contrat du brief', () => {
-    expect(doc).toMatchObject({ schemaVersion: 1, kind: 'gait', engineVersion: 'gait-1', videoRetained: false, views: ['lateral_left', 'frontal'] });
+    expect(doc).toMatchObject({
+      schemaVersion: 1,
+      kind: 'gait',
+      engineVersion: 'gait-1',
+      videoRetained: false,
+      views: ['lateral_left', 'frontal'],
+    });
     expect(doc.conditions?.['heightCm']).toBeTruthy();
     expect(doc.metrics.length).toBeGreaterThan(10);
     expect(doc.metrics.every((m) => Number.isFinite(m.value))).toBe(true);
@@ -177,19 +189,39 @@ describe('enregistrement et comparaison A/B', () => {
   });
 
   it('mode prothèse : kind prosthetic_gait et result.prosthetic', () => {
-    const r = validateForm({ ...defaultsFromPatient(null), heightCm: '175', prostheticMode: true, prosthesisLevel: 'transtibial', prosthesisSide: 'L' });
+    const r = validateForm({
+      ...defaultsFromPatient(null),
+      heightCm: '175',
+      prostheticMode: true,
+      prosthesisLevel: 'transtibial',
+      prosthesisSide: 'L',
+    });
     if (!r.ok) throw new Error('formulaire');
     const o = analyzeCapture(normal.recs, r.settings, null, 2026);
     expect(o.prosthetic?.deviations.length).toBeGreaterThan(0);
-    const d = buildAssessmentDoc({ id: 'a2', patientId: 'p1' as PatientId, ownerUid: 'u', nowIso: '2026-11-22T10:00:00.000Z', settings: r.settings, views: ['sagittal-left'], assessment: o.assessment, prosthetic: o.prosthetic! });
+    const d = buildAssessmentDoc({
+      id: 'a2',
+      patientId: 'p1' as PatientId,
+      ownerUid: 'u',
+      nowIso: '2026-11-22T10:00:00.000Z',
+      settings: r.settings,
+      views: ['sagittal-left'],
+      assessment: o.assessment,
+      prosthetic: o.prosthetic!,
+    });
     expect(d.kind).toBe('prosthetic_gait');
     expect(readStoredResult(d)?.prosthetic?.deviations.length).toBeGreaterThan(0);
   });
 
   it('le résultat relu depuis le JSON permet la comparaison A/B', () => {
     const docF = buildAssessmentDoc({
-      id: 'a3', patientId: 'p1', ownerUid: 'u', nowIso: '2026-11-23T10:00:00.000Z', settings: footDrop.settings,
-      views: ['sagittal-left'], assessment: outF.assessment,
+      id: 'a3',
+      patientId: 'p1',
+      ownerUid: 'u',
+      nowIso: '2026-11-23T10:00:00.000Z',
+      settings: footDrop.settings,
+      views: ['sagittal-left'],
+      assessment: outF.assessment,
     });
     const a = readStoredResult(JSON.parse(JSON.stringify(doc)))?.analyses as GaitAnalysis[];
     const b = readStoredResult(JSON.parse(JSON.stringify(docF)))?.analyses as GaitAnalysis[];

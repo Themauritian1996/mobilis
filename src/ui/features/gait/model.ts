@@ -44,7 +44,8 @@ export const fromCoreView = (v: CoreGaitView): GaitView =>
 
 export const isSagittalView = (v: GaitView): boolean => v === 'sagittal-left' || v === 'sagittal-right';
 /** Côté du patient le plus proche de la caméra (vues latérales), sinon null. */
-export const nearSide = (v: GaitView): Side | null => (v === 'sagittal-left' ? 'L' : v === 'sagittal-right' ? 'R' : null);
+export const nearSide = (v: GaitView): Side | null =>
+  v === 'sagittal-left' ? 'L' : v === 'sagittal-right' ? 'R' : null;
 
 /** Trie une sélection de vues dans l'ordre de capture (latérales, frontale, postérieure) sans doublon. */
 export const orderViews = (views: readonly GaitView[]): GaitView[] => VIEW_ORDER.filter((v) => views.includes(v));

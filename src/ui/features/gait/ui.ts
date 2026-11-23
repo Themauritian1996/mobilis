@@ -28,7 +28,8 @@ export function ensureCss(): void {
 }
 
 /** Bandeau du volet (sécurité clinique). */
-export const banner = (): string => `<p class="gc-banner" role="note">${icon('shield', 16)} <span>${esc(t('banner'))}</span></p>`;
+export const banner = (): string =>
+  `<p class="gc-banner" role="note">${icon('shield', 16)} <span>${esc(t('banner'))}</span></p>`;
 
 export const spinner = (msg: string): string =>
   `<section class="screen gc-screen"><div class="gc-loading" role="status"><div class="spinner" aria-hidden="true"></div>${esc(msg)}</div></section>`;
@@ -36,7 +37,8 @@ export const spinner = (msg: string): string =>
 export const errorCard = (title: string, text: string, back = '#/patients'): string =>
   `<section class="screen gc-screen"><div class="topbar"><button class="icon-btn" data-go="${esc(back)}" aria-label="${esc(t('back'))}">${icon('back', 20)}</button><h1>${esc(title)}</h1></div>${banner()}<div class="card" role="alert"><p>${esc(text)}</p></div></section>`;
 
-export const sideLabel = (s: Side | null | undefined): string => (s === 'L' ? t('side_left') : s === 'R' ? t('side_right') : '');
+export const sideLabel = (s: Side | null | undefined): string =>
+  s === 'L' ? t('side_left') : s === 'R' ? t('side_right') : '';
 export const viewLabel = (v: GaitView): string => t(`view_${v}`);
 
 /** Libellé d'une métrique : chaîne `m_<id>` ou, à défaut, l'identifiant lisible. */
@@ -54,7 +56,8 @@ export function statusChip(s: HealthStatus): string {
   return `<span class="chip ${statusClass(s)} gc-status"><span aria-hidden="true">${sym}</span> ${esc(statusLabel(s))}</span>`;
 }
 
-export const estimateTag = (): string => `<span class="gc-est" title="${esc(t('est_hint'))}">${esc(t('est_tag'))}</span>`;
+export const estimateTag = (): string =>
+  `<span class="gc-est" title="${esc(t('est_hint'))}">${esc(t('est_tag'))}</span>`;
 
 /** Références du moteur sous forme de liste (statut « à vérifier » signalé discrètement). */
 export function refsHtml(ids: readonly string[]): string {

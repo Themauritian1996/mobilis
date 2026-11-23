@@ -77,7 +77,10 @@ interface PoseHandle {
 const STAND_MS = 2000;
 const COUNT_EVERY_MS = 1500;
 
-function sampleLuma(video: HTMLVideoElement, cv: HTMLCanvasElement): { mean: number; center: number; edges: number } | null {
+function sampleLuma(
+  video: HTMLVideoElement,
+  cv: HTMLCanvasElement,
+): { mean: number; center: number; edges: number } | null {
   try {
     const w = 32;
     const h = 24;
@@ -281,7 +284,7 @@ export function openCaptureOverlay(o: OverlayOptions): OverlayHandle {
       return false;
     }
     video.hidden = false;
-    let fm: string | null = null;
+    let fm: string | null;
     try {
       fm = stream.getVideoTracks()[0]?.getSettings?.().facingMode ?? null;
     } catch {

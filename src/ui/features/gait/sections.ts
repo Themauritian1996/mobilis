@@ -102,7 +102,8 @@ export function spatioSection(rows: readonly SpatioRow[], speed: MetricCell | nu
   const body = rows
     .map((r) => {
       const label = `<th scope="row">${esc(metricLabel(r.id))} <small class="muted">(${esc(r.unit)})</small></th>`;
-      if (r.both) return `<tr>${label}<td colspan="2" class="num gc-both">${cellHtml(r.both, true).replace(/^<td class="num">|<\/td>$/g, '')}</td></tr>`;
+      if (r.both)
+        return `<tr>${label}<td colspan="2" class="num gc-both">${cellHtml(r.both, true).replace(/^<td class="num">|<\/td>$/g, '')}</td></tr>`;
       return `<tr>${label}${cellHtml(r.L, false)}${cellHtml(r.R, false)}</tr>`;
     })
     .join('');
@@ -121,7 +122,9 @@ export function determinantsSection(list: readonly DeterminantView[]): string {
     .map((d) => {
       const inds = d.indicators
         .map(
-          (i) => `<tr><th scope="row">${esc(i.label)}${i.side ? ` <small class="muted">(${esc(sideLabel(i.side))})</small>` : ''}${i.estimate ? ` ${estimateTag()}` : ''}</th>
+          (
+            i,
+          ) => `<tr><th scope="row">${esc(i.label)}${i.side ? ` <small class="muted">(${esc(sideLabel(i.side))})</small>` : ''}${i.estimate ? ` ${estimateTag()}` : ''}</th>
           <td class="num">${esc(i.valueText)}</td><td>${esc(i.target)}${i.targetToVerify ? ` <span class="gc-tv">${esc(t('ref_toVerify'))}</span>` : ''}</td><td>${statusChip(i.status)}</td><td class="small">${esc(i.explanation)}</td></tr>`,
         )
         .join('');
@@ -167,7 +170,9 @@ export function jointPhaseSection(tbl: JointPhaseTable): string {
   const notes = tbl.rows.flatMap((r) =>
     r.cells.flatMap((c, i) =>
       c && c.status !== 'preserved'
-        ? [`<li><b>${esc(t(`joint_${r.joint}`))} ${esc(sideLabel(r.side))} · ${esc(tbl.phases[i] ?? '')}</b> — ${statusChip(c.status)} ${esc(c.label)} : ${esc(c.valueText)} (${esc(c.target)}). ${esc(c.explanation)}</li>`]
+        ? [
+            `<li><b>${esc(t(`joint_${r.joint}`))} ${esc(sideLabel(r.side))} · ${esc(tbl.phases[i] ?? '')}</b> — ${statusChip(c.status)} ${esc(c.label)} : ${esc(c.valueText)} (${esc(c.target)}). ${esc(c.explanation)}</li>`,
+          ]
         : [],
     ),
   );
@@ -221,7 +226,11 @@ export function curvesSection(charts: readonly JointChartData[]): string {
       return `<figure class="gc-fig">${curveChartSvg(spec)}<figcaption><b>${esc(JOINT_NAME(c.joint))}</b> ${legendHtml(spec)}${c.band ? `<span class="small muted">${esc(t('curve_bandNote'))}</span>` : ''}</figcaption></figure>`;
     })
     .join('');
-  return sec('curves', t('sec_curves'), `<p class="small muted">${esc(t('curves_intro'))}</p><div class="gc-figgrid">${html}</div>`);
+  return sec(
+    'curves',
+    t('sec_curves'),
+    `<p class="small muted">${esc(t('curves_intro'))}</p><div class="gc-figgrid">${html}</div>`,
+  );
 }
 
 /** Courbes A (pointillé) et B (plein) superposées pour la comparaison. */

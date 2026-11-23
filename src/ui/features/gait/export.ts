@@ -35,13 +35,17 @@ export function reportLines(a: Assessment, r: StoredResult, t: TFn, locale: stri
   const c = a.conditions ?? {};
   L.push({ kind: 'title', text: t('pdf_title') });
   L.push({ kind: 'small', text: t('banner') });
-  L.push({ kind: 'p', text: `${dateLabel(a.performedAt, locale)} — ${t(a.kind === 'prosthetic_gait' ? 'kind_prosthetic' : 'kind_gait')} — ${t('engine', { v: a.engineVersion ?? '–' })}` });
+  L.push({
+    kind: 'p',
+    text: `${dateLabel(a.performedAt, locale)} — ${t(a.kind === 'prosthetic_gait' ? 'kind_prosthetic' : 'kind_gait')} — ${t('engine', { v: a.engineVersion ?? '–' })}`,
+  });
   L.push({ kind: 'p', text: (a.views ?? []).map((v) => t(`view_${fromCoreView(v)}`)).join(' · ') });
   const cond: string[] = [];
   if (c['heightCm']) cond.push(`${t('f_height')} : ${c['heightCm']} cm`);
   if (c['assistiveDevice']) cond.push(`${t('f_device')} : ${t(`dev_${c['assistiveDevice']}`)}`);
   if (c['footwear']) cond.push(`${t('f_footwear')} : ${t(`foot_${c['footwear']}`)}`);
-  if (c['prosthesisLevel']) cond.push(`${t('f_prosthesis')} : ${t(`lvl_${c['prosthesisLevel']}`)} (${sideTxt(t, c['prosthesisSide'] ?? '')})`);
+  if (c['prosthesisLevel'])
+    cond.push(`${t('f_prosthesis')} : ${t(`lvl_${c['prosthesisLevel']}`)} (${sideTxt(t, c['prosthesisSide'] ?? '')})`);
   if (c['speed']) cond.push(`${t('f_speed')} : ${t(`spd_${c['speed']}`)}`);
   if (c['instruction']) cond.push(`${t('f_instruction')} : ${c['instruction']}`);
   if (c['modification']) cond.push(`${t('f_modification')} : ${c['modification']}`);
@@ -101,13 +105,16 @@ export function reportLines(a: Assessment, r: StoredResult, t: TFn, locale: stri
   if (est.length) {
     L.push({ kind: 'h2', text: t('est_featured') });
     for (const e of est)
-      L.push({ kind: 'li', text: `${t(`m_${e.id}`) === `m_${e.id}` ? e.id : t(`m_${e.id}`)}${e.side ? ` (${sideTxt(t, e.side)})` : ''} : ${e.valueText} ${e.unit} — ${t('est_tag')}` });
+      L.push({
+        kind: 'li',
+        text: `${t(`m_${e.id}`) === `m_${e.id}` ? e.id : t(`m_${e.id}`)}${e.side ? ` (${sideTxt(t, e.side)})` : ''} : ${e.valueText} ${e.unit} — ${t('est_tag')}`,
+      });
   }
   L.push({ kind: 'small', text: r.disclaimer });
   return L;
 }
 
-const safe = (s: string): string => latin(s) ?? s.replace(/[^\x20-\x7e -ÿ]/g, '?');
+const safe = (s: string): string => latin(s) ?? s.replace(/[^\x20-\x7e\u00a0-\u00ff]/g, '?');
 
 /** Dessine les lignes (A4, marges 15 mm, sauts de page). */
 export async function renderPdfBlob(lines: readonly PdfLine[], JsPDF?: JsPdfConstructor): Promise<Blob> {

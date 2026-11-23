@@ -151,7 +151,9 @@ export function curveChartSvg(spec: ChartSpec): string {
   parts.push(`<g aria-hidden="true">${marks.join('')}</g>`);
   for (const p of [0, 25, 50, 75, 100])
     parts.push(`<text class="gc-tick" x="${f1(x(p))}" y="${h - M.b + 16}" text-anchor="middle">${p}</text>`);
-  parts.push(`<text class="gc-axis" x="${f1(M.l + pw / 2)}" y="${h - 4}" text-anchor="middle">${esc(spec.xLabel)}</text>`);
+  parts.push(
+    `<text class="gc-axis" x="${f1(M.l + pw / 2)}" y="${h - 4}" text-anchor="middle">${esc(spec.xLabel)}</text>`,
+  );
   parts.push(
     `<text class="gc-axis" transform="rotate(-90)" x="${-f1(M.t + ph / 2)}" y="12" text-anchor="middle">${esc(spec.unit)}</text>`,
   );
@@ -164,9 +166,7 @@ export function curveChartSvg(spec: ChartSpec): string {
     }
   }
   for (const s of spec.series)
-    parts.push(
-      `<path class="gc-line gc-${s.cls}${s.dashed ? ' gc-dash' : ''}" d="${linePath(s.mean, x, y)}"/>`,
-    );
+    parts.push(`<path class="gc-line gc-${s.cls}${s.dashed ? ' gc-dash' : ''}" d="${linePath(s.mean, x, y)}"/>`);
   return `<svg class="gc-svg" viewBox="0 0 ${w} ${h}" role="img" aria-labelledby="${tid} ${did}" preserveAspectRatio="xMidYMid meet"><title id="${tid}">${esc(spec.title)}</title><desc id="${did}">${esc(spec.desc)}</desc>${parts.join('')}</svg>`;
 }
 
