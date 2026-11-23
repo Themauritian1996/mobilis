@@ -1,0 +1,48 @@
+/* Volet prothèses (src/ui/features/prosthetics) — variables de app.css (--ink, --muted, --line, --surface, --pos, --neg, --warn) */
+.pros-screen .pros-banner { margin: 0 0 8px; }
+.pros-screen .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.pros-screen .card + .card, .pros-screen .card + details, .pros-screen details + details { margin-top: 12px; }
+.pros-form .input, .pros-ab .input { min-height: 44px; }
+.pros-error { color: var(--neg); margin: 0 0 8px; }
+.pros-hist-row { padding: 10px 12px; gap: 10px; flex-wrap: wrap; }
+.pros-hist-row .btn, .pros-screen .btn.sm { min-height: 44px; }
+
+.pros-entry > summary { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; cursor: pointer; min-height: 44px; list-style: none; }
+.pros-entry > summary::-webkit-details-marker { display: none; }
+.pros-entry > summary::after { content: '▾'; margin-inline-start: auto; color: var(--muted); }
+.pros-entry[open] > summary::after { content: '▴'; }
+.pros-entry .pros-name { font-weight: 700; flex: 1 1 14rem; min-width: 0; }
+.pros-entry.st-present { border-inline-start: 4px solid var(--neg); }
+.pros-entry.st-possible, .pros-entry.st-observe { border-inline-start: 4px solid var(--warn); }
+.pros-entry.st-absent, .pros-entry.st-insufficient { opacity: .88; }
+.pros-body { display: grid; gap: 12px; margin-top: 10px; }
+.pros-body ul { margin: 4px 0; }
+.pros-cause + .pros-cause { margin-top: 6px; }
+.pros-observe { background: var(--bg); border: 1px dashed var(--line); border-radius: 12px; padding: 8px 10px; }
+.pros-unval { font-style: italic; }
+
+.pros-cmp-title { margin: 12px 0 8px; }
+.pros-cmp-group { border-inline-start: 4px solid var(--line); padding: 4px 0 4px 10px; margin-bottom: 8px; }
+.pros-cmp-group h3 { font-size: var(--fs-md); margin: 0 0 4px; }
+.pros-cmp-group.pos { border-color: var(--pos); }
+.pros-cmp-group.neg { border-color: var(--neg); }
+.pros-cmp-group.warn { border-color: var(--warn); }
+
+.pros-checklist h3 { font-size: var(--fs-md); margin: 14px 0 4px; }
+.pros-ck-list { list-style: none; padding: 0; margin: 4px 0 8px; }
+.pros-ck-list li { margin: 4px 0; }
+.pros-box { display: inline-block; width: 14px; height: 14px; border: 1.5px solid var(--ink-2, currentColor); border-radius: 3px; vertical-align: -2px; flex: none; }
+.pros-notes { width: 100%; }
+.pros-lines { display: none; }
+.pros-lines i { display: block; border-bottom: 1px solid #888; height: 28px; }
+
+@media print {
+  body:has(.pros-screen) .nav, body:has(.pros-screen) .no-print, body:has(.pros-screen) .pros-banner { display: none !important; }
+  body:has(.pros-screen) { background: #fff; color: #000; }
+  .pros-screen { padding: 0; animation: none; }
+  .pros-checklist, .pros-entry { box-shadow: none; border: 0; break-inside: avoid-page; }
+  .pros-entry:not([open]) > .pros-body { display: none; }
+  .pros-ck-item { break-inside: avoid; }
+  .pros-lines { display: block; }
+  .pros-notes { border: 1px solid #888; background: #fff; color: #000; resize: none; }
+}

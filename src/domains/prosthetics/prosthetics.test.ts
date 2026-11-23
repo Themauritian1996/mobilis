@@ -19,7 +19,7 @@ type Dev = ProstheticAssessment['deviations'][number];
 
 /** Évaluation de départ : aucune donnée (le moteur rend toutes les déviations du niveau, « données insuffisantes »). */
 const base = (level: 'transtibial' | 'transfemoral' = 'transtibial'): ProstheticAssessment =>
-  assessProstheticGait([], { level, side: 'left' }, DEFAULT_GAIT_CONFIG);
+  assessProstheticGait([], { level, side: 'L' }, DEFAULT_GAIT_CONFIG);
 
 const withStatus = (p: ProstheticAssessment, st: Record<string, FindingStatus>, score = 0.6): ProstheticAssessment => ({
   ...p,
@@ -191,7 +191,7 @@ describe('comparaison avant / après', () => {
     const w = compareProstheticAssessments(base('transtibial'), tf);
     expect(w.warnings).toContain('level_differs');
     expect(w.warnings).toContain('catalog_differs');
-    const right: ProstheticAssessment = { ...base(), prosthesis: { level: 'transtibial', side: 'right' } };
+    const right: ProstheticAssessment = { ...base(), prosthesis: { level: 'transtibial', side: 'R' } };
     expect(compareProstheticAssessments(base(), right).warnings).toEqual(['side_differs']);
   });
 

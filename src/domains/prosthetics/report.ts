@@ -99,7 +99,7 @@ export function measuredLine(c: CriterionResult, lang: Lang = 'fr'): MeasuredLin
     threshold: formatValue(c.anomalyThreshold, c.unit, lang),
     status: c.status,
     estimate: c.estimate,
-    unvalidated: c.thresholdType === 'proposed_heuristic' || c.thresholdType === 'to_verify',
+    unvalidated: c.thresholdStatus === 'proposed_heuristic' || c.thresholdStatus === 'to_verify',
   };
 }
 
@@ -171,7 +171,7 @@ export function buildProstheticReport(p: ProstheticAssessment, lang: Lang = 'fr'
   return {
     level: p.prosthesis.level,
     catalogLevel: p.catalogLevel,
-    side: p.prosthesis.side,
+    side: p.prosthesis.side === 'L' ? 'left' : 'right',
     entries,
     counts,
     disclaimer: p.disclaimer,

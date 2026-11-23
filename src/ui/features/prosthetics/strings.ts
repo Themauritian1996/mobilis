@@ -1,0 +1,178 @@
+// Textes du volet « prosthetics » (fr + en ; es/pt/ar/zh ajoutés plus tard dans ce fichier).
+// Le contenu clinique du catalogue (causes, pistes d'ajustement, exercices) provient de prosthetic-findings.json (français).
+import { makeT, type FeatureStrings } from '../i18n.ts';
+
+export const STRINGS: FeatureStrings = {
+  banner: {
+    fr: 'Outil d’évaluation clinique — non homologué Santé Canada',
+    en: 'Clinical assessment tool — not approved by Health Canada',
+  },
+  validate: {
+    fr: 'À valider par l’équipe (prothésiste, physiatre).',
+    en: 'To be validated by the team (prosthetist, physiatrist).',
+  },
+  literature: {
+    fr: 'Suggestion fondée sur la littérature — à valider par le clinicien.',
+    en: 'Literature-based suggestion — to be validated by the clinician.',
+  },
+  back: { fr: 'Retour', en: 'Back' },
+  nav: { fr: 'Prothèse', en: 'Prosthesis' },
+  title: { fr: 'Prothèse', en: 'Prosthesis' },
+  notFound: { fr: 'Dossier introuvable.', en: 'Record not found.' },
+  toPatients: { fr: 'Liste des patients', en: 'Patient list' },
+  loading: { fr: 'Chargement…', en: 'Loading…' },
+  loadError: { fr: 'Lecture impossible : {msg}', en: 'Could not load: {msg}' },
+  noPatientNav: {
+    fr: 'Ouvrez la prothèse depuis un dossier patient (#/prothese/<id>).',
+    en: 'Open the prosthesis view from a patient record (#/prothese/<id>).',
+  },
+
+  // Profil
+  profile: { fr: 'Profil prothétique', en: 'Prosthetic profile' },
+  level: { fr: 'Niveau d’amputation', en: 'Amputation level' },
+  side: { fr: 'Côté', en: 'Side' },
+  etiology: { fr: 'Étiologie', en: 'Etiology' },
+  amputationDate: { fr: 'Date de l’amputation', en: 'Amputation date' },
+  footType: { fr: 'Pied prothétique', en: 'Prosthetic foot' },
+  kneeType: { fr: 'Genou prothétique', en: 'Prosthetic knee' },
+  socket: { fr: 'Emboîture', en: 'Socket' },
+  suspension: { fr: 'Suspension', en: 'Suspension' },
+  assistiveDevice: { fr: 'Aide technique', en: 'Assistive device' },
+  choose: { fr: 'Choisir…', en: 'Choose…' },
+  save: { fr: 'Enregistrer le profil', en: 'Save profile' },
+  saved: { fr: 'Profil enregistré', en: 'Profile saved' },
+  saveError: { fr: 'Enregistrement impossible : {msg}', en: 'Could not save: {msg}' },
+  errLevel: { fr: 'Choisissez le niveau.', en: 'Choose the level.' },
+  errSide: { fr: 'Choisissez le côté.', en: 'Choose the side.' },
+  errDate: { fr: 'Date invalide ou future (AAAA-MM-JJ).', en: 'Invalid or future date (YYYY-MM-DD).' },
+  lvl_transtibial: { fr: 'Transtibial (TT)', en: 'Transtibial (TT)' },
+  lvl_transfemoral: { fr: 'Transfémoral (TF)', en: 'Transfemoral (TF)' },
+  lvl_knee_disarticulation: { fr: 'Désarticulation du genou', en: 'Knee disarticulation' },
+  lvl_hip_disarticulation: { fr: 'Désarticulation de la hanche', en: 'Hip disarticulation' },
+  lvl_syme: { fr: 'Syme', en: 'Syme' },
+  lvl_chopart: { fr: 'Chopart', en: 'Chopart' },
+  lvl_other: { fr: 'Autre', en: 'Other' },
+  side_left: { fr: 'Gauche', en: 'Left' },
+  side_right: { fr: 'Droit', en: 'Right' },
+  side_bilateral: { fr: 'Bilatéral', en: 'Bilateral' },
+
+  // Historique
+  history: { fr: 'Évaluations prothétiques', en: 'Prosthetic evaluations' },
+  newAnalysis: { fr: 'Nouvelle analyse', en: 'New analysis' },
+  noHistory: { fr: 'Aucune évaluation prothétique pour ce patient.', en: 'No prosthetic evaluation for this patient.' },
+  open: { fr: 'Ouvrir le rapport', en: 'Open report' },
+  summary: {
+    fr: '{p} présente(s) · {q} possible(s) · {o} à observer',
+    en: '{p} present · {q} possible · {o} to observe',
+  },
+  noReport: { fr: 'Résultat prothétique absent de cette évaluation.', en: 'No prosthetic result in this evaluation.' },
+
+  // Avant / après
+  ab: { fr: 'Avant / après ajustement', en: 'Before / after adjustment' },
+  abHelp: {
+    fr: 'Choisissez deux évaluations : A (avant) et B (après).',
+    en: 'Choose two evaluations: A (before) and B (after).',
+  },
+  evalA: { fr: 'A — avant', en: 'A — before' },
+  evalB: { fr: 'B — après', en: 'B — after' },
+  abOpen: { fr: 'Ouvrir la comparaison détaillée', en: 'Open detailed comparison' },
+  abNeedTwo: {
+    fr: 'Il faut au moins deux évaluations pour comparer.',
+    en: 'At least two evaluations are needed to compare.',
+  },
+  abSame: { fr: 'Choisissez deux évaluations différentes.', en: 'Choose two different evaluations.' },
+  cmpTitle: { fr: 'Résumé prothétique comparé', en: 'Compared prosthetic summary' },
+  appeared: { fr: 'Apparues', en: 'Appeared' },
+  resolved: { fr: 'Résolues', en: 'Resolved' },
+  persistent: { fr: 'Persistantes', en: 'Persistent' },
+  unassessable: {
+    fr: 'Non concluant (à observer ou données insuffisantes)',
+    en: 'Inconclusive (to observe or insufficient data)',
+  },
+  none: { fr: 'Aucune', en: 'None' },
+  absentBoth: {
+    fr: '{n} déviation(s) absente(s) aux deux évaluations.',
+    en: '{n} deviation(s) absent in both evaluations.',
+  },
+  trend_worse: { fr: 'plus marquée', en: 'more marked' },
+  trend_better: { fr: 'moins marquée', en: 'less marked' },
+  trend_same: { fr: 'équivalente', en: 'similar' },
+  w_level_differs: {
+    fr: 'Les deux évaluations n’ont pas le même niveau d’amputation.',
+    en: 'The two evaluations have different amputation levels.',
+  },
+  w_side_differs: {
+    fr: 'Les deux évaluations n’ont pas le même côté prothétique.',
+    en: 'The two evaluations have different prosthetic sides.',
+  },
+  w_catalog_differs: {
+    fr: 'Certaines déviations ne figurent que dans une des deux évaluations.',
+    en: 'Some deviations appear in only one evaluation.',
+  },
+  evalLabel: { fr: '{date} — {s}', en: '{date} — {s}' },
+
+  // Rapport
+  report: { fr: 'Rapport prothétique', en: 'Prosthetic report' },
+  reportFor: { fr: '{level}, côté {side}', en: '{level}, {side} side' },
+  checklist: { fr: 'Liste de vérification (prothésiste)', en: 'Checklist (prosthetist)' },
+  checklistOpen: { fr: 'Liste de vérification imprimable', en: 'Printable checklist' },
+  print: { fr: 'Imprimer', en: 'Print' },
+  st_present: { fr: 'Présente', en: 'Present' },
+  st_possible: { fr: 'Possible', en: 'Possible' },
+  st_observe: { fr: 'À observer', en: 'To observe' },
+  st_absent: { fr: 'Absente', en: 'Absent' },
+  st_insufficient: { fr: 'Données insuffisantes', en: 'Insufficient data' },
+  conf: { fr: 'Confiance', en: 'Confidence' },
+  conf_high: { fr: 'élevée', en: 'high' },
+  conf_moderate: { fr: 'modérée', en: 'moderate' },
+  conf_low: { fr: 'faible', en: 'low' },
+  conf_none: { fr: '—', en: '—' },
+  estimate: { fr: 'estimation', en: 'estimate' },
+  measured: { fr: 'Mesuré', en: 'Measured' },
+  notMeasured: { fr: 'non mesuré', en: 'not measured' },
+  threshold: { fr: 'seuil', en: 'threshold' },
+  unvalidatedThr: { fr: 'seuil proposé, non validé', en: 'proposed threshold, not validated' },
+  observeClin: { fr: 'À observer cliniquement', en: 'Observe clinically' },
+  determinants: { fr: 'Déterminants de la marche altérés', en: 'Affected determinants of gait' },
+  causes: { fr: 'Causes possibles (classées)', en: 'Possible causes (ranked)' },
+  adjustments: {
+    fr: 'Pistes d’ajustement à discuter avec le prothésiste',
+    en: 'Adjustments to discuss with the prosthetist',
+  },
+  exercises: { fr: 'Exercices', en: 'Exercises' },
+  device: { fr: 'Aide technique', en: 'Assistive device' },
+  refs: { fr: 'Références', en: 'References' },
+  safetyLbl: { fr: 'Sécurité', en: 'Safety' },
+  absentSection: { fr: 'Déviations absentes ou sans donnée', en: 'Absent deviations or no data' },
+  counts: {
+    fr: '{p} présente(s) · {q} possible(s) · {o} à observer · {a} absente(s) · {i} sans donnée',
+    en: '{p} present · {q} possible · {o} to observe · {a} absent · {i} no data',
+  },
+  noEntries: { fr: 'Aucune déviation dans ce rapport.', en: 'No deviation in this report.' },
+  cat_alignment: { fr: 'Alignement prothétique', en: 'Prosthetic alignment' },
+  cat_socket_suspension: { fr: 'Emboîture / suspension', en: 'Socket / suspension' },
+  cat_length: { fr: 'Longueur', en: 'Length' },
+  cat_components: {
+    fr: 'Composants (pied, genou, butées, friction)',
+    en: 'Components (foot, knee, bumpers, friction)',
+  },
+  cat_weakness_rom: { fr: 'Faiblesse / amplitude', en: 'Weakness / range of motion' },
+  cat_pain: { fr: 'Douleur', en: 'Pain' },
+  cat_habit_fear: { fr: 'Habitude / peur', en: 'Habit / fear' },
+
+  // Liste de vérification
+  ckRetained: { fr: 'Déviations retenues', en: 'Retained deviations' },
+  ckNone: { fr: 'Aucune déviation retenue.', en: 'No deviation retained.' },
+  ckObserve: {
+    fr: 'À observer cliniquement (non mesurable en 2D)',
+    en: 'To observe clinically (not measurable in 2D)',
+  },
+  ckCauses: { fr: 'Causes à vérifier', en: 'Causes to check' },
+  ckAdjust: { fr: 'Pistes d’ajustement', en: 'Adjustment leads' },
+  ckNotes: { fr: 'Notes', en: 'Notes' },
+  ckPatient: { fr: 'Patient : {id}', en: 'Patient: {id}' },
+  ckDate: { fr: 'Évaluation du {date}', en: 'Evaluation of {date}' },
+  ckSign: { fr: 'Prothésiste / date', en: 'Prosthetist / date' },
+};
+
+export const t = makeT(STRINGS);

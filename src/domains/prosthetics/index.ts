@@ -40,6 +40,8 @@ export {
   PROSTHESIS_LEVELS,
   PROSTHESIS_SIDES,
   type Checklist,
+  type ChecklistItem,
+  type Lang,
   type DeviationReport,
   type ProstheticReport,
 } from './report.ts';
