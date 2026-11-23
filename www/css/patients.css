@@ -1,0 +1,28 @@
+/* Volet « dossier patient » (chargé par src/ui/features/patients/shared.ts au premier rendu). */
+.pt-banner { display: flex; gap: 6px; align-items: center; color: var(--ink-2); margin: 0 0 10px; }
+.pt-banner svg { color: var(--warn); flex: none; }
+.pt-search { margin-bottom: 12px; }
+.pt-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0 12px; }
+.pt-fieldset { border: 1px solid var(--line); border-radius: var(--r-sm); padding: 8px 12px 0; margin: 0 0 12px; }
+.pt-fieldset legend { font-size: var(--fs-sm); font-weight: 700; color: var(--ink-2); padding: 0 4px; }
+.pt-errors:empty { display: none; }
+.pt-id { margin-bottom: 12px; }
+.pt-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.pt-act { min-height: 44px; flex: 1 1 160px; }
+.pt-act-soft { opacity: 0.85; }
+.pt-timeline { gap: 10px; }
+.pt-item h3 { margin: 2px 0 4px; }
+.pt-item .btn.sm { margin-top: 8px; min-height: 44px; }
+.pt-item .chip { margin-top: 6px; }
+.pt-cmp { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; min-width: 44px; cursor: pointer; }
+.pt-cmp input { width: 22px; height: 22px; }
+.pt-cmpbar { position: sticky; bottom: calc(var(--nav-h, 72px) + 8px); display: flex; flex-wrap: wrap; gap: 8px; align-items: center; background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--r-md); padding: 8px 10px; margin-top: 10px; box-shadow: 0 4px 16px rgb(0 0 0 / 0.12); }
+.pt-cmpbar[hidden] { display: none; }
+.pt-cmpbar .btn { min-height: 44px; }
+.pt-notes { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 8px; }
+.pt-note { padding: 6px 0; border-bottom: 1px dashed var(--line); }
+.pt-note p { margin: 0 0 4px; white-space: pre-line; }
+.pt-note-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.pt-note-meta .link { min-height: 44px; padding: 0 6px; }
+.pt-note-input { min-height: 120px; resize: vertical; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }

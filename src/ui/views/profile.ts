@@ -7,6 +7,9 @@ import * as P from '../../../www/js/program.js';
 import { speakRich, cueText } from '../../../www/js/coach.js';
 import { state, go, profile } from '../app-state.ts';
 import { esc } from '../components/html.ts';
+import { featureNavHtml, gaitOn } from '../features/patients/nav-entries.ts';
+import { eraseRecordsForErase, setGaitFlag } from '../features/patients/settings.ts';
+import { tp } from '../features/patients/strings.ts';
 import { icon } from '../components/icons.ts';
 import { toast } from '../components/toast.ts';
 import { nav } from '../components/nav.ts';
@@ -54,6 +57,7 @@ export function viewProfile(): void {
     <div class="card row profile-card"><div class="avatar">${esc((prof.name || '?')[0]?.toUpperCase())}</div><div class="grow"><b>${esc(prof.name)}</b><div class="small muted">${u.local ? t('localMode') : esc(u.email || '')}</div></div>
       <span class="chip">${prof.role === 'clinician' ? t('roleClinician') : t('rolePatient')}</span></div>
     ${prof.pathology ? `<div class="list linklist" style="margin-top:12px"><button class="toggle" data-go="#/adjust"><span class="li-ic">${icon('target', 18)}</span><span class="grow"><b>${t('adjustTitle')}</b><br><small class="muted">${esc(layName(prof.pathology))} · ${t('phase')} ${prof.phase || 1}</small></span><span class="chev" aria-hidden="true">${icon('chev', 18)}</span></button></div>` : ''}
+    ${featureNavHtml('profile', prof.role)}
     <h2>${t('settings')}</h2><div class="list">
       <div class="toggle"><span>${t('language')}${['fr', 'en'].includes(getLang()) ? '' : `<br><small class="muted">${t('langBeta')}</small>`}</span>${langPicker()}</div>
       <div class="toggle" style="display:block"><span>${t('theme')}</span><div class="seg" style="margin-top:8px">${['auto', 'light', 'dark'].map((v) => `<button data-theme-set="${v}" class="${st.theme === v ? 'on' : ''}">${t('theme_' + v)}</button>`).join('')}</div></div>
@@ -97,7 +101,7 @@ export function viewProfile(): void {
       <div class="toggle" style="padding:12px 0 0"><span><span>${t('liveAI')}</span><br><small class="muted">${t(store.aiKey() ? 'liveAID' : 'liveNeedKey')}</small></span>${sw('liveAI', !!st.liveAI)}</div>
       <div class="toggle" style="display:block;padding:12px 0 0"><span>${t('aiMode')}<br><small class="muted">${t('aiModeD')}</small></span><div class="seg" style="margin-top:8px">${['precise', 'live'].map((v) => `<button data-aimode="${v}" class="${(st.aiMode || 'precise') === v ? 'on' : ''}">${t(v === 'precise' ? 'aiModePrecise' : 'aiModeLive')}</button>`).join('')}</div></div>
     </div>
-    <h2>${t('mode')}</h2><div class="list"><div class="toggle"><span><b>${prof.role === 'clinician' ? t('switchToPatient') : t('switchToClin')}</b><br><small class="muted">${t('switchD')}</small></span><button class="btn sm ghost" data-a="role">${t('change')}</button></div></div>
+    <h2>${t('mode')}</h2><div class="list"><div class="toggle"><span><b>${prof.role === 'clinician' ? t('switchToPatient') : t('switchToClin')}</b><br><small class="muted">${t('switchD')}</small></span><button class="btn sm ghost" data-a="role">${t('change')}</button></div>${prof.role === 'clinician' ? `<div class="toggle"><span><b>${esc(tp('flagTitle'))}</b><br><small class="muted">${esc(tp('flagD'))}</small></span><button class="switch ${gaitOn() ? 'on' : ''}" data-flag="gait" role="switch" aria-checked="${gaitOn()}" aria-label="${esc(tp('flagTitle'))}"></button></div>` : ''}</div>
     <h2>${t('about')}</h2><div class="card small"><p style="margin-top:0">${t('aboutD')}</p><p class="muted" style="margin-bottom:0">${t('disclaimer')}</p></div>
     ${store.isNative() ? '' : `<h2>${t('offTitle')}</h2><div class="card small"><p style="margin-top:0">${t('offD')}</p><button class="btn ghost" data-a="offline" id="off-btn">${t('offBtn')}</button></div>`}
     <h2>${t('bkTitle')}</h2><div class="card small"><p style="margin-top:0">${t('bkD')}</p><input type="file" id="bk-file" accept=".json,application/json" hidden><button class="btn ghost" data-a="import">${t('bkImport')}</button></div>
@@ -112,6 +116,12 @@ export function viewProfile(): void {
     state.data = null;
   };
   bindTrialBar();
+  const fg = $app.querySelector<HTMLElement>('[data-flag="gait"]');
+  if (fg)
+    fg.onclick = () => {
+      setGaitFlag(!gaitOn());
+      viewProfile();
+    };
   $app.querySelectorAll<HTMLElement>('[data-theme-set]').forEach(
     (b) =>
       (b.onclick = () => {
@@ -279,6 +289,7 @@ export function viewProfile(): void {
     er.onclick = async () => {
       if (!(await confirmSheet({ title: t('eraseTitle'), text: t('eraseText'), ok: t('eraseBtn'), danger: true })))
         return;
+      await eraseRecordsForErase({ remote: false });
       store.eraseLocal();
       applyTheme();
       await store.signOut(signedOut);
@@ -294,6 +305,7 @@ export function viewProfile(): void {
         return;
       cd.disabled = true;
       try {
+        await eraseRecordsForErase({ remote: true });
         await store.deleteCloudData();
       } catch (e) {
         console.warn(e);

@@ -7,6 +7,7 @@ import { REGIONS as REGION_DATA } from '../../../www/js/data/pathologies.js';
 import { EXERCISES as EXERCISE_DATA, EQUIP as EQUIP_DATA } from '../../../www/js/data/exercises.js';
 import { EQUIP_IDS, missing, alternatives } from '../../../www/js/equip.js';
 import * as store from '../../../www/js/store.js';
+import { featureNavHtml } from '../features/patients/nav-entries.ts';
 import { patientCsv, toggleDay, canToggleDay } from '../../../www/js/longterm.js';
 import * as P from '../../../www/js/program.js';
 import type * as Report from '../../../www/js/report.js';
@@ -161,6 +162,7 @@ export async function viewClinic(): Promise<void> {
   const prof = profile() as Profile;
   $app().innerHTML = `<section class="screen clin"><div class="topbar"><h1>${t('patients')}</h1><button class="btn sm" data-go="#/clinic/new">${icon('plus', 16)} ${t('newRx')}</button></div>
     ${store.isCloud() ? '' : `<div class="banner" style="margin-bottom:12px">${icon('shield', 20)}<div>${t('clinLocal')}</div></div>`}
+    ${featureNavHtml('clinic', prof['role'] as string | undefined)}
     <div id="rxlist"><div class="card muted">${t('loading')}</div></div></section>${nav('clinic', prof['role'] as string | undefined)}`;
   let list: RxListItem[] = [];
   try {

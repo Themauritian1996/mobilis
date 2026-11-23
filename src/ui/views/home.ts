@@ -19,6 +19,7 @@ import {
   navRole,
 } from '../app-state.ts';
 import { esc } from '../components/html.ts';
+import { featureNavHtml } from '../features/patients/nav-entries.ts';
 import { isNil } from '../util.ts';
 import { icon, IC } from '../components/icons.ts';
 import { toast } from '../components/toast.ts';
@@ -145,6 +146,7 @@ export function viewHome(): void {
       <div class="seg" style="margin-top:10px">${[0, 2, 4, 6, 8, 10].map((n) => `<button data-jp="${n}">${n}</button>`).join('')}</div></div>`
     }
 
+    ${featureNavHtml('home', navRole())}
     ${todo.length ? `<h2>${t('ig_todo')}</h2><div class="stack todo">${todo.join('')}</div>` : ''}
 
     ${prof.rxNotes ? `<h2>${t('fromClinician')}</h2><div class="card"><span class="eyebrow">${esc(prof.clinician || t('yourClinician'))}</span><p style="margin:6px 0 0;white-space:pre-line">${esc(prof.rxNotes)}</p></div>` : ''}
