@@ -82,6 +82,15 @@ export interface Assessment extends Versioned, Timestamped, Owned {
   readonly videoRetained: false;
   readonly studyId?: StudyId;
   readonly timepointId?: string;
+  /** Version du moteur qui a produit le résultat (ex. 'gait-1'). */
+  readonly engineVersion?: string;
+  /**
+   * Résultat complet sérialisé du moteur (ex. GaitAssessment : déterminants, phases, courbes moyennes).
+   * Opaque pour le cœur ; typé par le domaine qui l'a produit. Jamais d'images ni de vidéo.
+   */
+  readonly result?: unknown;
+  /** Mesures personnalisées calculées à la capture (MeasureDefinition.id → valeur). */
+  readonly customMeasures?: Readonly<Record<string, MeasuredValue>>;
 }
 
 // ---------------------------------------------------------------- Plan de traitement
@@ -171,6 +180,38 @@ export interface Intervention extends Versioned, Timestamped, Owned {
   readonly details?: Readonly<Record<string, string>>;
 }
 
+// ---------------------------------------------------------------- Annotations et suivi
+export type AnnotationId = Brand<string, 'AnnotationId'>;
+export type FollowUpId = Brand<string, 'FollowUpId'>;
+
+/** Note libre attachée à une évaluation ou à une comparaison A/B (dossier patient). */
+export interface Annotation extends Versioned, Timestamped, Owned {
+  readonly schemaVersion: 1;
+  readonly id: AnnotationId;
+  readonly patientId: PatientId;
+  readonly assessmentIds: readonly AssessmentId[];
+  readonly authorRole: 'patient' | 'clinician';
+  readonly text: string;
+}
+
+/**
+ * Suivi après une intervention (spec §10.8) : mesures à refaire à des moments définis,
+ * réglé par le clinicien ou par le patient.
+ */
+export interface FollowUp extends Versioned, Timestamped, Owned {
+  readonly schemaVersion: 1;
+  readonly id: FollowUpId;
+  readonly patientId: PatientId;
+  readonly interventionId?: InterventionId;
+  readonly studyId?: StudyId;
+  readonly setBy: 'patient' | 'clinician';
+  readonly anchorDate: IsoDate;
+  readonly measures: readonly MeasureDefinition[];
+  readonly timepoints: readonly Timepoint[];
+  /** Mesures déjà faites : timepointId → évaluations enregistrées. */
+  readonly done: Readonly<Record<string, readonly AssessmentId[]>>;
+}
+
 /** Collections persistées (Firestore + local). */
 export interface CollectionMap {
   patients: Patient;
@@ -178,5 +219,7 @@ export interface CollectionMap {
   plans: Plan;
   studies: Study;
   interventions: Intervention;
+  annotations: Annotation;
+  followups: FollowUp;
 }
 export type CollectionName = keyof CollectionMap;
