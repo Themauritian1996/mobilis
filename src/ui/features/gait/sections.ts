@@ -7,7 +7,6 @@ import { PHASES, type GaitAnalysis } from '../../../domains/gait/index.ts';
 import { esc } from '../../components/html.ts';
 import { curveChartSvg, legendHtml, type ChartSeries, type ChartSpec } from './charts.ts';
 import {
-  JOINT_ORDER,
   SERIES_CLASS,
   captureConfidence,
   curveExtremes,
@@ -176,7 +175,6 @@ export function jointPhaseSection(tbl: JointPhaseTable): string {
         : [],
     ),
   );
-  void JOINT_ORDER;
   return sec(
     'joints',
     t('sec_jointPhases'),
