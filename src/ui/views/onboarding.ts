@@ -108,7 +108,24 @@ const sharedOf = (rx: Rx | null): Parameters<typeof store.applySharedAI>[0] =>
   rx as unknown as Parameters<typeof store.applySharedAI>[0];
 const $app = (): HTMLElement => document.getElementById('app')!;
 const DAY = 86400000;
-export const layName = (id: string): string => tr(LAY[id]?.name) || tr(PATHOLOGIES.find((p) => p.id === id)?.name);
+/**
+ * Pathologie générique d'un programme sans pathologie (créé depuis un plan de traitement : liste d'exercices seule).
+ * Sans elle, le routeur renverrait en boucle le patient vers l'onboarding (`role === 'patient' && !pathology`).
+ * Aucune entrée du catalogue : les exercices viennent de `profile.plan.ids` (voir `exerciseIds`).
+ */
+export const CUSTOM_PATHOLOGY_ID = 'custom_program';
+
+/** Pathologie à retenir pour un programme : celle du programme, sinon (sans protocole mais avec exercices) la générique. */
+export function rxPathologyId(rx: Pick<Rx, 'pathology' | 'protocol' | 'ids'>): string | null {
+  return rx.pathology || (!rx.protocol && rx.ids?.length ? CUSTOM_PATHOLOGY_ID : null);
+}
+
+export const layName = (id: string): string =>
+  id === CUSTOM_PATHOLOGY_ID
+    ? getLang() === 'fr'
+      ? 'Programme personnalisé'
+      : 'Custom program'
+    : tr(LAY[id]?.name) || tr(PATHOLOGIES.find((p) => p.id === id)?.name);
 export const medName = (id: string): string => tr(PATHOLOGIES.find((p) => p.id === id)?.name);
 const DOW = dowNarrow;
 export const daysPicker = (sel: number[]): string =>
@@ -572,7 +589,7 @@ const protocolPathology = (rx: Rx, prev: ObProfile | undefined): { pathology?: s
       };
 
 // Profil patient construit à partir d'un programme du clinicien
-function rxToProfile(
+export function rxToProfile(
   rx: Rx,
   prev: ObProfile | undefined,
   extra: Record<string, unknown> = {},
@@ -582,7 +599,7 @@ function rxToProfile(
     ...(prev || {}),
     role: prev?.role === 'clinician' ? 'clinician' : 'patient',
     region: rx.region,
-    pathology: rx.pathology,
+    pathology: rxPathologyId(rx),
     phase: rx.phase,
     plan: { phase: rx.phase, ids: rx.ids },
     levels: { ...(rx.levels || {}) },
@@ -696,7 +713,7 @@ export async function viewRxImport(code: string): Promise<void> {
     }
     $app().innerHTML = `<section class="screen"><div class="topbar"><h1>${t('rxTitle')}</h1>${langPicker()}</div>
       <div class="card"><span class="eyebrow">${t('preparedBy')} ${esc(rx.clinician || t('yourClinician'))}</span>
-        <h3 style="margin-top:6px">${esc(layName(rx.pathology ?? ''))}</h3><div class="small muted">${t('medTerm')} : ${esc(medName(rx.pathology ?? ''))}</div>
+        <h3 style="margin-top:6px">${esc(layName(rxPathologyId(rx) ?? ''))}</h3>${rx.pathology ? `<div class="small muted">${t('medTerm')} : ${esc(medName(rx.pathology))}</div>` : ''}
         <div class="row wrap" style="margin-top:10px"><span class="chip">${t('phase')} ${rx.phase} · ${t('phaseName' + rx.phase)}</span><span class="chip">${rx.ids.length} ${t('exercises').toLowerCase()}</span>
         ${rx.nextVisit ? `<span class="chip">${t('nextVisit')} ${new Date(rx.nextVisit + 'T12:00').toLocaleDateString(locale(), { day: 'numeric', month: 'long' })}</span>` : ''}</div>
         ${rx.notes ? `<p style="margin:12px 0 0;white-space:pre-line">${esc(rx.notes)}</p>` : ''}</div>

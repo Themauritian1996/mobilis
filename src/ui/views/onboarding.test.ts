@@ -42,4 +42,28 @@ describe('onboarding (vue)', () => {
     expect(O.layName('inconnu')).toBe('');
     expect(O.medName('inconnu')).toBe('');
   });
+
+  describe('programme importé sans pathologie (créé depuis un plan)', () => {
+    // Condition du routeur : un patient sans pathologie est renvoyé à l'onboarding.
+    const loops = (p: Record<string, unknown>): boolean => p['role'] === 'patient' && !p['pathology'];
+
+    it("n'est pas renvoyé en boucle vers l'onboarding : pathologie générique", () => {
+      const p = O.rxToProfile({ phase: 1, ids: ['a', 'b'], region: 'knee' }, undefined, { name: 'X' });
+      expect(p['role']).toBe('patient');
+      expect(p['pathology']).toBe(O.CUSTOM_PATHOLOGY_ID);
+      expect(loops(p)).toBe(false);
+      expect(p['plan']).toEqual({ phase: 1, ids: ['a', 'b'] });
+      expect(O.layName(O.CUSTOM_PATHOLOGY_ID)).not.toBe('');
+    });
+
+    it('programmes avec pathologie ou protocole : comportement v1.15 inchangé', () => {
+      const withPath = O.rxToProfile({ phase: 2, ids: ['a'], pathology: 'frozen' }, undefined);
+      expect(withPath['pathology']).toBe('frozen');
+      expect(O.rxPathologyId({ pathology: 'frozen', ids: [] })).toBe('frozen');
+      // protocole sans pathologie : la pathologie vient de la région du protocole (protocolPathology), pas de la générique
+      expect(O.rxPathologyId({ ids: ['a'], protocol: { id: 'x' } })).toBeNull();
+      // programme vide sans pathologie : toujours onboarding (rien à pratiquer)
+      expect(O.rxPathologyId({ ids: [] })).toBeNull();
+    });
+  });
 });
