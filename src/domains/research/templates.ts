@@ -25,7 +25,7 @@ const tp = (id: string, label: string, offsetDays: number): Timepoint => ({ id, 
 const W = (n: number): number => n * 7;
 
 const T0 = tp('t0', 'T0', 0);
-const pain: MeasureDefinition = { id: 'pain', kind: 'prom', label: 'Douleur (EVA/ENS 0–10)', metricId: PAIN_METRIC_ID };
+const pain: MeasureDefinition = { id: 'pain', kind: 'pain', label: 'Douleur (EVA/ENS 0–10)', metricId: PAIN_METRIC_ID };
 const speed: MeasureDefinition = {
   id: 'gait_speed',
   kind: 'gait_metric_at_phase',

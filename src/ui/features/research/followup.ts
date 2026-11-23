@@ -13,7 +13,7 @@ import {
   followUpSchedule,
   isGaitMeasure,
   markDone,
-  PAIN_METRIC_ID,
+  isPainMeasure,
   PROTOCOL_TEMPLATES,
   reconcilePatient,
   recordMeasure,
@@ -69,7 +69,7 @@ function logsOfProfile(): { promLog: PromLogRow[]; romLog: RomLogRow[] } {
 /** Lien vers l'écran qui fait la mesure (null : saisie ici). */
 export function measureHref(m: MeasureDefinition, patientId: string): string | null {
   if (isGaitMeasure(m)) return `#/marche/${encodeURIComponent(patientId)}`;
-  if (m.kind === 'prom' && m.metricId && m.metricId !== PAIN_METRIC_ID) return `#/prom/${m.metricId}`;
+  if (m.kind === 'prom' && m.metricId && !isPainMeasure(m)) return `#/prom/${m.metricId}`;
   if (m.kind === 'rom' && m.metricId) return `#/rom/${m.metricId}/${toGaitSide(m.side) ?? '-'}`;
   return null;
 }
@@ -132,11 +132,11 @@ function itemHtml(
       const href = measureHref(m, patientId);
       let act = '';
       if (!done && actionable) {
-        if (m.kind === 'prom' && m.metricId === PAIN_METRIC_ID)
+        if (isPainMeasure(m))
           act = `<div class="rs-pain" role="group" aria-label="${esc(t('rs_painQ'))}">${Array.from({ length: 11 }, (_, v) => `<button class="rs-pain-b" data-pain="${v}" data-fu="${esc(fu.id)}" data-tp="${esc(it.timepoint.id)}" data-m="${esc(m.id)}">${v}</button>`).join('')}</div>`;
         else if (href)
           act = `<button class="btn sm ${clin ? 'ghost' : ''}" data-go="${esc(href)}">${esc(isGaitMeasure(m) ? t('rs_doGait') : t('rs_doMeasure'))}</button>`;
-        if (clin && !isGaitMeasure(m) && m.metricId !== PAIN_METRIC_ID)
+        if (clin && !isGaitMeasure(m) && !isPainMeasure(m))
           act += `<span class="row rs-manual"><input class="input tnum" type="number" step="any" inputmode="decimal" placeholder="${esc(t('rs_valuePlaceholder'))}" aria-label="${esc(m.label)}" data-val="${esc(m.id)}"><button class="btn sm" data-enter="${esc(m.id)}" data-fu="${esc(fu.id)}" data-tp="${esc(it.timepoint.id)}">${esc(t('rs_enterValue'))}</button></span>`;
       }
       return `<li class="rs-mrow${done ? ' done' : ''}"><div class="grow"><span>${done ? icon('check', 14) + ' ' : ''}<b>${esc(m.label)}</b></span>${clin ? `<br><small class="muted">${esc(describeMeasure(m))}</small>` : ''}</div>${act ? `<div class="rs-act">${act}</div>` : ''}</li>`;

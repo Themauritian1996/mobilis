@@ -18,8 +18,9 @@ import type {
   PatientId,
   StudyId,
 } from '../../core/types/clinical.ts';
+import { STUDY_CONDITION_KEY } from '../../core/types/clinical.ts';
 import type { IsoDateTime } from '../../core/types/common.ts';
-import { fromGaitSide, isGaitMeasure, measureUnit, PAIN_METRIC_ID, toGaitSide } from './measures.ts';
+import { fromGaitSide, isGaitMeasure, isPainMeasure, measureUnit, PAIN_METRIC_ID, toGaitSide } from './measures.ts';
 import { followUpSchedule, todayIso, type ScheduleItem } from './schedule.ts';
 import { provides } from './values.ts';
 
@@ -54,16 +55,17 @@ export function measureAssessment(
   nowIso: IsoDateTime,
   link: { readonly studyId?: StudyId; readonly timepointId?: string } = {},
 ): Assessment {
-  const kind = e.measure.kind === 'rom' ? 'rom' : e.measure.kind === 'prom' ? 'prom' : 'custom';
+  const kind =
+    e.measure.kind === 'rom' ? 'rom' : e.measure.kind === 'prom' || e.measure.kind === 'pain' ? 'prom' : 'custom';
   const metric: MetricResult = {
-    metricId: e.measure.metricId ?? e.measure.id,
+    metricId: e.measure.kind === 'pain' ? PAIN_METRIC_ID : (e.measure.metricId ?? e.measure.id),
     value: e.value,
     unit: measureUnit(e.measure),
     confidence: e.confidence ?? 1,
     ...(e.measure.side && e.measure.kind === 'rom' ? { side: e.measure.side } : {}),
   };
   const conditions: Record<string, string> = { source: e.source };
-  if (e.condition) conditions['studyCondition'] = e.condition;
+  if (e.condition) conditions[STUDY_CONDITION_KEY] = e.condition;
   return {
     schemaVersion: 1,
     id: id as AssessmentId,
@@ -153,7 +155,7 @@ export function reconcileFollowUp(input: ReconcileInput): ReconcileResult {
     }
     for (const m of fu.measures) {
       if (!pending.has(m.id)) continue;
-      if (m.kind === 'prom' && m.metricId && m.metricId !== PAIN_METRIC_ID) {
+      if (m.kind === 'prom' && m.metricId && !isPainMeasure(m)) {
         const row = [...(input.promLog ?? [])]
           .filter((r) => r.id === m.metricId && typeof r.score === 'number' && Number.isFinite(r.score))
           .filter((r) => !used.has(`p${r.id}${r.ts}`) && inWindow(it, todayIso(new Date(r.ts)), input.today))

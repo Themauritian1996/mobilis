@@ -9,7 +9,7 @@
  */
 import type { Assessment, MeasureDefinition } from '../../core/types/clinical.ts';
 import { PHASES } from '../gait/index.ts';
-import { CURVE_PREFIX, decodePhase, measureUnit, toGaitSide } from './measures.ts';
+import { CURVE_PREFIX, decodePhase, measureUnit, PAIN_METRIC_ID, toGaitSide } from './measures.ts';
 
 export interface ExtractedValue {
   readonly value: number;
@@ -158,14 +158,16 @@ export function extractValue(m: MeasureDefinition, a: Assessment): ExtractedValu
       return v && finite(v.value) ? { value: v.value, unit: v.unit, confidence: v.confidence, estimate: true } : null;
     }
     case 'rom':
+    case 'pain':
     case 'prom': {
-      if (!m.metricId) return null;
+      const metricId = m.kind === 'pain' ? PAIN_METRIC_ID : m.metricId;
+      if (!metricId) return null;
       const want = m.kind === 'rom' ? side : undefined;
       const hit = a.metrics.find(
         (x) =>
-          x.metricId === m.metricId &&
+          x.metricId === metricId &&
           finite(x.value) &&
-          (m.kind === 'prom' || (toGaitSide(x.side) ?? undefined) === want),
+          (m.kind !== 'rom' || (toGaitSide(x.side) ?? undefined) === want),
       );
       return hit
         ? { value: hit.value, unit: hit.unit || measureUnit(m), confidence: hit.confidence, estimate: false }

@@ -139,7 +139,10 @@ export interface Plan extends Versioned, Timestamped, Owned {
 }
 
 // ---------------------------------------------------------------- Recherche
-export type MeasureKind = 'gait_metric_at_phase' | 'gait_curve' | 'rom' | 'prom' | 'custom_angle';
+export type MeasureKind = 'gait_metric_at_phase' | 'gait_curve' | 'rom' | 'prom' | 'pain' | 'custom_angle';
+
+/** Clé normalisée de `Assessment.conditions` portant la condition d'étude (ex. « Sans orthèse »). */
+export const STUDY_CONDITION_KEY = 'studyCondition';
 
 export interface MeasureDefinition {
   readonly id: string;
@@ -168,6 +171,8 @@ export interface Study extends Versioned, Timestamped, Owned {
   readonly conditions: readonly string[];
   readonly patientIds: readonly PatientId[];
   readonly anonymizeExports: boolean;
+  /** Notes libres du chercheur sur l'étude (stockées avec l'étude, plus en localStorage). */
+  readonly notes?: string;
 }
 
 export interface Intervention extends Versioned, Timestamped, Owned {

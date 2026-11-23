@@ -19,10 +19,11 @@ import type {
 } from '../../core/types/clinical.ts';
 import { NORMS, measurementError, reference, type GaitMetric } from '../gait/index.ts';
 import { INSTRUMENTS } from '../outcomes/data/proms.ts';
-import { PAIN_METRIC_ID } from './measures.ts';
+import { STUDY_CONDITION_KEY } from '../../core/types/clinical.ts';
+import { isPainMeasure } from './measures.ts';
 import { extractCurve, extractValue } from './values.ts';
 
-export const CONDITION_KEY = 'studyCondition';
+export const CONDITION_KEY = STUDY_CONDITION_KEY;
 
 export interface Observation {
   readonly patientId: PatientId;
@@ -190,13 +191,14 @@ export function changeThreshold(m: MeasureDefinition): ChangeThreshold | null {
       };
     }
   }
-  if (m.kind === 'prom' && m.metricId) {
-    const def = INSTRUMENTS[m.metricId === PAIN_METRIC_ID ? 'nprs' : m.metricId];
+  if ((m.kind === 'prom' && m.metricId) || m.kind === 'pain') {
+    const pain = isPainMeasure(m);
+    const def = INSTRUMENTS[pain ? 'nprs' : (m.metricId ?? '')];
     if (def?.mcid && def.mcid.type !== 'level')
       return {
         value: def.mcid.value,
         kind: 'mcid',
-        unit: m.metricId === PAIN_METRIC_ID ? '/10' : 'points',
+        unit: pain ? '/10' : 'points',
         source: def.mcid.note.fr,
         status: 'to_verify',
       };

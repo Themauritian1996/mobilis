@@ -12,13 +12,17 @@
  * | `prom`                 | id d'un questionnaire (`nprs`) ou `pain_nrs` (échelle de douleur 0–10 à un item) | — | — |
  * | `custom_angle`         | —                                          | phase de Perry ou `pct:NN`| left / right  |
  *
- * L'échelle de douleur (EVA/ENS 0–10) est encodée `kind: 'prom', metricId: 'pain_nrs'` faute de valeur dédiée dans
- * `MeasureKind` (changement partagé proposé : ajouter `'pain'`).
+ * L'échelle de douleur (EVA/ENS 0–10) est encodée `kind: 'pain', metricId: 'pain_nrs'`. L'ancien encodage
+ * `kind: 'prom', metricId: 'pain_nrs'` (études déjà enregistrées) reste lu partout via `isPainMeasure`.
  */
 import type { MeasureDefinition, Side } from '../../core/types/clinical.ts';
 import type { CustomAngleDefinition, PerryPhaseId } from '../gait/index.ts';
 
 export const PAIN_METRIC_ID = 'pain_nrs';
+/** Mesure de douleur 0–10 : nouvel encodage (`pain`) ou ancien (`prom` + `pain_nrs`). */
+export const isPainMeasure = (m: Pick<MeasureDefinition, 'kind' | 'metricId'>): boolean =>
+  m.kind === 'pain' || (m.kind === 'prom' && m.metricId === PAIN_METRIC_ID);
+
 export const CURVE_PREFIX = 'curve:';
 export const PCT_PREFIX = 'pct:';
 
@@ -164,8 +168,10 @@ export function measureUnit(m: MeasureDefinition): string {
       return '°';
     case 'rom':
       return '°';
+    case 'pain':
+      return '/10';
     case 'prom':
-      return m.metricId === PAIN_METRIC_ID ? '/10' : 'points';
+      return isPainMeasure(m) ? '/10' : 'points';
   }
 }
 
@@ -193,6 +199,8 @@ export function validateMeasure(m: MeasureDefinition): string[] {
     case 'rom':
     case 'prom':
       if (!m.metricId) p.push('metricId');
+      break;
+    case 'pain':
       break;
     case 'custom_angle':
       if (!toCustomAngleDefinition(m)) p.push('custom');

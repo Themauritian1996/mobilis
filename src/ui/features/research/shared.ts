@@ -100,6 +100,8 @@ export function describeMeasure(m: MeasureDefinition): string {
       return `${t('rs_kind_gait_curve')} — ${bi(METRIC_LABELS[m.metricId ?? '']) || m.metricId}${side}`;
     case 'rom':
       return `${t('rs_kind_rom')} — ${bi(ROM_TESTS[m.metricId ?? '']?.name) || m.metricId}${side}`;
+    case 'pain':
+      return t('rs_kind_pain');
     case 'prom':
       return m.metricId === PAIN_METRIC_ID ? t('rs_kind_pain') : `${t('rs_kind_prom')} — ${promName(m.metricId ?? '')}`;
     case 'custom_angle':

@@ -93,6 +93,7 @@ export async function saveStudy(db: DatabasePort, ctx: RepoContext, d: StudyDraf
     conditions: d.conditions,
     patientIds: prev?.patientIds ?? [],
     anonymizeExports: d.anonymizeExports,
+    ...(prev?.notes !== undefined ? { notes: prev.notes } : {}),
     createdAt: prev?.createdAt ?? t,
     updatedAt: t,
     ownerUid: prev?.ownerUid ?? ctx.uid,
@@ -168,6 +169,31 @@ export async function unenrolPatient(
   });
   for (const f of await db.query('followups', [{ field: 'patientId', op: '==', value: patientId }]))
     if (f.studyId === study.id) await db.remove('followups', f.id);
+}
+
+/**
+ * Notes d'étude : `Study.notes` fait foi. Migration douce : si l'étude n'a pas encore de notes et qu'une ancienne
+ * note locale (localStorage) existe, on la reprend. `migrate` indique qu'il faut l'écrire dans l'étude.
+ */
+export function resolveStudyNotes(
+  study: Pick<Study, 'notes'>,
+  localNote: string | null | undefined,
+): { readonly notes: string; readonly migrate: boolean } {
+  if (study.notes !== undefined) return { notes: study.notes, migrate: false };
+  const local = localNote ?? '';
+  return { notes: local, migrate: local.trim() !== '' };
+}
+
+/** Enregistre les notes de l'étude (une chaîne vide est conservée : elle marque la migration comme faite). */
+export async function saveStudyNotes(
+  db: DatabasePort,
+  ctx: RepoContext,
+  studyId: string,
+  notes: string,
+): Promise<void> {
+  const study = await db.get('studies', studyId);
+  if (!study) return;
+  await db.set('studies', studyId, { ...study, notes, updatedAt: iso(ctx) });
 }
 
 export async function saveIntervention(

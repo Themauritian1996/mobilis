@@ -10,6 +10,8 @@ import {
   loadStudyBundle,
   meanCurves,
   renderPdfModel,
+  resolveStudyNotes,
+  saveStudyNotes,
   summarizeStudy,
   toCsvLong,
   type CellSummary,
@@ -23,7 +25,7 @@ import { getLang } from '../../../../www/js/i18n.js';
 import { saveFile } from '../../components/files.ts';
 import { icon } from '../../components/icons.ts';
 import { toast } from '../../components/toast.ts';
-import { banner, db, digitsFor, ensureCss, errMsg, esc, fmtNum, t, topbar } from './shared.ts';
+import { banner, ctx, db, digitsFor, ensureCss, errMsg, esc, fmtNum, t, topbar } from './shared.ts';
 
 const COLORS = ['#2747d4', '#e07a2e', '#16a36b', '#9b4dca', '#c22f29', '#5b6b7f'];
 
@@ -35,11 +37,11 @@ function readNotes(id: string): string {
     return '';
   }
 }
-function writeNotes(id: string, v: string): void {
+function clearLocalNotes(id: string): void {
   try {
-    localStorage.setItem(notesKey(id), v);
+    localStorage.removeItem(notesKey(id));
   } catch {
-    /* stockage indisponible : les notes restent dans la page */
+    /* stockage indisponible : rien à nettoyer */
   }
 }
 
@@ -174,6 +176,12 @@ export async function viewStudy(root: HTMLElement, studyId: string | undefined):
     return;
   }
   const { study } = bundle;
+  // Notes : `Study.notes` fait foi ; migration douce de l'ancienne note locale.
+  const resolved = resolveStudyNotes(study, readNotes(study.id));
+  if (resolved.migrate)
+    void saveStudyNotes(db(), ctx(), study.id, resolved.notes)
+      .then(() => clearLocalNotes(study.id))
+      .catch(() => undefined);
   const data: StudyData = buildStudyData(study, bundle.patients, bundle.assessments, bundle.followups);
   const summary = summarizeStudy(study, data);
   const deltas = deltasFromBaseline(study, data.observations);
@@ -207,14 +215,23 @@ export async function viewStudy(root: HTMLElement, studyId: string | undefined):
     <div class="row wrap"><button class="btn sm ghost" data-go="#/recherche/edit/${esc(study.id)}">${esc(t('rs_edit'))}</button></div>
     <div aria-live="polite">${sections}</div>
     <p class="small muted">${esc(t('rs_thrNote'))}</p>
-    <h2>${esc(t('rs_notes'))}</h2><label class="field"><span class="small muted">${esc(t('rs_notesHint'))}</span><textarea class="input" id="rs-notes" rows="4">${esc(readNotes(study.id))}</textarea></label>
+    <h2>${esc(t('rs_notes'))}</h2><label class="field"><span class="small muted">${esc(t('rs_notesHint'))}</span><textarea class="input" id="rs-notes" rows="4">${esc(resolved.notes)}</textarea></label>
     <h2>${esc(t('rs_export'))}</h2>
     <div class="toggle"><span>${esc(t('rs_exportAnon'))}</span><button class="switch ${study.anonymizeExports ? 'on' : ''}" id="rs-anon" role="switch" aria-checked="${study.anonymizeExports}" aria-label="${esc(t('rs_exportAnon'))}"></button></div>
     <p class="small neg" id="rs-named" ${study.anonymizeExports ? 'hidden' : ''}>${esc(t('rs_exportNamed'))}</p>
     <div class="row wrap rs-mt"><button class="btn sm" data-exp="csv">${icon('doc', 16)} ${esc(t('rs_exportCsv'))}</button><button class="btn sm ghost" data-exp="json">${icon('doc', 16)} ${esc(t('rs_exportJson'))}</button><button class="btn sm ghost" data-exp="pdf">${icon('doc', 16)} ${esc(t('rs_exportPdf'))}</button></div></section>`;
   let anon = study.anonymizeExports;
   const notesEl = root.querySelector<HTMLTextAreaElement>('#rs-notes')!;
-  notesEl.addEventListener('input', () => writeNotes(study.id, notesEl.value));
+  let notesTimer: ReturnType<typeof setTimeout> | undefined;
+  const flushNotes = (): void => {
+    clearTimeout(notesTimer);
+    void saveStudyNotes(db(), ctx(), study.id, notesEl.value).catch(() => undefined);
+  };
+  notesEl.addEventListener('input', () => {
+    clearTimeout(notesTimer);
+    notesTimer = setTimeout(flushNotes, 600);
+  });
+  notesEl.addEventListener('blur', flushNotes);
   root.querySelector<HTMLElement>('#rs-anon')!.onclick = (e) => {
     anon = !anon;
     const b = e.currentTarget as HTMLElement;

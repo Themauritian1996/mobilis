@@ -185,7 +185,7 @@ function toMeasure(f: MeasureFormState): MeasureDefinition {
     case 'prom':
       return { id, kind: 'prom', label, metricId: f.prom };
     case 'pain':
-      return { id, kind: 'prom', label, metricId: PAIN_METRIC_ID };
+      return { id, kind: 'pain', label, metricId: PAIN_METRIC_ID };
   }
 }
 
