@@ -165,6 +165,17 @@ export function setNotes(p: TreatmentPlan, notes: string, now: Date): TreatmentP
   return touch(without(p, 'notes'), now, notes.trim() ? { notes: notes.trim() } : {});
 }
 
+/** Relie le plan au programme `rx` enregistré (code partagé, sinon identifiant local). Inchangé sans référence. */
+export function linkRx(
+  p: TreatmentPlan,
+  ref: { code?: string | null; localId?: string | null },
+  now: Date,
+): TreatmentPlan {
+  const rxCode = ref.code || ref.localId;
+  if (!rxCode || p.rxCode === rxCode) return p;
+  return touch(p, now, { rxCode });
+}
+
 /** Un plan ne s'active qu'avec au moins une action validée. */
 export function canActivate(p: TreatmentPlan): boolean {
   return p.status === 'draft' && p.actions.some((a) => a.validated);

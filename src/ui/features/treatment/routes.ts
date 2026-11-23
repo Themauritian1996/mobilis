@@ -4,7 +4,12 @@ import { registerNav, registerRoute } from '../registry.ts';
 import { makeT } from '../i18n.ts';
 import { STRINGS } from './strings.ts';
 
+import { installRxSavedListener } from './rx-link.ts';
+
 const t = makeT(STRINGS);
+
+// L'éditeur de programme (hors de ce volet) annonce l'enregistrement : le plan d'origine retient `rxCode`.
+installRxSavedListener();
 
 registerRoute({
   name: 'plan',

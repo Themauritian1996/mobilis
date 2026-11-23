@@ -73,7 +73,12 @@ export async function openRxEditor(
     }
     if (!rx) return false;
   }
-  const form: RxForm = newRxForm(opts.rxRef ?? null, rx, prof as { clinicianName?: string; name?: string });
+  const form: RxForm & { fromPlanId?: string | null } = newRxForm(
+    opts.rxRef ?? null,
+    rx,
+    prof as { clinicianName?: string; name?: string },
+  );
+  form.fromPlanId = plan.id; // relu par clinic.ts à l'enregistrement (événement `mobilis:rx-saved`)
   if (rx) {
     form.ids = [...form.ids, ...pre.ids.filter((id) => !form.ids.includes(id))];
   } else {

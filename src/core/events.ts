@@ -60,4 +60,6 @@ export interface AppEvents {
   'auth:changed': { readonly uid: string | null };
   'assessment:saved': { readonly id: string; readonly patientId: string };
   'plan:saved': { readonly id: string; readonly patientId: string };
+  /** Programme `rx` enregistré (équivalent bus de l'événement window `mobilis:rx-saved`). `planId` : plan d'origine. */
+  'rx:saved': { readonly code: string | null; readonly localId: string | null; readonly planId: string | null };
 }
