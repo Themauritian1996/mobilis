@@ -32,7 +32,8 @@ import {
   spatioSection,
 } from './sections.ts';
 import { exportJson, exportPdf } from './export.ts';
-import { currentUid, listAnnotations, listGaitAssessments, loadAssessment, saveAnnotation } from './store.ts';
+import { mountAnnotations } from '../patients/annotations-ui.ts';
+import { currentUid, listGaitAssessments, loadAssessment } from './store.ts';
 import { banner, ensureCss, errorCard, langId, loc, metricLabel, spinner, t, viewLabel } from './ui.ts';
 import { fromCoreView } from './model.ts';
 
@@ -60,12 +61,6 @@ function customSection(a: Assessment): string {
     )
     .join('');
   return `<section class="gc-sec" aria-labelledby="gc-h-custom"><h2 id="gc-h-custom">${esc(t('sec_custom'))}</h2><div class="gc-scroll"><table class="gc-table"><tbody>${rows}</tbody></table></div></section>`;
-}
-
-function annotationsHtml(list: readonly { text: string; createdAt: string; authorRole: string }[]): string {
-  return list.length
-    ? `<ul class="gc-annots">${list.map((x) => `<li><small class="muted">${esc(dateLabel(x.createdAt, loc()))} · ${esc(t(`role_${x.authorRole}`))}</small><p>${esc(x.text)}</p></li>`).join('')}</ul>`
-    : `<p class="muted small">${esc(t('annot_none'))}</p>`;
 }
 
 export async function renderResults(ctx: FeatureRouteContext): Promise<void> {
@@ -101,10 +96,7 @@ export async function renderResults(ctx: FeatureRouteContext): Promise<void> {
   const findings = findingViews(r.findings, L, locale);
   const prosth = r.prosthetic;
   const prosthViews = prosth ? findingViews(prosth.deviations, L, locale) : [];
-  const [annots, others] = await Promise.all([
-    listAnnotations(a.patientId, [a.id]).catch(() => []),
-    role === 'clinician' ? listGaitAssessments(a.patientId).catch(() => []) : Promise.resolve([] as Assessment[]),
-  ]);
+  const others = role === 'clinician' ? await listGaitAssessments(a.patientId).catch(() => []) : ([] as Assessment[]);
   if (!location.hash.startsWith('#/marche-res/')) return;
   const otherOpts = others
     .filter((o) => o.id !== a.id)
@@ -136,36 +128,15 @@ export async function renderResults(ctx: FeatureRouteContext): Promise<void> {
     ${prosth ? findingsSection(prosthViews, insufficientFindings(prosth.deviations).length, 'sec_prosthetic') : ''}
     ${estimatesSection(estimateViews(analyses, locale))}
     ${customSection(a)}
-    <section class="gc-sec" aria-labelledby="gc-h-annot"><h2 id="gc-h-annot">${esc(t('sec_annotations'))}</h2><div data-a="annots">${annotationsHtml(annots)}</div>
-      <label class="field"><span>${esc(t('annot_label'))}</span><textarea class="input" data-a="annot-text" rows="3" maxlength="4000"></textarea></label>
-      <button class="btn ghost" data-a="annot-save">${esc(t('annot_save'))}</button></section>
+    <section class="gc-sec" aria-labelledby="gc-h-annot"><h2 id="gc-h-annot">${esc(t('sec_annotations'))}</h2><div data-a="annots"></div></section>
     ${actions}
     <p class="gc-disclaimer small muted">${esc(r.disclaimer)}</p></section>`;
 
   const $ = <E extends HTMLElement>(s: string): E | null => root.querySelector<E>(`[data-a="${s}"]`);
 
-  // Annotation (document `annotations`)
-  const saveBtn = $<HTMLButtonElement>('annot-save');
-  if (saveBtn)
-    saveBtn.onclick = async () => {
-      const ta = $<HTMLTextAreaElement>('annot-text');
-      const text = ta?.value.trim() ?? '';
-      if (!text) return;
-      saveBtn.disabled = true;
-      try {
-        await saveAnnotation(a.patientId, [a.id], text, role);
-        const list = await listAnnotations(a.patientId, [a.id]);
-        const box = $('annots');
-        if (box) box.innerHTML = annotationsHtml(list);
-        if (ta) ta.value = '';
-        toast(t('annot_saved'));
-      } catch (e) {
-        console.error(e);
-        toast(t('err_save'), 4000);
-      } finally {
-        saveBtn.disabled = false;
-      }
-    };
+  // Annotations : composant commun du dossier patient (document `annotations`)
+  const annotHost = $('annots');
+  if (annotHost) void mountAnnotations(annotHost, { patientId: a.patientId, assessmentIds: [a.id] });
 
   // Comparer avec… (A = la plus ancienne, B = la plus récente)
   const sel = $<HTMLSelectElement>('cmp-sel');

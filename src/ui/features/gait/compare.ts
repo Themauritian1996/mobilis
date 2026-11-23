@@ -10,11 +10,11 @@ import type { FeatureRouteContext } from '../registry.ts';
 import { navRole } from '../../app-state.ts';
 import { esc } from '../../components/html.ts';
 import { icon } from '../../components/icons.ts';
-import { toast } from '../../components/toast.ts';
 import { readStoredResult, type StoredResult } from './model.ts';
 import { dateLabel, deltaRows, determinantChanges, findingChanges, overlayCharts } from './present.ts';
 import { changesSection, deltaSection, overlaySection } from './sections.ts';
-import { currentUid, listAnnotations, loadAssessment, saveAnnotation } from './store.ts';
+import { mountAnnotations } from '../patients/annotations-ui.ts';
+import { currentUid, loadAssessment } from './store.ts';
 import { banner, ensureCss, errorCard, langId, loc, spinner, statusLabel, t } from './ui.ts';
 import { exportJson } from './export.ts';
 
@@ -84,7 +84,6 @@ export async function renderCompare(ctx: FeatureRouteContext): Promise<void> {
   };
   const findStatus = (s: string): string => t(`fst_${s}`);
   const pairIds = [A.id, B.id];
-  const annots = await listAnnotations(A.patientId, pairIds).catch(() => []);
   if (!location.hash.startsWith('#/marche-ab/')) return;
   const rows = deltaRows(cmp, loc());
   const nSig = rows.filter((r) => r.significant).length;
@@ -102,35 +101,14 @@ export async function renderCompare(ctx: FeatureRouteContext): Promise<void> {
     ${changesSection('sec_findChanges', findingChanges(cmp), (c) => findName(c.id), findStatus)}
     ${overlaySection(overlayCharts(ra.analyses, rb.analyses), label(A), label(B))}
     <section class="gc-sec" aria-labelledby="gc-h-annot"><h2 id="gc-h-annot">${esc(t('sec_annotations'))}</h2>
-      <div data-a="annots">${annots.length ? `<ul class="gc-annots">${annots.map((x) => `<li><small class="muted">${esc(dateLabel(x.createdAt, loc()))} · ${esc(t(`role_${x.authorRole}`))}</small><p>${esc(x.text)}</p></li>`).join('')}</ul>` : `<p class="muted small">${esc(t('annot_none'))}</p>`}</div>
-      <label class="field"><span>${esc(t('annot_label'))}</span><textarea class="input" data-a="annot-text" rows="3" maxlength="4000"></textarea></label>
-      <button class="btn ghost" data-a="annot-save">${esc(t('annot_save'))}</button></section>
+      <div data-a="annots"></div></section>
     <div class="gc-actions">${role === 'clinician' ? `<button class="btn ghost" data-go="#/plan/${esc(A.patientId)}">${icon('clip', 18)} ${esc(t('act_plan'))}</button>` : ''}<button class="btn ghost" data-a="print">${icon('doc', 18)} ${esc(t('act_pdf'))}</button><button class="btn ghost" data-a="json">${icon('share', 18)} ${esc(t('act_json'))}</button></div>
     <p class="gc-disclaimer small muted">${esc(t('cmp_disclaimer'))}</p></section>`;
 
   const $ = <E extends HTMLElement>(s: string): E | null => root.querySelector<E>(`[data-a="${s}"]`);
-  const save = $<HTMLButtonElement>('annot-save');
-  if (save)
-    save.onclick = async () => {
-      const ta = $<HTMLTextAreaElement>('annot-text');
-      const text = ta?.value.trim() ?? '';
-      if (!text || !A) return;
-      save.disabled = true;
-      try {
-        await saveAnnotation(A.patientId, pairIds, text, role);
-        const list = await listAnnotations(A.patientId, pairIds);
-        const box = $('annots');
-        if (box)
-          box.innerHTML = `<ul class="gc-annots">${list.map((x) => `<li><small class="muted">${esc(dateLabel(x.createdAt, loc()))} · ${esc(t(`role_${x.authorRole}`))}</small><p>${esc(x.text)}</p></li>`).join('')}</ul>`;
-        if (ta) ta.value = '';
-        toast(t('annot_saved'));
-      } catch (e) {
-        console.error(e);
-        toast(t('err_save'), 4000);
-      } finally {
-        save.disabled = false;
-      }
-    };
+  // Annotations : composant commun du dossier patient (document `annotations` portant les deux identifiants)
+  const annotHost = $('annots');
+  if (annotHost) void mountAnnotations(annotHost, { patientId: A.patientId, assessmentIds: pairIds });
   const pr = $<HTMLButtonElement>('print');
   if (pr)
     pr.onclick = () => {

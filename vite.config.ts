@@ -83,10 +83,17 @@ function copyLegacyWww(): Plugin {
 
 /**
  * Hors ligne : tout module émis sous js/v2/ (nouveau code + petits utilitaires du bundler) qui est atteignable depuis
- * js/app.js doit être pré-caché par le service worker, sinon l'app ne démarrerait plus hors ligne. On ajoute ces chemins
+ * js/app.js, ainsi que les CSS des volets (V2_CSS), doivent être pré-cachés par le service worker, sinon l'app ne
+ * démarrerait plus (ou s'afficherait sans style) hors ligne. On ajoute ces chemins
  * à la liste CORE de dist/sw.js (entre marqueurs) et on suffixe le nom du cache par une empreinte de cette liste.
  * www/sw.js n'est jamais modifié ; scripts/check-dist.mjs vérifie le résultat.
  */
+/**
+ * Feuilles de style des volets v2, chargées dynamiquement au premier rendu de chaque volet (`ensureCss`) : sans
+ * pré-cache, un écran du volet ouvert pour la première fois hors ligne s'afficherait sans style.
+ */
+const V2_CSS = ['css/gait.css', 'css/patients.css', 'css/prosthetics.css', 'css/treatment.css', 'css/research.css'];
+
 function precacheV2Modules(): Plugin {
   let reachable: string[] = [];
   return {
@@ -110,10 +117,11 @@ function precacheV2Modules(): Plugin {
       sequential: true,
       order: 'post',
       handler() {
-        if (!reachable.length) return;
         const swPath = path.join(OUT, 'sw.js');
         const sw = fs.readFileSync(path.join(WWW, 'sw.js'), 'utf8');
-        const list = reachable.map((f) => `'${f}'`).join(', ');
+        const missing = V2_CSS.filter((f) => !fs.existsSync(path.join(WWW, f)));
+        if (missing.length) throw new Error(`pré-cache v2 : feuille de style absente de www/ : ${missing.join(', ')}`);
+        const list = [...V2_CSS, ...reachable].map((f) => `'${f}'`).join(', ');
         const hash = createHash('sha256').update(list).digest('hex').slice(0, 8);
         const patched = sw
           .replace(/(const CORE = \[[\s\S]*?)(\];)/, `$1, /* v2:begin */ ${list} /* v2:end */$2`)
