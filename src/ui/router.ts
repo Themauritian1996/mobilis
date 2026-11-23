@@ -131,6 +131,9 @@ function route(): unknown {
   if (name === 'ex' && arg) return viewExercise(arg);
   if (name === 'profile') return viewProfile();
   if (name === 'train' && arg) return viewTrain(arg, cleanup);
+  // Volets v2 (marche, dossier, recherche…) : avant le parcours d'essai du clinicien sans pathologie.
+  const feature = name ? findRoute(name, featureFlags(), prof.role) : undefined;
+  if (feature) return feature.render({ arg, arg2, root: $app, cleanup });
   if (prof.role === 'clinician' && !prof.pathology) return viewTestStart();
   if (name === 'prom' && arg) return viewProm($app, arg);
   if (name === 'proms') return viewPromHistory($app);
@@ -145,8 +148,6 @@ function route(): unknown {
   if (name === 'progress') return viewProgress();
   if (name === 'report') return viewReport();
   if (name === 'adjust') return viewAdjust();
-  const feature = name ? findRoute(name, featureFlags(), prof.role) : undefined;
-  if (feature) return feature.render({ arg, arg2, root: $app, cleanup });
   return viewHome();
 }
 
