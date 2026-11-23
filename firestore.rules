@@ -23,5 +23,89 @@ service cloud.firestore {
         allow read: if request.auth != null && (request.auth.uid == pid || get(/databases/$(database)/documents/rx/$(code)).data.by == request.auth.uid);
       }
     }
+
+    // ---------------------------------------------------------------- Dossiers cliniques v2 (docs/adr/0009-dossier-patient.md)
+    // Collections : patients, assessments, plans, studies, interventions, annotations, followups.
+    // Id Firestore = <ownerUid>_<id>. Écriture : propriétaire seulement. Lecture : propriétaire, ou clinicien
+    // destinataire du partage (sharedWith), qui doit être l'auteur du programme rx/{sharedVia} lié au patient.
+    // Aucune vidéo ni image : les évaluations exigent videoRetained == false.
+    function signedIn() {
+      return request.auth != null;
+    }
+    function ownsStored() {
+      return signedIn() && resource.data.ownerUid == request.auth.uid;
+    }
+    function sharedToMe() {
+      return signedIn() && request.auth.uid in resource.data.get('sharedWith', []);
+    }
+    function sharedList(d) {
+      return d.get('sharedWith', []);
+    }
+    // Partage : aucun, ou un seul destinataire = auteur du programme cité (sharedVia), jamais soi-même.
+    // Seuls les documents qui concernent l'auteur (patientId = son uid ; fiche patients/{uid}) sont partageables.
+    function validShare(col, d) {
+      return sharedList(d).size() == 0
+        || (sharedList(d).size() == 1
+          && sharedList(d)[0] != request.auth.uid
+          && col in ['patients', 'assessments', 'annotations', 'followups']
+          && ((col == 'patients' && d.id == request.auth.uid)
+            || (col != 'patients' && d.get('patientId', '') == request.auth.uid))
+          && d.get('sharedVia', null) is string
+          && exists(/databases/$(database)/documents/rx/$(d.sharedVia))
+          && get(/databases/$(database)/documents/rx/$(d.sharedVia)).data.by == sharedList(d)[0]);
+    }
+    function validRecord(col, docId) {
+      let d = request.resource.data;
+      return signedIn()
+        && d.ownerUid == request.auth.uid
+        && d.id is string && d.id.size() > 0 && d.id.size() <= 128
+        && docId == d.ownerUid + '_' + d.id
+        && d.schemaVersion is int && d.schemaVersion >= 1
+        && d.createdAt is string && d.updatedAt is string
+        && sharedList(d) is list
+        && validShare(col, d)
+        && (col != 'assessments' || d.videoRetained == false)
+        && (col == 'patients' || col == 'studies' || d.patientId is string);
+    }
+    match /patients/{docId} {
+      allow read: if ownsStored() || sharedToMe();
+      allow create: if validRecord('patients', docId);
+      allow update: if ownsStored() && validRecord('patients', docId);
+      allow delete: if ownsStored();
+    }
+    match /assessments/{docId} {
+      allow read: if ownsStored() || sharedToMe();
+      allow create: if validRecord('assessments', docId);
+      allow update: if ownsStored() && validRecord('assessments', docId);
+      allow delete: if ownsStored();
+    }
+    match /annotations/{docId} {
+      allow read: if ownsStored() || sharedToMe();
+      allow create: if validRecord('annotations', docId);
+      allow update: if ownsStored() && validRecord('annotations', docId);
+      allow delete: if ownsStored();
+    }
+    match /followups/{docId} {
+      allow read: if ownsStored() || sharedToMe();
+      allow create: if validRecord('followups', docId);
+      allow update: if ownsStored() && validRecord('followups', docId);
+      allow delete: if ownsStored();
+    }
+    // Jamais partagés : plans, études, interventions (propriétaire seulement)
+    match /plans/{docId} {
+      allow read, delete: if ownsStored();
+      allow create: if validRecord('plans', docId);
+      allow update: if ownsStored() && validRecord('plans', docId);
+    }
+    match /studies/{docId} {
+      allow read, delete: if ownsStored();
+      allow create: if validRecord('studies', docId);
+      allow update: if ownsStored() && validRecord('studies', docId);
+    }
+    match /interventions/{docId} {
+      allow read, delete: if ownsStored();
+      allow create: if validRecord('interventions', docId);
+      allow update: if ownsStored() && validRecord('interventions', docId);
+    }
   }
 }
