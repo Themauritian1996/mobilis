@@ -13,3 +13,4 @@ Format : contexte → décision → conséquences. Une ADR acceptée n'est pas m
 | [0006](0006-drapeaux.md) | Drapeaux de fonctionnalité (`gait` désactivé par défaut) | Acceptée |
 | [0007](0007-aucune-video.md) | Aucune vidéo conservée ni envoyée | Acceptée |
 | [0008](0008-tests-et-ci.md) | Stratégie de tests et CI de `dev-v2` | Acceptée |
+| [0009](0009-dossier-patient.md) | Dossier patient : persistance locale, synchronisation, partage patient → clinicien | Proposée |

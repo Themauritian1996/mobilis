@@ -1,6 +1,37 @@
 import { describe, expect, it } from 'vitest';
-import { createMemoryDatabase } from '../../services/db/index.ts';
-import type { Annotation, Assessment, Patient } from '../../core/types/clinical.ts';
+import type { Annotation, Assessment, CollectionMap, CollectionName, Patient } from '../../core/types/clinical.ts';
+import type { DatabasePort } from '../../services/db/port.ts';
+
+/** Base en mémoire minimale (un domaine n'importe que les ports, pas les adaptateurs). */
+function createMemoryDatabase(): DatabasePort {
+  const m = new Map<string, unknown>();
+  const k = (c: CollectionName, id: string): string => `${c}/${id}`;
+  return {
+    async get(c, id) {
+      return (structuredClone(m.get(k(c, id))) as CollectionMap[typeof c] | undefined) ?? null;
+    },
+    async set(c, id, d) {
+      m.set(k(c, id), structuredClone(d));
+    },
+    async remove(c, id) {
+      m.delete(k(c, id));
+    },
+    async query(c, where = []) {
+      return [...m.entries()]
+        .filter(([key]) => key.startsWith(c + '/'))
+        .map(([, d]) => d as Record<string, unknown>)
+        .filter((d) =>
+          where.every((w) =>
+            w.op === 'array-contains'
+              ? Array.isArray(d[w.field]) && (d[w.field] as unknown[]).includes(w.value)
+              : d[w.field] === w.value,
+          ),
+        )
+        .map((d) => structuredClone(d) as unknown as CollectionMap[typeof c]);
+    },
+    watch: () => () => undefined,
+  };
+}
 import {
   buildTimeline,
   deletePatientRecord,
