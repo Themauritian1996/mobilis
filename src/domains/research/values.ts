@@ -167,7 +167,9 @@ export function extractValue(m: MeasureDefinition, a: Assessment): ExtractedValu
           finite(x.value) &&
           (m.kind === 'prom' || (toGaitSide(x.side) ?? undefined) === want),
       );
-      return hit ? { value: hit.value, unit: hit.unit || measureUnit(m), confidence: hit.confidence, estimate: false } : null;
+      return hit
+        ? { value: hit.value, unit: hit.unit || measureUnit(m), confidence: hit.confidence, estimate: false }
+        : null;
     }
   }
 }

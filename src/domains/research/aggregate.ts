@@ -153,7 +153,8 @@ export function buildStudyData(
 
 // ---------------------------------------------------------------- Statistiques
 
-export const mean = (x: readonly number[]): number | null => (x.length ? x.reduce((s, v) => s + v, 0) / x.length : null);
+export const mean = (x: readonly number[]): number | null =>
+  x.length ? x.reduce((s, v) => s + v, 0) / x.length : null;
 
 /** Écart-type d'échantillon (n − 1) ; `null` si n < 2. */
 export function sampleSd(x: readonly number[]): number | null {
@@ -200,7 +201,10 @@ export function changeThreshold(m: MeasureDefinition): ChangeThreshold | null {
         status: 'to_verify',
       };
   }
-  if ((m.kind === 'gait_metric_at_phase' && m.metricId && !m.metricId.startsWith('curve:')) || m.kind === 'custom_angle') {
+  if (
+    (m.kind === 'gait_metric_at_phase' && m.metricId && !m.metricId.startsWith('curve:')) ||
+    m.kind === 'custom_angle'
+  ) {
     const probe: GaitMetric = {
       id: m.kind === 'custom_angle' ? 'custom' : (m.metricId ?? ''),
       value: null,
@@ -257,13 +261,18 @@ export interface PatientDelta {
 const key = (...p: string[]): string => p.join('\u0001');
 
 /** Deltas individuels (valeur − T0) pour chaque observation hors T0. */
-export function deltasFromBaseline(study: Pick<Study, 'timepoints' | 'measures'>, obs: readonly Observation[]): PatientDelta[] {
+export function deltasFromBaseline(
+  study: Pick<Study, 'timepoints' | 'measures'>,
+  obs: readonly Observation[],
+): PatientDelta[] {
   const t0 = study.timepoints[0];
   if (!t0) return [];
   const base = new Map<string, Observation>();
   for (const o of obs) if (o.timepointId === t0.id) base.set(key(o.patientId, o.measureId, o.condition), o);
   const anyBase = new Map<string, Observation>();
-  for (const o of obs) if (o.timepointId === t0.id && !anyBase.has(key(o.patientId, o.measureId))) anyBase.set(key(o.patientId, o.measureId), o);
+  for (const o of obs)
+    if (o.timepointId === t0.id && !anyBase.has(key(o.patientId, o.measureId)))
+      anyBase.set(key(o.patientId, o.measureId), o);
   const thr = new Map(study.measures.map((m) => [m.id, changeThreshold(m)]));
   const out: PatientDelta[] = [];
   for (const o of obs) {
@@ -298,7 +307,9 @@ export function summarizeStudy(study: Pick<Study, 'timepoints' | 'measures'>, da
     if (!conds.length) conds.push('');
     for (const tp of study.timepoints)
       for (const c of conds) {
-        const vals = data.observations.filter((o) => o.measureId === m.id && o.timepointId === tp.id && o.condition === c);
+        const vals = data.observations.filter(
+          (o) => o.measureId === m.id && o.timepointId === tp.id && o.condition === c,
+        );
         const ds = deltas.filter((d) => d.measureId === m.id && d.timepointId === tp.id && d.condition === c);
         out.push({
           measureId: m.id,
@@ -329,7 +340,10 @@ export interface MeanCurve {
 }
 
 /** Courbe moyenne entre patients (101 points) par mesure × point dans le temps × condition, pour la superposition. */
-export function meanCurves(study: Pick<Study, 'timepoints' | 'measures'>, curves: readonly CurveObservation[]): MeanCurve[] {
+export function meanCurves(
+  study: Pick<Study, 'timepoints' | 'measures'>,
+  curves: readonly CurveObservation[],
+): MeanCurve[] {
   const out: MeanCurve[] = [];
   for (const m of study.measures)
     for (const tp of study.timepoints) {
@@ -347,4 +361,7 @@ export function meanCurves(study: Pick<Study, 'timepoints' | 'measures'>, curves
 
 /** Points dans le temps triés par délai (ordre du protocole pour les ex æquo). */
 export const sortedTimepoints = (tps: readonly Timepoint[]): Timepoint[] =>
-  tps.map((t, i) => ({ t, i })).sort((a, b) => a.t.offsetDays - b.t.offsetDays || a.i - b.i).map((x) => x.t);
+  tps
+    .map((t, i) => ({ t, i }))
+    .sort((a, b) => a.t.offsetDays - b.t.offsetDays || a.i - b.i)
+    .map((x) => x.t);

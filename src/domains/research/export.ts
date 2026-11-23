@@ -5,13 +5,7 @@
  * Aucune image ni vidéo n'existe dans les données (seules des mesures dérivées sont enregistrées).
  */
 import type { Intervention, Patient, Study } from '../../core/types/clinical.ts';
-import {
-  deltasFromBaseline,
-  meanCurves,
-  summarizeStudy,
-  type Observation,
-  type StudyData,
-} from './aggregate.ts';
+import { deltasFromBaseline, meanCurves, summarizeStudy, type Observation, type StudyData } from './aggregate.ts';
 import { daysBetween } from './schedule.ts';
 
 export const EXPORT_DISCLAIMER =
@@ -54,9 +48,7 @@ function relativeDays(obs: readonly Observation[]): Map<Observation, number | nu
 
 /** CSV en format long : une ligne par patient × point dans le temps × mesure × condition. */
 export function toCsvLong(obs: readonly Observation[], opts: ExportOptions): string {
-  const head = opts.anonymize
-    ? ['research_id']
-    : ['research_id', 'patient_id', 'patient_name'];
+  const head = opts.anonymize ? ['research_id'] : ['research_id', 'patient_id', 'patient_name'];
   head.push(
     'timepoint',
     'timepoint_label',
@@ -180,7 +172,13 @@ export function buildJsonExport(
       .map((i) =>
         anon
           ? { researchId: ridOf(i.patientId), type: i.type, date: i.date }
-          : { researchId: ridOf(i.patientId), patientId: i.patientId, type: i.type, date: i.date, details: i.details ?? {} },
+          : {
+              researchId: ridOf(i.patientId),
+              patientId: i.patientId,
+              type: i.type,
+              date: i.date,
+              details: i.details ?? {},
+            },
       ),
     observations: data.observations.map(strip),
     curves: anon ? data.curves.map((c) => strip(c) as unknown as StudyData['curves'][number]) : data.curves,

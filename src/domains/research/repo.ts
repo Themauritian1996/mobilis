@@ -18,7 +18,14 @@ import type {
 } from '../../core/types/clinical.ts';
 import type { IsoDate, IsoDateTime } from '../../core/types/common.ts';
 import type { DatabasePort } from '../../services/db/port.ts';
-import { completedMeasures, measureAssessment, reconcileFollowUp, type MeasureEntry, type PromLogRow, type RomLogRow } from './link.ts';
+import {
+  completedMeasures,
+  measureAssessment,
+  reconcileFollowUp,
+  type MeasureEntry,
+  type PromLogRow,
+  type RomLogRow,
+} from './link.ts';
 import { reminderSummary, type ReminderSummary } from './schedule.ts';
 
 export interface RepoContext {
@@ -126,7 +133,11 @@ export async function enrolPatient(
     schemaVersion: 1,
     id: (existing?.id ?? ctx.newId('fu')) as FollowUpId,
     patientId: patient.id,
-    ...(interventionId ? { interventionId } : existing?.interventionId ? { interventionId: existing.interventionId } : {}),
+    ...(interventionId
+      ? { interventionId }
+      : existing?.interventionId
+        ? { interventionId: existing.interventionId }
+        : {}),
     studyId: study.id,
     setBy: 'clinician',
     anchorDate,
@@ -142,7 +153,12 @@ export async function enrolPatient(
 }
 
 /** Retire un patient de l'étude (son suivi d'étude est supprimé ; ses évaluations restent au dossier). */
-export async function unenrolPatient(db: DatabasePort, ctx: RepoContext, studyId: string, patientId: string): Promise<void> {
+export async function unenrolPatient(
+  db: DatabasePort,
+  ctx: RepoContext,
+  studyId: string,
+  patientId: string,
+): Promise<void> {
   const study = await db.get('studies', studyId);
   if (!study) return;
   await db.set('studies', studyId, {

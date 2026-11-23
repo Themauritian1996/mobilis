@@ -122,9 +122,7 @@ export function reconcileFollowUp(input: ReconcileInput): ReconcileResult {
   const fu = input.followUp;
   const byId = new Map(input.assessments.map((a) => [a.id as string, a]));
   const created: Assessment[] = [];
-  const done: Record<string, AssessmentId[]> = Object.fromEntries(
-    Object.entries(fu.done).map(([k, v]) => [k, [...v]]),
-  );
+  const done: Record<string, AssessmentId[]> = Object.fromEntries(Object.entries(fu.done).map(([k, v]) => [k, [...v]]));
   let changed = false;
   const add = (tp: string, id: AssessmentId): void => {
     const list = (done[tp] ??= []);
@@ -134,7 +132,10 @@ export function reconcileFollowUp(input: ReconcileInput): ReconcileResult {
     }
   };
   const doneNow = (): Record<string, string[]> =>
-    completedMeasures({ measures: fu.measures, done }, new Map([...byId, ...created.map((a) => [a.id as string, a] as const)]));
+    completedMeasures(
+      { measures: fu.measures, done },
+      new Map([...byId, ...created.map((a) => [a.id as string, a] as const)]),
+    );
   const sched = followUpSchedule(fu, input.today, { completed: doneNow() });
   const used = new Set<string>(); // une ligne de journal ne sert qu'une échéance
   for (const it of sched) {
@@ -167,7 +168,12 @@ export function reconcileFollowUp(input: ReconcileInput): ReconcileResult {
             id,
             fu.patientId,
             input.ownerUid,
-            { measure: m, value: row.score as number, performedAt: new Date(row.ts).toISOString() as IsoDateTime, source: 'promLog' },
+            {
+              measure: m,
+              value: row.score as number,
+              performedAt: new Date(row.ts).toISOString() as IsoDateTime,
+              source: 'promLog',
+            },
             input.nowIso,
           );
         if (!existing) created.push(a);
