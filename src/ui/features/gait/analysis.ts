@@ -10,7 +10,9 @@ import {
   metricSource,
   prepareRecording,
   DEFAULT_GAIT_CONFIG,
+  withConfig,
   type GaitAnalysis,
+  type GaitConfig,
   type GaitAssessment,
   type GaitPoseFrame,
   type GaitView,
@@ -104,6 +106,13 @@ export function computeCustomMeasures(
   return out;
 }
 
+/** Paramètres du moteur pour une capture : cycles valides exigés par côté = cycles visés (jamais moins que 3). */
+export function engineConfig(settings: Pick<CaptureSettings, 'targetCycles'>): GaitConfig {
+  return withConfig({
+    minCyclesPerSide: Math.max(DEFAULT_GAIT_CONFIG.minCyclesPerSide, Math.round(settings.targetCycles)),
+  });
+}
+
 /** Analyse complète d'une capture : une analyse par vue, puis la synthèse clinique. */
 export function analyzeCapture(
   recs: readonly ViewRecording[],
@@ -116,8 +125,12 @@ export function analyzeCapture(
   const analyses = recs.map((r) =>
     analyzeGait({ frames: rebase(r.frames), view: r.view, patient: pin, options: { imageAspect: r.aspect } }),
   );
-  const assessment = assessGait(analyses);
-  const prosthetic = settings.prosthesis ? assessProstheticGait(assessment.analyses, settings.prosthesis) : undefined;
+  // Spec §10.6 : nombre minimal de cycles valides par côté réglé par le clinicien (≥ 3), appliqué aux règles.
+  const config = engineConfig(settings);
+  const assessment = assessGait(analyses, config);
+  const prosthetic = settings.prosthesis
+    ? assessProstheticGait(assessment.analyses, settings.prosthesis, config)
+    : undefined;
   const fps: Partial<Record<GaitView, number>> = {};
   const durationsS: Partial<Record<GaitView, number>> = {};
   for (const r of recs) {

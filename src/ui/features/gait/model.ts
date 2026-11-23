@@ -104,7 +104,8 @@ export interface CaptureSettings {
 }
 
 export const DEFAULT_TARGET_CYCLES = 3;
-export const MIN_TARGET_CYCLES = 1;
+/** Spec §10.6 : au moins 3 cycles valides par côté ; le clinicien peut en exiger davantage (jamais moins). */
+export const MIN_TARGET_CYCLES = 3;
 export const MAX_TARGET_CYCLES = 10;
 export const MIN_HEIGHT_CM = 50;
 export const MAX_HEIGHT_CM = 260;
