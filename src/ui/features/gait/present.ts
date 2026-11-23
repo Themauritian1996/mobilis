@@ -6,6 +6,7 @@
 import {
   DEFAULT_GAIT_CONFIG,
   DETERMINANTS,
+  GAIT_FINDINGS,
   metricSource,
   reference,
   type CriterionResult,
@@ -232,9 +233,16 @@ export interface DeterminantView {
   readonly status: HealthStatus;
   readonly explanation: string;
   readonly indicators: readonly IndicatorView[];
-  readonly linkedFindings: readonly { id: string; side: Side; status: string }[];
+  /** `name` : nom lisible du défaut (jamais l'identifiant interne à l'écran). */
+  readonly linkedFindings: readonly { id: string; name: string; side: Side; status: string }[];
   readonly restorationGoal: string;
   readonly references: readonly string[];
+}
+
+/** Nom lisible d'un défaut du catalogue de marche (repli : identifiant). */
+export function findingName(id: string, lang: string): string {
+  const f = GAIT_FINDINGS.find((x) => x.id === id);
+  return f ? (lang === 'fr' ? f.name_fr : f.name_en) : id;
 }
 
 /** Les six déterminants, dans l'ordre de Saunders, sans score global : statut + explication de chacun. */
@@ -264,7 +272,7 @@ export function determinantViews(
           estimate: i.estimate,
           targetToVerify: i.targetStatus === 'to_verify',
         })),
-        linkedFindings: d.linkedFindings,
+        linkedFindings: d.linkedFindings.map((f) => ({ ...f, name: findingName(f.id, lang) })),
         restorationGoal: d.restorationGoal,
         references: d.references,
       };
@@ -401,7 +409,10 @@ export function findingViews(list: readonly FindingResult[], lang: string, local
       references: f.references,
       determinants: f.determinants,
       camera2dLimits: f.camera2dLimits,
-      unvalidated: f.unvalidatedThresholds.map((u) => `${u.criterion} (${u.type})`),
+      // Texte du critère (jamais son identifiant interne ni le code « proposed_heuristic »).
+      unvalidated: f.unvalidatedThresholds.map(
+        (u) => f.criteria.find((c) => c.id === u.criterion)?.text ?? u.criterion,
+      ),
       estimate: f.estimate,
       evidenceLevel: f.evidenceLevel,
     }));

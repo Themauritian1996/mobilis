@@ -129,7 +129,7 @@ export function determinantsSection(list: readonly DeterminantView[]): string {
         )
         .join('');
       const linked = d.linkedFindings.length
-        ? `<p class="small"><b>${esc(t('det_linked'))}</b> ${d.linkedFindings.map((f) => esc(`${f.id} (${sideLabel(f.side)}, ${t('fst_' + f.status)})`)).join(' · ')}</p>`
+        ? `<p class="small"><b>${esc(t('det_linked'))}</b> ${d.linkedFindings.map((f) => esc(`${f.name} (${sideLabel(f.side)}, ${t('fst_' + f.status)})`)).join(' · ')}</p>`
         : '';
       return `<article class="gc-det ${statusClass(d.status)}" aria-labelledby="gc-d-${esc(d.id)}">
         <header><span class="gc-det-n" aria-hidden="true">${d.n}</span><h3 id="gc-d-${esc(d.id)}">${esc(d.name)}</h3>${statusChip(d.status)}</header>
