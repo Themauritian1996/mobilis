@@ -23,7 +23,9 @@ import type {
   Patient,
   PatientId,
   Side as CoreSide,
+  StudyId,
 } from '../../../core/types/clinical.ts';
+import { STUDY_CONDITION_KEY } from '../../../core/types/clinical.ts';
 import type { IsoDateTime, MeasuredValue } from '../../../core/types/common.ts';
 import type { ProstheticAssessment } from '../../../domains/prosthetics/index.ts';
 
@@ -330,6 +332,70 @@ export interface BuildAssessmentArgs {
   readonly fps?: Partial<Record<GaitView, number>>;
   readonly baselineId?: string;
   readonly durationsS?: Partial<Record<GaitView, number>>;
+  /** Contexte de suivi d'étude transmis par l'URL (`?study=&tp=&cond=`). */
+  readonly study?: StudyContext;
+}
+
+/** Contexte de suivi transmis à la capture : étude, point dans le temps, condition (clé `studyCondition`). */
+export interface StudyContext {
+  readonly studyId?: string;
+  readonly timepointId?: string;
+  readonly condition?: string;
+}
+
+export interface CaptureArgs {
+  readonly patientId: string;
+  readonly baselineId?: string;
+  readonly study: StudyContext;
+}
+
+/**
+ * Découpe les arguments de route de `#/marche/<patientId>[/<évaluationDeRéférence>][?study=&tp=&cond=]`.
+ * Le routeur hash découpe sur « / » : la chaîne de requête se retrouve collée au dernier segment (arg ou arg2).
+ */
+export function parseCaptureArgs(arg: string | undefined, arg2: string | undefined): CaptureArgs {
+  const split = (s: string | undefined): { path: string; query: URLSearchParams } => {
+    const i = (s ?? '').indexOf('?');
+    return i < 0
+      ? { path: s ?? '', query: new URLSearchParams() }
+      : { path: (s ?? '').slice(0, i), query: new URLSearchParams((s ?? '').slice(i + 1)) };
+  };
+  const a = split(arg);
+  const b = split(arg2);
+  const q = (k: string): string | undefined => {
+    const v = a.query.get(k) ?? b.query.get(k);
+    return v && v.trim() ? v : undefined;
+  };
+  const dec = (s: string): string => {
+    try {
+      return decodeURIComponent(s);
+    } catch {
+      return s;
+    }
+  };
+  const study = q('study');
+  const tp = q('tp');
+  const cond = q('cond');
+  return {
+    patientId: dec(a.path),
+    ...(b.path ? { baselineId: dec(b.path) } : {}),
+    study: {
+      ...(study ? { studyId: study } : {}),
+      ...(tp ? { timepointId: tp } : {}),
+      ...(cond ? { condition: cond } : {}),
+    },
+  };
+}
+
+/** Champs de suivi à fusionner dans le document `assessments` (vide si aucun contexte). */
+export function studyLinkFields(s: StudyContext | undefined): {
+  studyId?: StudyId;
+  timepointId?: string;
+} {
+  return {
+    ...(s?.studyId ? { studyId: s.studyId as StudyId } : {}),
+    ...(s?.timepointId ? { timepointId: s.timepointId } : {}),
+  };
 }
 
 /** Construit le document `assessments` (contrat du brief) à partir de l'évaluation du moteur. */
@@ -355,15 +421,19 @@ export function buildAssessmentDoc(a: BuildAssessmentArgs): Assessment {
     updatedAt: a.nowIso as IsoDateTime,
     ownerUid: a.ownerUid,
     views: a.views.map(toCoreView),
-    conditions: conditionsOf(a.settings, {
-      ...(a.fps ? { fps: a.fps } : {}),
-      ...(a.baselineId ? { baselineId: a.baselineId } : {}),
-    }),
+    conditions: {
+      ...conditionsOf(a.settings, {
+        ...(a.fps ? { fps: a.fps } : {}),
+        ...(a.baselineId ? { baselineId: a.baselineId } : {}),
+      }),
+      ...(a.study?.condition ? { [STUDY_CONDITION_KEY]: a.study.condition } : {}),
+    },
     metrics: metricResults(a.assessment.analyses),
     findings: findingResults(a.assessment, a.prosthetic),
     videoRetained: false,
     engineVersion: ENGINE_VERSION,
     result,
+    ...studyLinkFields(a.study),
     ...custom,
   };
 }

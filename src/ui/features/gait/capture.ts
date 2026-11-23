@@ -29,6 +29,7 @@ import {
   patientInput,
   recommendedViews,
   validateForm,
+  parseCaptureArgs,
   fromCoreView,
   type CaptureFormState,
   type CaptureSettings,
@@ -45,8 +46,7 @@ const opt = (value: string, label: string, cur: string): string =>
 export async function renderCapture(ctx: FeatureRouteContext): Promise<void> {
   ensureCss();
   const root = ctx.root;
-  const patientId = ctx.arg ?? '';
-  const baselineId = ctx.arg2 || undefined;
+  const { patientId, baselineId, study } = parseCaptureArgs(ctx.arg, ctx.arg2);
   root.innerHTML = spinner(t('loading'));
   let patient: Patient | null = null;
   let baseline: Assessment | null = null;
@@ -237,6 +237,7 @@ export async function renderCapture(ctx: FeatureRouteContext): Promise<void> {
         fps: out.fps,
         durationsS: out.durationsS,
         ...(baselineId ? { baselineId } : {}),
+        study,
       });
       await saveAssessment(doc);
       destroyOverlay();

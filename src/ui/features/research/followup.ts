@@ -13,6 +13,7 @@ import {
   followUpSchedule,
   isGaitMeasure,
   markDone,
+  gaitCaptureHref,
   isPainMeasure,
   PROTOCOL_TEMPLATES,
   reconcilePatient,
@@ -21,6 +22,7 @@ import {
   templateById,
   templateForIntervention,
   toGaitSide,
+  type GaitCaptureContext,
   type PatientFollowUpData,
   type PromLogRow,
   type RomLogRow,
@@ -67,8 +69,8 @@ function logsOfProfile(): { promLog: PromLogRow[]; romLog: RomLogRow[] } {
 }
 
 /** Lien vers l'écran qui fait la mesure (null : saisie ici). */
-export function measureHref(m: MeasureDefinition, patientId: string): string | null {
-  if (isGaitMeasure(m)) return `#/marche/${encodeURIComponent(patientId)}`;
+export function measureHref(m: MeasureDefinition, patientId: string, gait: GaitCaptureContext = {}): string | null {
+  if (isGaitMeasure(m)) return gaitCaptureHref(patientId, gait);
   if (m.kind === 'prom' && m.metricId && !isPainMeasure(m)) return `#/prom/${m.metricId}`;
   if (m.kind === 'rom' && m.metricId) return `#/rom/${m.metricId}/${toGaitSide(m.side) ?? '-'}`;
   return null;
@@ -129,13 +131,13 @@ function itemHtml(
   const rows = fu.measures
     .map((m) => {
       const done = it.doneMeasureIds.includes(m.id);
-      const href = measureHref(m, patientId);
+      const href = measureHref(m, patientId, { studyId: fu.studyId, timepointId: it.timepoint.id });
       let act = '';
       if (!done && actionable) {
         if (isPainMeasure(m))
           act = `<div class="rs-pain" role="group" aria-label="${esc(t('rs_painQ'))}">${Array.from({ length: 11 }, (_, v) => `<button class="rs-pain-b" data-pain="${v}" data-fu="${esc(fu.id)}" data-tp="${esc(it.timepoint.id)}" data-m="${esc(m.id)}">${v}</button>`).join('')}</div>`;
         else if (href)
-          act = `<button class="btn sm ${clin ? 'ghost' : ''}" data-go="${esc(href)}">${esc(isGaitMeasure(m) ? t('rs_doGait') : t('rs_doMeasure'))}</button>`;
+          act = `<button class="btn sm ${clin ? 'ghost' : ''}" data-go="${esc(href)}"${isGaitMeasure(m) ? ` data-gait-tp="${esc(fu.id)}|${esc(it.timepoint.id)}"` : ''}>${esc(isGaitMeasure(m) ? t('rs_doGait') : t('rs_doMeasure'))}</button>`;
         if (clin && !isGaitMeasure(m) && !isPainMeasure(m))
           act += `<span class="row rs-manual"><input class="input tnum" type="number" step="any" inputmode="decimal" placeholder="${esc(t('rs_valuePlaceholder'))}" aria-label="${esc(m.label)}" data-val="${esc(m.id)}"><button class="btn sm" data-enter="${esc(m.id)}" data-fu="${esc(fu.id)}" data-tp="${esc(it.timepoint.id)}">${esc(t('rs_enterValue'))}</button></span>`;
       }
@@ -207,6 +209,20 @@ function render(root: HTMLElement, data: PatientFollowUpData, clin: boolean): vo
   const condOf = (fuId: string, tp: string): string =>
     root.querySelector<HTMLSelectElement>(`[data-cond="${CSS.escape(`${fuId}|${tp}`)}"]`)?.value ?? '';
 
+  // La condition choisie pour l'échéance est transmise à la capture de marche (`cond`).
+  root.querySelectorAll<HTMLSelectElement>('[data-cond]').forEach((sel) => {
+    sel.onchange = () => {
+      const [fuId = '', tp = ''] = sel.dataset['cond']!.split('|');
+      const fu = fuOf(fuId);
+      root.querySelectorAll<HTMLElement>(`[data-gait-tp="${CSS.escape(`${fuId}|${tp}`)}"]`).forEach((b) => {
+        b.dataset['go'] = gaitCaptureHref(patientId, {
+          studyId: fu?.studyId,
+          timepointId: tp,
+          condition: sel.value || undefined,
+        });
+      });
+    };
+  });
   root.querySelectorAll<HTMLElement>('[data-pain]').forEach((b) => {
     b.onclick = async () => {
       const fu = fuOf(b.dataset['fu']!);

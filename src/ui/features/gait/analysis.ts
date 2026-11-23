@@ -14,9 +14,9 @@ import {
   type GaitAssessment,
   type GaitPoseFrame,
   type GaitView,
-  type PerryPhaseId,
   type Side,
 } from '../../../domains/gait/index.ts';
+import { toCustomAngleDefinition } from '../../../domains/research/measures.ts';
 import { assessProstheticGait, type ProstheticAssessment } from '../../../domains/prosthetics/index.ts';
 import type { MeasureDefinition, Patient } from '../../../core/types/clinical.ts';
 import type { MeasuredValue } from '../../../core/types/common.ts';
@@ -38,15 +38,6 @@ export interface AnalysisOutput {
   readonly customMeasures: Record<string, MeasuredValue>;
   readonly fps: Partial<Record<GaitView, number>>;
   readonly durationsS: Partial<Record<GaitView, number>>;
-}
-
-const PHASES: readonly string[] = ['IC', 'LR', 'MSt', 'TSt', 'PSw', 'ISw', 'MSw', 'TSw'];
-
-function phaseOf(m: MeasureDefinition): PerryPhaseId | number {
-  const p = m.phase;
-  if (p && PHASES.includes(p)) return p as PerryPhaseId;
-  const n = p === undefined ? NaN : Number(p);
-  return Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : 'MSt';
 }
 
 const sidesOf = (s: MeasureDefinition['side']): Side[] => (s === 'left' ? ['L'] : s === 'right' ? ['R'] : ['L', 'R']);
@@ -71,7 +62,10 @@ export function computeCustomMeasures(
   for (const m of measures) {
     const sides = sidesOf(m.side);
     const key = (s: Side): string => (m.side === 'left' || m.side === 'right' ? m.id : `${m.id}:${s}`);
-    if (m.kind === 'custom_angle' && m.landmarks) {
+    if (m.kind === 'custom_angle') {
+      // Définition normalisée par le module recherche (3 repères, côté, phase ou %) ; incomplète : non calculée.
+      const def = toCustomAngleDefinition(m);
+      if (!def) continue;
       for (const s of sides) {
         const rec =
           recs.find((r) => isSagittalView(r.view) && nearSide(r.view) === s) ??
@@ -84,15 +78,7 @@ export function computeCustomMeasures(
             patient: pin,
             options: { imageAspect: rec.aspect },
           });
-          const r = measureCustomAngle(prep, {
-            id: m.id,
-            a: m.landmarks[0],
-            b: m.landmarks[1],
-            c: m.landmarks[2],
-            side: s,
-            at: phaseOf(m),
-            reference: 'fromStanding',
-          });
+          const r = measureCustomAngle(prep, { ...def, side: s });
           if (r.value !== null && Number.isFinite(r.value))
             out[key(s)] = {
               value: Math.round(r.value * 100) / 100,

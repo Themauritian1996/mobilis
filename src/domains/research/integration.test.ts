@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { extractValue, isPainMeasure, measureUnit, resolveStudyNotes, saveStudy, saveStudyNotes } from './index.ts';
+import {
+  extractValue,
+  gaitCaptureHref,
+  isPainMeasure,
+  measureUnit,
+  resolveStudyNotes,
+  saveStudy,
+  saveStudyNotes,
+} from './index.ts';
 import type { RepoContext } from './repo.ts';
 import { memoryDb, metricAssessment } from './testing/fixtures.ts';
 
@@ -37,5 +45,14 @@ describe("notes d'étude", () => {
     expect((await db.get('studies', st.id))?.notes).toBe('ma note');
     const again = await saveStudy(db, ctx, { ...draft, id: st.id, name: 'E2' });
     expect(again.notes).toBe('ma note');
+  });
+});
+
+describe('lien vers la capture de marche', () => {
+  it('transmet étude, échéance et condition', () => {
+    expect(gaitCaptureHref('p 1')).toBe('#/marche/p%201');
+    expect(gaitCaptureHref('p1', { studyId: 's1', timepointId: 't0', condition: 'Sans orthèse' })).toBe(
+      '#/marche/p1?study=s1&tp=t0&cond=Sans+orth%C3%A8se',
+    );
   });
 });

@@ -175,6 +175,23 @@ export function measureUnit(m: MeasureDefinition): string {
   }
 }
 
+/** Contexte de suivi transmis à la capture de marche par l'URL (`#/marche/<patientId>?study=&tp=&cond=`). */
+export interface GaitCaptureContext {
+  readonly studyId?: string | undefined;
+  readonly timepointId?: string | undefined;
+  readonly condition?: string | undefined;
+}
+
+/** Lien vers la capture de marche d'un patient, avec le contexte de suivi (étude, échéance, condition). */
+export function gaitCaptureHref(patientId: string, c: GaitCaptureContext = {}): string {
+  const q = new URLSearchParams();
+  if (c.studyId) q.set('study', c.studyId);
+  if (c.timepointId) q.set('tp', c.timepointId);
+  if (c.condition) q.set('cond', c.condition);
+  const qs = q.toString();
+  return `#/marche/${encodeURIComponent(patientId)}${qs ? `?${qs}` : ''}`;
+}
+
 /** Mesure à capturer par une analyse de marche (`#/marche/<patientId>`). */
 export const isGaitMeasure = (m: MeasureDefinition): boolean =>
   m.kind === 'gait_metric_at_phase' || m.kind === 'gait_curve' || m.kind === 'custom_angle';
