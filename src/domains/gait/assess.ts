@@ -136,7 +136,8 @@ export function measurementError(m: GaitMetric): { value: number; source: string
     return { value: 0.1, source: 'stenum2021 (< 0,10 m/s) ≥ MDC 0,08 m/s (perera2006, to_verify)' };
   if (id === 'step_length' || id === 'stride_length')
     return { value: 0.018, source: 'stenum2021 (moyenne par participant)' };
-  if (id.endsWith('_time')) return { value: 0.01, source: 'stenum2021' };
+  // Seulement les durées en secondes : les indices de symétrie « symmetry_index_*_time » sont en % (pas en s).
+  if (id.endsWith('_time') && m.unit === 's') return { value: 0.01, source: 'stenum2021' };
   if (id.endsWith('_pct') && !id.startsWith('heel') && !id.startsWith('foot'))
     return { value: 2, source: 'stenum2021 (0,02 s ≈ 2 % du cycle)' };
   if (id === 'cadence') return { value: 2, source: 'stenum2021 (0,01 s par foulée ≈ 1–2 pas/min)' };
