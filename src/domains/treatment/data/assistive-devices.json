@@ -1,0 +1,202 @@
+{
+  "schemaVersion": 1,
+  "generated": "2026-11-22",
+  "principle": "Les repères anatomiques et formules donnent un point de départ ; l'ajustement final se fait sur le patient debout, chaussé, en vérifiant l'angle du coude. Les repères seuls atteignent rarement la cible (yi1996 : seulement 12,5–20,8 % des patients hémiparétiques à 20–30° de flexion du coude).",
+  "devices": [
+    {
+      "id": "cane_standard",
+      "name_fr": "Canne simple",
+      "name_en": "Single-point cane",
+      "rules": [
+        {
+          "rule": "Hauteur de la poignée au pli distal du poignet (distal wrist crease), patient debout, bras relâché le long du corps",
+          "ref": "bradley2011",
+          "confidence": "high"
+        },
+        {
+          "rule": "Alternative : hauteur du grand trochanter (greater trochanter)",
+          "ref": "yi1996",
+          "confidence": "medium",
+          "notes": "Pas de différence d'angle du coude entre trochanter et poignet dans yi1996 (46,4 ± 20° vs 44,3 ± 12,2°) ; kim2011 utilise le trochanter chez l'hémiparétique."
+        },
+        {
+          "rule": "Flexion du coude d'environ 20–30° (15–30° selon Bradley 2011), canne la plus verticale possible",
+          "ref": "sehgal2021",
+          "secondaryRefs": ["bradley2011"],
+          "confidence": "high",
+          "cameraCheck": true
+        },
+        {
+          "rule": "Tenir la canne du côté opposé (controlatéral) au membre faible ou douloureux et l'avancer en même temps que ce membre",
+          "ref": "sehgal2021",
+          "secondaryRefs": ["bradley2011"],
+          "confidence": "high"
+        },
+        {
+          "rule": "Décharge d'environ 10 % du poids du membre atteint si bien utilisée ; canne simple non prévue pour un appui important",
+          "ref": "sehgal2021",
+          "confidence": "medium"
+        }
+      ],
+      "formulaFromHeight": {
+        "status": "to_verify",
+        "notes": "Une méthode à partir de la taille (Kumar et al.) est citée en ligne sans formule ni référence complète (kumar1995). Aucune formule vérifiée : ne pas implémenter de calcul par la taille pour la canne sans source confirmée ; utiliser la hauteur poignet/trochanter mesurée.",
+        "ref": "kumar1995"
+      },
+      "indications": [
+        "Ataxie légère, arthrose légère du membre inférieur (canne simple)",
+        "Arthrose modérée (canne à poignée décalée, offset)",
+        "Hémiparésie (canne quadripode)"
+      ],
+      "indicationsRef": "sehgal2021",
+      "warnings": [
+        "Aide la moins stable : exige équilibre, force du membre supérieur et dextérité (sehgal2021)",
+        "Mal utilisée, une aide technique peut augmenter le risque de chute (sehgal2021, bateni2005)"
+      ],
+      "refs": ["bradley2011", "sehgal2021", "yi1996", "kim2011", "bateni2005"]
+    },
+    {
+      "id": "crutch_axillary",
+      "name_fr": "Béquilles axillaires",
+      "name_en": "Axillary crutches",
+      "rules": [
+        {
+          "rule": "Haut de la béquille 4–5 cm (≈ 1,5–2 po) sous l'aisselle ; l'appui se fait sur les poignées, jamais sur l'aisselle",
+          "ref": "bradley2011",
+          "secondaryRefs": ["sehgal2021"],
+          "confidence": "high"
+        },
+        {
+          "rule": "Poignée réglée pour une flexion du coude ≈ 30°",
+          "ref": "bradley2011",
+          "confidence": "high",
+          "cameraCheck": true
+        },
+        { "rule": "Embout ≈ 5 cm en dehors et ≈ 15 cm en avant du pied", "ref": "bradley2011", "confidence": "high" },
+        {
+          "rule": "Une béquille : ≈ 80 % de décharge ; deux béquilles : jusqu'à 100 % (Bradley) ; 80–100 % (Sehgal)",
+          "ref": "bradley2011",
+          "secondaryRefs": ["sehgal2021"],
+          "confidence": "medium"
+        }
+      ],
+      "formulaFromHeight": {
+        "status": "to_verify",
+        "formulas": [
+          {
+            "formula": "longueur = 0,77 × taille",
+            "source": "bauer1991 (via taweel2023)",
+            "notes": "Classée la plus exacte avec la taille déclarée dans Bauer 1991"
+          },
+          { "formula": "longueur = taille − 40,6 cm (16 po)", "source": "bauer1991 (via taweel2023)" },
+          {
+            "formula": "longueur = 0,72 × taille + 5,2 cm (2 po)",
+            "source": "beckwith1965 (via taweel2023)",
+            "notes": "Taille mesurée"
+          },
+          {
+            "formula": "longueur = 0,68 × taille déclarée + 12,3 cm (4,8 po)",
+            "source": "beckwith1965 (via taweel2023)"
+          }
+        ],
+        "notes": "Formules rapportées par une source secondaire (taweel2023) ; sources primaires non consultées. taweel2023 conclut que les réglages prédéterminés ne sont qu'un point de départ avant l'ajustement individuel. La « longueur » désigne la longueur totale de la béquille (aisselle–sol) : définition exacte à confirmer dans Bauer 1991."
+      },
+      "warnings": [
+        "Compression nerveuse (plexus brachial, nerf radial/ulnaire) ou de l'artère axillaire si appui sur l'aisselle (bradley2011, sehgal2021)",
+        "Exige une bonne force des membres supérieurs"
+      ],
+      "indications": ["Fracture ou blessure du membre inférieur (sehgal2021)"],
+      "refs": ["bradley2011", "sehgal2021", "bauer1991", "beckwith1965", "taweel2023"]
+    },
+    {
+      "id": "crutch_forearm",
+      "name_fr": "Béquilles d'avant-bras (cannes canadiennes / Lofstrand)",
+      "name_en": "Forearm (Lofstrand) crutches",
+      "rules": [
+        {
+          "rule": "Manchette ≈ 2,5–4 cm sous l'olécrâne (Bradley) / ≈ 5 cm sous le coude (Sehgal)",
+          "ref": "bradley2011",
+          "secondaryRefs": ["sehgal2021"],
+          "confidence": "medium",
+          "notes": "Les deux sources diffèrent légèrement."
+        },
+        {
+          "rule": "Poignée pour une flexion du coude ≈ 15–30° (Bradley) / 20–30° (Sehgal)",
+          "ref": "sehgal2021",
+          "secondaryRefs": ["bradley2011"],
+          "confidence": "high",
+          "cameraCheck": true
+        },
+        { "rule": "Embout ≈ 5 cm en dehors et ≈ 15 cm en avant du pied", "ref": "bradley2011", "confidence": "high" }
+      ],
+      "indications": ["Paralysie cérébrale, paraparésie (sehgal2021)"],
+      "refs": ["bradley2011", "sehgal2021"]
+    },
+    {
+      "id": "crutch_platform",
+      "name_fr": "Béquille à appui antébrachial (plateforme)",
+      "name_en": "Platform crutch",
+      "rules": [
+        { "rule": "Mesurée coude fléchi à 90°, de l'avant-bras au sol", "ref": "bradley2011", "confidence": "high" }
+      ],
+      "indications": ["Fracture du poignet, polyarthrite rhumatoïde (sehgal2021)"],
+      "refs": ["bradley2011", "sehgal2021"]
+    },
+    {
+      "id": "walker",
+      "name_fr": "Déambulateur (standard, à 2 roues) et rollator (4 roues)",
+      "name_en": "Walker / rollator",
+      "rules": [
+        {
+          "rule": "Poignées à la hauteur du pli du poignet, patient debout bras relâchés",
+          "ref": "bradley2011",
+          "confidence": "high"
+        },
+        {
+          "rule": "Flexion du coude ≈ 15–30° avec les mains sur les poignées",
+          "ref": "bradley2011",
+          "confidence": "medium",
+          "cameraCheck": true
+        },
+        { "rule": "Garder les deux pieds entre les pattes/roues arrière", "ref": "bradley2011", "confidence": "high" },
+        {
+          "rule": "Rollator : le moins stable des déambulateurs, ne pas s'y appuyer fortement, freins engagés pour s'asseoir",
+          "ref": "sehgal2021",
+          "confidence": "high"
+        }
+      ],
+      "indications": [
+        "Standard : myopathie/neuropathie sévère, ataxie cérébelleuse, fractures du membre inférieur",
+        "2 roues : arthrose/douleur, mauvais équilibre, paraparésie, parkinsonisme",
+        "Rollator : endurance réduite, sténose spinale, arthrose modérée, maladie pulmonaire, insuffisance cardiaque"
+      ],
+      "indicationsRef": "sehgal2021",
+      "warnings": [
+        "Le déambulateur standard ralentit la marche (soulevé à chaque pas) ; le 2 roues tourne moins bien (sehgal2021)"
+      ],
+      "refs": ["bradley2011", "sehgal2021"]
+    }
+  ],
+  "cameraVerification": {
+    "description": "Vérification de l'ajustement par la caméra : angle du coude (épaule–coude–poignet) mesuré debout, main sur la poignée, aide au sol à côté du pied.",
+    "targetElbowFlexionDeg": { "min": 20, "max": 30, "alternativeMin": 15, "refs": ["sehgal2021", "bradley2011"] },
+    "limits": [
+      "Angle du coude en 2D sensible à l'orientation du bras par rapport à la caméra : filmer de profil, bras dans le plan sagittal",
+      "Exactitude de l'angle du coude par MediaPipe en posture statique non vérifiée dans cette recherche (to_verify)",
+      "Les repères (poignet/trochanter) ne garantissent pas l'angle cible (yi1996)"
+    ],
+    "confidence": "medium"
+  },
+  "evidenceSummary": "Les recommandations d'ajustement reposent surtout sur des articles de synthèse (AFP 2011, 2021 ; cote SORT C pour le choix et l'ajustement) et de petites études ; aucune formule par la taille n'est validée pour la canne.",
+  "refs": [
+    "bradley2011",
+    "sehgal2021",
+    "bateni2005",
+    "yi1996",
+    "kim2011",
+    "taweel2023",
+    "bauer1991",
+    "beckwith1965",
+    "kumar1995"
+  ]
+}
