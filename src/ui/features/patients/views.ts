@@ -419,7 +419,7 @@ export async function viewMyRecord(ctx: FeatureRouteContext): Promise<void> {
     fu.innerHTML = fitems.length
       ? `<div class="stack">${fitems.map((it) => itemHtml(it, uid, false)).join('')}</div>`
       : `<p class="muted">${esc(tp('none'))}</p>`;
-    const n = accountRecords()?.current().pending() ?? 0;
+    const n = isOnlineAccount() ? (accountRecords()?.current().pending() ?? 0) : 0;
     ctx.root.querySelector('#pt-pending')!.textContent = n
       ? `${tp('syncPending', { n })}${navigator.onLine === false ? ' — ' + tp('offlineNote') : ''}`
       : '';
