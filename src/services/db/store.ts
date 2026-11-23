@@ -36,18 +36,36 @@ export interface AppUser {
 const fbLoad = createFirebaseLoader(CONFIG.firebase);
 const fbAuth = createFirebaseAuth(fbLoad);
 const cloud = createLegacyCloudRepo(fbLoad);
+/** Chargeur Firebase partagé (une seule application initialisée) : réutilisé par les dossiers cliniques v2. */
+export const firebaseLoader = fbLoad;
 
 // ---------- Authentification ----------
 let user: AppUser | null = null;
 export const currentUser = (): AppUser | null => user;
 export const isCloud = (): boolean => !!(user && !user.local);
+// Abonnés aux changements de compte (dossiers cliniques v2 : changement de magasin local et synchronisation)
+const userSubs = new Set<(u: AppUser | null) => void>();
+export function onUserChange(cb: (u: AppUser | null) => void): () => void {
+  userSubs.add(cb);
+  return () => void userSubs.delete(cb);
+}
+function setUser(u: AppUser | null): void {
+  user = u;
+  for (const cb of userSubs) {
+    try {
+      cb(u);
+    } catch (e) {
+      console.warn(e);
+    }
+  }
+}
 
 export async function initAuth(onChange: (u: AppUser | null) => void): Promise<void> {
   const local = LS.get<AppUser | null>('mobilis.localUser', null);
   if (firebaseEnabled()) {
     try {
       fbAuth.onChange((u) => {
-        user = u ? { uid: u.uid, email: u.email, name: u.displayName || '' } : local;
+        setUser(u ? { uid: u.uid, email: u.email, name: u.displayName || '' } : local);
         cache = null;
         onChange(user);
       });
@@ -60,7 +78,7 @@ export async function initAuth(onChange: (u: AppUser | null) => void): Promise<v
       console.warn('Firebase indisponible, mode local', e);
     }
   }
-  user = local;
+  setUser(local);
   onChange(user);
 }
 
@@ -78,7 +96,7 @@ export const signInEmail = (email: string, password: string, create?: boolean): 
 export const resetPassword = (email: string): Promise<unknown> => fbAuth.resetPassword(email);
 
 export function signInLocal(onChange: (u: AppUser | null) => void): void {
-  user = { uid: 'local', local: true, name: '' };
+  setUser({ uid: 'local', local: true, name: '' });
   LS.set('mobilis.localUser', user);
   onChange(user);
 }
@@ -86,7 +104,7 @@ export function signInLocal(onChange: (u: AppUser | null) => void): void {
 export async function signOut(onChange: (u: AppUser | null) => void): Promise<void> {
   if (user && !user.local && fbLoad.loaded()) await fbAuth.signOut();
   LS.del('mobilis.localUser');
-  user = null;
+  setUser(null);
   cache = null;
   onChange(null);
 }
@@ -94,6 +112,8 @@ export async function signOut(onChange: (u: AppUser | null) => void): Promise<vo
 // ---------- Données du patient ----------
 type Cache = StoredData & Record<string, unknown>;
 let cache: Cache | null = null;
+/** Profil déjà chargé (sans lecture réseau) : rôle, programme lié (`rxCode`), consentement au partage. */
+export const cachedProfile = (): StoredProfile | null => (cache?.profile as StoredProfile | null | undefined) ?? null;
 const key = (): string => `mobilis.data.${user?.uid || 'anon'}`;
 const emptyCache = (): Cache => ({ profile: null, sessions: [], journal: [] });
 

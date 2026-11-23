@@ -1,7 +1,8 @@
 import type { CollectionMap, CollectionName } from '../../../core/types/clinical.ts';
 import type { DatabasePort, WhereClause } from '../port.ts';
 
-const match = (doc: Record<string, unknown>, w: WhereClause<never>): boolean => {
+/** Évalue une clause `where` sur un document (partagé avec la base locale des dossiers). */
+export const match = (doc: Record<string, unknown>, w: WhereClause<never>): boolean => {
   const v = doc[w.field];
   switch (w.op) {
     case '==':
