@@ -103,6 +103,8 @@ export interface AppState {
   /** Séance refaite le même jour (exercice ou file d'exercices). */
   redo?: boolean;
   redoQueue?: string[] | null;
+  /** Écran « Ajuster mon programme » : exercice dont l'éditeur de dose est ouvert. */
+  adjOpen?: string | null;
 }
 
 export const state: AppState = {
