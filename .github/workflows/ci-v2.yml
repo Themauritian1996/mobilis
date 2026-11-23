@@ -44,6 +44,31 @@ jobs:
           path: dist
           retention-days: 7
 
+  rules:
+    # Règles Firestore sur l'émulateur local (projet demo-* : aucun secret, aucun accès à la production, rien publié).
+    # Couvre la non-régression v1.15, les cas de l'ADR 0009 et la faille de l'audit #10.
+    name: Règles Firestore (émulateur)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Dépendances
+        run: npm ci --no-audit --no-fund
+      - name: Cache de l'émulateur
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/firebase/emulators
+          key: firebase-emulators-15.35.0
+      - name: Tests des règles (émulateur Firestore)
+        run: npx --yes firebase-tools@15.35.0 emulators:exec --only firestore --project demo-mobilis "npm run test:rules"
+
   e2e:
     name: Bout en bout (Playwright, sur dist)
     needs: check

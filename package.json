@@ -17,6 +17,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:legacy": "node scripts/run-legacy-tests.mjs",
+    "test:rules": "vitest run --config vitest.rules.config.ts",
+    "test:rules:emulator": "npx --yes firebase-tools@15.35.0 emulators:exec --only firestore --project demo-mobilis \"npm run test:rules\"",
     "test:e2e": "node tests/overlay.e2e.mjs && node tests/rom.e2e.mjs && node tests/camera.e2e.mjs",
     "test:e2e:dist": "MOBILIS_WWW=dist npm run test:e2e",
     "check": "npm run lint && npm run typecheck && npm test && npm run build",
@@ -43,6 +45,7 @@
   "devDependencies": {
     "@capacitor/cli": "^8.5.3",
     "@eslint/js": "^10.0.1",
+    "@firebase/rules-unit-testing": "5.0.0",
     "@mediapipe/tasks-vision": "1.1.1",
     "@types/node": "^22.20.5",
     "dependency-cruiser": "^18.8.0",

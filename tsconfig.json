@@ -33,6 +33,6 @@
     "types": ["node", "vite/client"],
     "paths": { "@src/*": ["./src/*"] }
   },
-  "include": ["src/**/*.ts", "tests/**/*.ts", "www/js/**/*.js", "vite.config.ts", "vitest.config.ts"],
+  "include": ["src/**/*.ts", "tests/**/*.ts", "www/js/**/*.js", "vite.config.ts", "vitest.config.ts", "vitest.rules.config.ts"],
   "exclude": ["node_modules", "dist", "android", "www/vendor", "www/js/lang", "docs/gait-literature"]
 }

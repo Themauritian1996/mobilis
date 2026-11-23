@@ -22,12 +22,37 @@ service cloud.firestore {
         allow delete: if request.auth != null && get(/databases/$(database)/documents/rx/$(code)).data.by == request.auth.uid;
         allow read: if request.auth != null && (request.auth.uid == pid || get(/databases/$(database)/documents/rx/$(code)).data.by == request.auth.uid);
       }
+      // v2 (docs/adr/0009-dossier-patient.md) : demande de transmission du dossier clinique, en DEUX temps.
+      // 1. Le patient {pid} (qui a importé le programme et accepté le partage) crée la demande, liée au clinicien
+      //    auteur du programme au moment de la demande (by), statut 'pending'.
+      // 2. Ce clinicien (et lui seul) l'accepte ('approved') ou la refuse ('refused').
+      // Connaître le code ne suffit donc plus : sans demande du patient ET acceptation du clinicien, aucun partage.
+      // La v1.15 n'utilise pas cette sous-collection.
+      match /links/{pid} {
+        allow get: if request.auth != null && (request.auth.uid == pid || resource.data.by == request.auth.uid);
+        allow list: if request.auth != null && resource.data.by == request.auth.uid;
+        allow create: if request.auth != null && request.auth.uid == pid
+          && exists(/databases/$(database)/documents/rx/$(code))
+          && request.resource.data.by == get(/databases/$(database)/documents/rx/$(code)).data.by
+          && request.resource.data.by is string
+          && request.resource.data.by != pid
+          && request.resource.data.status == 'pending'
+          && request.resource.data.requestedAt is string
+          && request.resource.data.keys().hasOnly(['by', 'status', 'requestedAt', 'displayName'])
+          && (!('displayName' in request.resource.data)
+            || (request.resource.data.displayName is string && request.resource.data.displayName.size() <= 120));
+        allow update: if request.auth != null && resource.data.by == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'decidedAt'])
+          && request.resource.data.status in ['approved', 'refused']
+          && request.resource.data.decidedAt is string;
+        allow delete: if request.auth != null && (request.auth.uid == pid || resource.data.by == request.auth.uid);
+      }
     }
 
     // ---------------------------------------------------------------- Dossiers cliniques v2 (docs/adr/0009-dossier-patient.md)
     // Collections : patients, assessments, plans, studies, interventions, annotations, followups.
     // Id Firestore = <ownerUid>_<id>. Écriture : propriétaire seulement. Lecture : propriétaire, ou clinicien
-    // destinataire du partage (sharedWith), qui doit être l'auteur du programme rx/{sharedVia} lié au patient.
+    // destinataire du partage (sharedWith), qui doit avoir accepté la demande du patient (rx/{sharedVia}/links/{uid}).
     // Aucune vidéo ni image : les évaluations exigent videoRetained == false.
     function signedIn() {
       return request.auth != null;
@@ -41,18 +66,30 @@ service cloud.firestore {
     function sharedList(d) {
       return d.get('sharedWith', []);
     }
-    // Partage : aucun, ou un seul destinataire = auteur du programme cité (sharedVia), jamais soi-même.
-    // Seuls les documents qui concernent l'auteur (patientId = son uid ; fiche patients/{uid}) sont partageables.
+    // Demande de transmission acceptée : rx/{via}/links/{auteur} existe, liée à ce clinicien, statut 'approved',
+    // et le programme appartient toujours à ce clinicien.
+    function approvedLink(via, clin) {
+      let rxPath = /databases/$(database)/documents/rx/$(via);
+      let linkPath = /databases/$(database)/documents/rx/$(via)/links/$(request.auth.uid);
+      return exists(rxPath) && exists(linkPath)
+        && get(rxPath).data.by == clin
+        && get(linkPath).data.by == clin
+        && get(linkPath).data.status == 'approved';
+    }
+    // Partage : aucun, ou un seul destinataire = clinicien qui a ACCEPTÉ la demande du patient pour le programme
+    // cité (sharedVia), jamais soi-même. Seuls les documents qui concernent l'auteur (patientId = son uid ; fiche
+    // patients/{uid}) sont partageables.
     function validShare(col, d) {
       return sharedList(d).size() == 0
         || (sharedList(d).size() == 1
+          && sharedList(d)[0] is string
           && sharedList(d)[0] != request.auth.uid
           && col in ['patients', 'assessments', 'annotations', 'followups']
           && ((col == 'patients' && d.id == request.auth.uid)
             || (col != 'patients' && d.get('patientId', '') == request.auth.uid))
           && d.get('sharedVia', null) is string
-          && exists(/databases/$(database)/documents/rx/$(d.sharedVia))
-          && get(/databases/$(database)/documents/rx/$(d.sharedVia)).data.by == sharedList(d)[0]);
+          && d.sharedVia.matches('^[A-Z0-9]{1,32}$')
+          && approvedLink(d.sharedVia, sharedList(d)[0]));
     }
     function validRecord(col, docId) {
       let d = request.resource.data;

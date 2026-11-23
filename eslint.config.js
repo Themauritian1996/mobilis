@@ -46,7 +46,8 @@ export default tseslint.config(
     },
   },
   {
-    files: ['src/services/*/firebase/**/*.ts'],
+    // Adaptateurs Firebase, et tests des règles Firestore sur l'émulateur.
+    files: ['src/services/*/firebase/**/*.ts', 'tests/rules/**/*.ts'],
     rules: { 'no-restricted-imports': 'off' },
   },
   {
