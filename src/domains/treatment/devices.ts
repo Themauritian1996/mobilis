@@ -539,6 +539,7 @@ export interface DeviceRecordInput {
   readonly confidence: number;
   readonly advice: Adjustment;
   readonly affected?: AffectedSide;
+  readonly source?: 'camera' | 'manual';
 }
 
 /** Document `assessments` (kind 'custom') qui garde la mesure de l'angle du coude et le conseil ; aucune image. */
@@ -559,6 +560,7 @@ export function buildDeviceAssessment(i: DeviceRecordInput): Assessment {
       arm: i.arm,
       target: `${ELBOW_TARGET.min}-${ELBOW_TARGET.max}`,
       status: i.advice.status,
+      source: i.source ?? 'camera',
       advice: i.advice.message,
       ...(i.affected ? { affectedSide: i.affected } : {}),
     },
