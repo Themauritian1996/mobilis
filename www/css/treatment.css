@@ -1,0 +1,47 @@
+/* Volet « traitement » : plan de traitement et aides techniques (s'appuie sur les variables de app.css). */
+.tx-banner { display: flex; gap: 8px; align-items: center; margin: 0 0 12px; padding: 8px 12px; border-radius: var(--r-sm); background: var(--warn-soft); color: var(--warn); font-size: var(--fs-sm); font-weight: 600; }
+.tx-banner svg { width: 18px; height: 18px; flex: none; }
+.tx-card { margin-bottom: 12px; }
+.tx-card h2 { margin: 0 0 8px; font-size: var(--fs-lg); }
+.tx-card h3 { margin: 14px 0 6px; font-size: var(--fs-md); color: var(--ink-2); }
+.tx-notice { display: flex; gap: 6px; align-items: flex-start; margin: 0 0 10px; padding: 8px 10px; border-radius: var(--r-xs); background: var(--brand-soft); color: var(--brand-ink); font-size: var(--fs-sm); }
+.tx-notice svg { width: 16px; height: 16px; flex: none; margin-top: 2px; }
+.tx-callout { margin: 0 0 8px; padding: 10px 12px; border-radius: var(--r-sm); background: var(--surface-2); }
+.tx-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.tx-sug, .tx-act, .tx-track { padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--surface); display: grid; gap: 6px; }
+.tx-goal { display: flex; align-items: flex-start; gap: 8px; }
+.tx-goal > .tx-sug { flex: 1; }
+.tx-check { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; min-height: 44px; }
+.tx-check input[type="checkbox"] { width: 24px; height: 24px; flex: none; margin-top: 2px; }
+.tx-sug-body { display: grid; gap: 4px; min-width: 0; }
+.tx-act-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tx-act-head h2 { margin: 0; }
+.tx-act .icon-btn, .tx-goal .icon-btn { min-width: 44px; min-height: 44px; }
+.tx-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.tx-chip { display: inline-block; padding: 2px 8px; border-radius: var(--r-pill); background: var(--surface-2); color: var(--ink-2); font-size: var(--fs-xs); font-weight: 600; }
+.tx-chip.mono { font-variant-numeric: tabular-nums; }
+.tx-chip.warn { background: var(--warn-soft); color: var(--warn); }
+.tx-chip.soft { background: transparent; border: 1px solid var(--line-strong); color: var(--muted); font-weight: 500; }
+.tx-chip.pos, .tx-chip.st-active, .tx-chip.p-low { background: var(--pos-soft); color: var(--pos); }
+.tx-chip.neg { background: var(--neg-soft); color: var(--neg); }
+.tx-chip.info, .tx-chip.p-high, .tx-chip.st-draft { background: var(--brand-soft); color: var(--brand-ink); }
+.tx-refs { font-size: var(--fs-xs); color: var(--muted); }
+.tx-ref.tbv i { color: var(--warn); }
+.tx-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin: 6px 0; }
+.tx-fields label { display: grid; gap: 2px; font-size: var(--fs-sm); }
+.tx-fields .input, .tx-card .input { min-height: 44px; }
+.tx-btns { gap: 8px; margin-top: 8px; }
+.tx-btns .btn, .tx-pick { min-height: 44px; }
+.tx-add { margin-top: 10px; }
+.tx-add summary, .tx-more summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; gap: 6px; font-weight: 600; color: var(--brand-ink); }
+.tx-series { margin: 4px 0 0; padding: 0; list-style: none; display: grid; gap: 2px; font-size: var(--fs-sm); }
+.tx-series li { display: flex; justify-content: space-between; gap: 8px; border-top: 1px dashed var(--line); padding-top: 2px; }
+.tx-steps { margin: 0; padding-inline-start: 22px; display: grid; gap: 6px; }
+.tx-big { font-size: var(--fs-2xl); margin: 4px 0; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.tx-cam { position: relative; width: 100%; max-width: 560px; aspect-ratio: 3 / 4; max-height: 70vh; margin: 8px auto; border-radius: var(--r-md); overflow: hidden; background: #05080d; }
+.tx-cam video, .tx-cam canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.tx-cam video.mirror { transform: scaleX(-1); }
+.tx-cam-hud { position: absolute; left: 0; right: 0; bottom: 0; padding: 8px 12px; color: #fff; background: linear-gradient(transparent, rgba(0, 0, 0, .7)); }
+.tx-live { margin: 0; font-weight: 600; }
+.tx-cam-hud .tx-big { color: #fff; margin: 0; }
+.tx-pick { display: flex; width: 100%; justify-content: flex-start; align-items: center; text-decoration: none; }
