@@ -81,7 +81,12 @@ export async function viewFollowUp(root: HTMLElement, arg: string | undefined): 
   if (!patientId) return viewPickPatient(root);
   root.innerHTML = `<section class="screen rs"><div class="card muted">${esc(t('rs_loading'))}</div></section>`;
   try {
-    const patient = await ensurePatient(db(), ctx(), patientId, clin ? {} : { displayName: String(profile()?.['name'] ?? '') });
+    const patient = await ensurePatient(
+      db(),
+      ctx(),
+      patientId,
+      clin ? {} : { displayName: String(profile()?.['name'] ?? '') },
+    );
     // Patient : relie son journal (questionnaires, amplitudes) ; clinicien : relie les analyses de marche par date.
     const data = await reconcilePatient(db(), ctx(), patientId, clin ? {} : logsOfProfile(), today());
     render(root, { ...data, patient }, clin);
@@ -106,7 +111,13 @@ async function viewPickPatient(root: HTMLElement): Promise<void> {
   };
 }
 
-function itemHtml(fu: FollowUp, it: ScheduleItem, clin: boolean, patientId: string, conditions: readonly string[]): string {
+function itemHtml(
+  fu: FollowUp,
+  it: ScheduleItem,
+  clin: boolean,
+  patientId: string,
+  conditions: readonly string[],
+): string {
   const when =
     it.daysUntil > 0
       ? t('rs_inDays', { n: it.daysUntil })
@@ -148,7 +159,9 @@ function render(root: HTMLElement, data: PatientFollowUpData, clin: boolean): vo
     .filter((a) => a.kind === 'gait' || a.kind === 'prosthetic_gait')
     .sort((a, b) => (a.performedAt < b.performedAt ? 1 : -1));
   const title = clin ? t('rs_followTitle') : t('rs_myFollowTitle');
-  const who = clin ? `<p class="muted"><b>${esc(data.patient!.displayName ?? patientId)}</b>${data.patient!.researchId ? ` · ${esc(data.patient!.researchId)}` : ''}</p>` : `<p class="muted">${esc(t('rs_myFollowIntro'))}</p>`;
+  const who = clin
+    ? `<p class="muted"><b>${esc(data.patient!.displayName ?? patientId)}</b>${data.patient!.researchId ? ` · ${esc(data.patient!.researchId)}` : ''}</p>`
+    : `<p class="muted">${esc(t('rs_myFollowIntro'))}</p>`;
   const fuCards = fus.length
     ? fus
         .map((fu) => {
@@ -169,7 +182,18 @@ function render(root: HTMLElement, data: PatientFollowUpData, clin: boolean): vo
   const ivs = [...data.interventions].sort((a, b) => (a.date < b.date ? 1 : -1));
   const timeline = `<h2>${esc(t('rs_timeline'))}</h2>${
     ivs.length
-      ? `<ol class="rs-timeline">${ivs.map((i) => `<li><span class="rs-dot" aria-hidden="true"></span><div><b>${esc(t('rs_iv_' + i.type))}</b> · <span class="tnum">${esc(fmtDate(i.date))}</span>${i.details ? `<br><small class="muted">${Object.entries(i.details).map(([k, v]) => `${esc(k)} : ${esc(v)}`).join(' · ')}</small>` : ''}</div></li>`).join('')}</ol>`
+      ? `<ol class="rs-timeline">${ivs
+          .map(
+            (i) =>
+              `<li><span class="rs-dot" aria-hidden="true"></span><div><b>${esc(t('rs_iv_' + i.type))}</b> · <span class="tnum">${esc(fmtDate(i.date))}</span>${
+                i.details
+                  ? `<br><small class="muted">${Object.entries(i.details)
+                      .map(([k, v]) => `${esc(k)} : ${esc(v)}`)
+                      .join(' · ')}</small>`
+                  : ''
+              }</div></li>`,
+          )
+          .join('')}</ol>`
       : `<div class="card small muted">${esc(t('rs_noIntervention'))}</div>`
   }`;
   root.innerHTML = `<section class="screen rs">${topbar(title, clin ? '#/suivi' : '#/home')}${banner()}${who}
@@ -209,7 +233,12 @@ function render(root: HTMLElement, data: PatientFollowUpData, clin: boolean): vo
       if (!fu || !m || !inp || inp.value === '' || !Number.isFinite(v)) return toast(t('rs_badValue'));
       const tp = b.dataset['tp']!;
       const cond = condOf(fu.id, tp);
-      await recordMeasure(db(), ctx(), fu, tp, { measure: m, value: v, source: 'manual', ...(cond ? { condition: cond } : {}) });
+      await recordMeasure(db(), ctx(), fu, tp, {
+        measure: m,
+        value: v,
+        source: 'manual',
+        ...(cond ? { condition: cond } : {}),
+      });
       toast(t('rs_saved'));
       reload();
     };

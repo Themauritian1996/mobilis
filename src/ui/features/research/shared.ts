@@ -40,7 +40,8 @@ export const db = (): DatabasePort => getRecordsDb();
 
 export function newId(prefix: string): string {
   const c = globalThis.crypto;
-  const r = c && 'randomUUID' in c ? c.randomUUID().replace(/-/g, '').slice(0, 16) : Math.random().toString(36).slice(2, 14);
+  const r =
+    c && 'randomUUID' in c ? c.randomUUID().replace(/-/g, '').slice(0, 16) : Math.random().toString(36).slice(2, 14);
   return `${prefix}_${r}`;
 }
 
@@ -66,7 +67,11 @@ export const digitsFor = (unit: string): number => (unit === 'm/s' || unit === '
 export function fmtDate(iso: string): string {
   try {
     const d = new Date(iso.length === 10 ? `${iso}T12:00:00` : iso);
-    return d.toLocaleDateString(getLang() === 'fr' ? 'fr-CA' : 'en-CA', { year: 'numeric', month: 'short', day: 'numeric' });
+    return d.toLocaleDateString(getLang() === 'fr' ? 'fr-CA' : 'en-CA', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
   } catch {
     return iso;
   }
@@ -96,9 +101,7 @@ export function describeMeasure(m: MeasureDefinition): string {
     case 'rom':
       return `${t('rs_kind_rom')} — ${bi(ROM_TESTS[m.metricId ?? '']?.name) || m.metricId}${side}`;
     case 'prom':
-      return m.metricId === PAIN_METRIC_ID
-        ? t('rs_kind_pain')
-        : `${t('rs_kind_prom')} — ${promName(m.metricId ?? '')}`;
+      return m.metricId === PAIN_METRIC_ID ? t('rs_kind_pain') : `${t('rs_kind_prom')} — ${promName(m.metricId ?? '')}`;
     case 'custom_angle':
       return `${t('rs_kind_custom_angle')} — ${(m.landmarks ?? []).join('-')}${phase}${side}`;
   }

@@ -80,7 +80,10 @@ export const STRINGS: FeatureStrings = {
   rs_kind_pain: { fr: 'Douleur (EVA/ENS 0–10)', en: 'Pain (VAS/NRS 0–10)' },
   rs_kind_custom_angle: { fr: 'Mesure personnalisée (angle)', en: 'Custom measure (angle)' },
   rs_metric: { fr: 'Métrique', en: 'Metric' },
-  rs_curveAtPhase: { fr: 'Angle d’une courbe à une phase ou à un % du cycle', en: 'Curve angle at a phase or % of the cycle' },
+  rs_curveAtPhase: {
+    fr: 'Angle d’une courbe à une phase ou à un % du cycle',
+    en: 'Curve angle at a phase or % of the cycle',
+  },
   rs_curve: { fr: 'Courbe', en: 'Curve' },
   rs_side: { fr: 'Côté', en: 'Side' },
   rs_phase: { fr: 'Phase de la marche', en: 'Gait phase' },
@@ -110,7 +113,10 @@ export const STRINGS: FeatureStrings = {
   rs_newPatient: { fr: 'Nouveau dossier patient (nom)', en: 'New patient record (name)' },
   rs_pickPatient: { fr: 'Patient', en: 'Patient' },
   rs_anchor: { fr: 'T0 (date)', en: 'T0 (date)' },
-  rs_saveFirst: { fr: 'Enregistre le protocole avant d’inscrire des patients.', en: 'Save the protocol before enrolling patients.' },
+  rs_saveFirst: {
+    fr: 'Enregistre le protocole avant d’inscrire des patients.',
+    en: 'Save the protocol before enrolling patients.',
+  },
   rs_measureAtCapture: {
     fr: 'Les mesures de marche et personnalisées sont calculées lors de l’analyse de marche du patient.',
     en: 'Gait and custom measures are computed during the patient’s gait analysis.',
@@ -134,7 +140,10 @@ export const STRINGS: FeatureStrings = {
   rs_ivSite: { fr: 'Site', en: 'Site' },
   rs_ivDose: { fr: 'Dose / produit', en: 'Dose / product' },
   rs_ivNote: { fr: 'Note', en: 'Note' },
-  rs_ivFreeHint: { fr: 'Champs libres, jamais interprétés par l’app.', en: 'Free fields, never interpreted by the app.' },
+  rs_ivFreeHint: {
+    fr: 'Champs libres, jamais interprétés par l’app.',
+    en: 'Free fields, never interpreted by the app.',
+  },
   rs_iv_botulinum_toxin: { fr: 'Toxine botulique', en: 'Botulinum toxin' },
   rs_iv_prosthetic_adjustment: { fr: 'Ajustement de prothèse', en: 'Prosthetic adjustment' },
   rs_iv_orthosis: { fr: 'Orthèse', en: 'Orthosis' },
@@ -160,7 +169,10 @@ export const STRINGS: FeatureStrings = {
   rs_daysAgo: { fr: 'il y a {n} j', en: '{n} d ago' },
   rs_doMeasure: { fr: 'Faire', en: 'Do it' },
   rs_doGait: { fr: 'Analyse de marche', en: 'Gait analysis' },
-  rs_painQ: { fr: 'Ta douleur en ce moment (0 = aucune, 10 = pire imaginable)', en: 'Your pain right now (0 = none, 10 = worst imaginable)' },
+  rs_painQ: {
+    fr: 'Ta douleur en ce moment (0 = aucune, 10 = pire imaginable)',
+    en: 'Your pain right now (0 = none, 10 = worst imaginable)',
+  },
   rs_enterValue: { fr: 'Saisir', en: 'Enter' },
   rs_valuePlaceholder: { fr: 'Valeur', en: 'Value' },
   rs_badValue: { fr: 'Valeur invalide.', en: 'Invalid value.' },
@@ -217,7 +229,10 @@ export const STRINGS: FeatureStrings = {
 /** Libellés des métriques du moteur de marche (sélecteur du constructeur). */
 export const METRIC_LABELS: Readonly<Record<string, { fr: string; en: string }>> = {
   ankle_ic: { fr: 'Cheville au contact initial', en: 'Ankle at initial contact' },
-  ankle_lr_min: { fr: 'Cheville : flexion plantaire en réponse à la charge', en: 'Ankle: plantarflexion in loading response' },
+  ankle_lr_min: {
+    fr: 'Cheville : flexion plantaire en réponse à la charge',
+    en: 'Ankle: plantarflexion in loading response',
+  },
   ankle_mst: { fr: 'Cheville en mi-appui', en: 'Ankle in mid stance' },
   peak_ankle_dorsiflexion_stance: { fr: 'Dorsiflexion max. en appui', en: 'Peak dorsiflexion in stance' },
   ankle_pf_preswing: { fr: 'Flexion plantaire en pré-oscillation', en: 'Plantarflexion in pre-swing' },

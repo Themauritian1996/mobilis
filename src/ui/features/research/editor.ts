@@ -78,7 +78,8 @@ function skeletonSvg(picks: readonly number[]): string {
     return `<line x1="${p.x}" y1="${p.y}" x2="${q.x}" y2="${q.y}"/>`;
   }).join('');
   const sel = picks.length >= 2 ? picks.map((i) => P.get(i)!).filter(Boolean) : [];
-  const path = sel.length >= 2 ? `<polyline class="rs-sk-sel" points="${sel.map((p) => `${p.x},${p.y}`).join(' ')}"/>` : '';
+  const path =
+    sel.length >= 2 ? `<polyline class="rs-sk-sel" points="${sel.map((p) => `${p.x},${p.y}`).join(' ')}"/>` : '';
   const pts = SKELETON_POINTS.map((p) => {
     const k = picks.indexOf(p.index);
     const name = bi(LANDMARK_LABELS[p.key]);
@@ -95,7 +96,13 @@ function measureFormHtml(f: MeasureFormState): string {
       const groups = new Map<string, string[]>();
       for (const o of GAIT_METRIC_OPTIONS) {
         const l = groups.get(o.group) ?? [];
-        l.push(opt(o.metricId, `${bi(METRIC_LABELS[o.metricId]) || o.metricId}${o.phase ? ` (${o.phase})` : ''} — ${o.unit}`, f.metric));
+        l.push(
+          opt(
+            o.metricId,
+            `${bi(METRIC_LABELS[o.metricId]) || o.metricId}${o.phase ? ` (${o.phase})` : ''} — ${o.unit}`,
+            f.metric,
+          ),
+        );
         groups.set(o.group, l);
       }
       const sided = f.metric === 'curve' || !!GAIT_METRIC_OPTIONS.find((o) => o.metricId === f.metric)?.sided;
@@ -117,13 +124,18 @@ function measureFormHtml(f: MeasureFormState): string {
       break;
     case 'rom': {
       const sided = !!ROM_TESTS[f.rom]?.sided;
-      body = `<label class="field"><span>${esc(t('rs_romTest'))}</span><select class="input" data-f="rom">${Object.values(ROM_TESTS)
+      body = `<label class="field"><span>${esc(t('rs_romTest'))}</span><select class="input" data-f="rom">${Object.values(
+        ROM_TESTS,
+      )
         .map((x) => opt(x.id, bi(x.name), f.rom))
         .join('')}</select></label>${sided ? sideSelect(f.side, false) : ''}`;
       break;
     }
     case 'prom':
-      body = `<label class="field"><span>${esc(t('rs_prom'))}</span><select class="input" data-f="prom">${[...FREE_ORDER, ...LICENSED_ORDER]
+      body = `<label class="field"><span>${esc(t('rs_prom'))}</span><select class="input" data-f="prom">${[
+        ...FREE_ORDER,
+        ...LICENSED_ORDER,
+      ]
         .filter((id) => INSTRUMENTS[id])
         .map((id) => opt(id, promName(id), f.prom))
         .join('')}</select></label>`;
@@ -217,7 +229,9 @@ function timepointsHtml(tps: readonly Timepoint[]): string {
       (tp, i) =>
         `<div class="rs-tp row"><label class="grow"><span class="sr-only">${esc(t('rs_tpLabel'))}</span><input class="input" data-tp-label="${i}" value="${esc(tp.label)}" aria-label="${esc(t('rs_tpLabel'))}"></label><label class="rs-tp-off"><span class="sr-only">${esc(t('rs_tpOffset'))}</span><input class="input tnum" type="number" step="1" data-tp-off="${i}" value="${tp.offsetDays}" aria-label="${esc(t('rs_tpOffset'))}"></label><span class="small muted">${esc(t('rs_days'))}</span><button type="button" class="btn sm ghost" data-a="tp-del" data-i="${i}" aria-label="${esc(t('rs_remove'))} ${esc(tp.label)}">${icon('close', 16)}</button></div>`,
     )
-    .join('')}<button type="button" class="btn sm ghost" data-a="tp-add">${icon('plus', 16)} ${esc(t('rs_addTimepoint'))}</button></div>`;
+    .join(
+      '',
+    )}<button type="button" class="btn sm ghost" data-a="tp-add">${icon('plus', 16)} ${esc(t('rs_addTimepoint'))}</button></div>`;
 }
 
 function conditionsHtml(cs: readonly string[]): string {
@@ -226,7 +240,9 @@ function conditionsHtml(cs: readonly string[]): string {
       (c, i) =>
         `<span class="chip">${esc(c)} <button type="button" class="rs-x" data-a="c-del" data-i="${i}" aria-label="${esc(t('rs_remove'))} ${esc(c)}">${icon('close', 12)}</button></span>`,
     )
-    .join('')}</div><div class="row rs-mt"><input class="input grow" data-c-new placeholder="${esc(t('rs_addCondition'))}" aria-label="${esc(t('rs_addCondition'))}"><button type="button" class="btn sm ghost" data-a="c-add">${icon('plus', 16)}</button></div>`;
+    .join(
+      '',
+    )}</div><div class="row rs-mt"><input class="input grow" data-c-new placeholder="${esc(t('rs_addCondition'))}" aria-label="${esc(t('rs_addCondition'))}"><button type="button" class="btn sm ghost" data-a="c-add">${icon('plus', 16)}</button></div>`;
 }
 
 /**
@@ -380,4 +396,3 @@ export function draftProblem(d: ProtocolDraft): string | null {
   if (!d.timepoints.length) return t('rs_noTimepoint');
   return null;
 }
-
