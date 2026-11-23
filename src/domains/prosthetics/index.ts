@@ -17,3 +17,29 @@ export {
   PROSTHETIC_DEVIATIONS,
   type ProstheticAssessment,
 } from './deviations.ts';
+export {
+  compareProstheticAssessments,
+  isRetained,
+  stateOf,
+  type DeviationChange,
+  type DeviationDelta,
+  type DeviationState,
+  type ProstheticComparison,
+} from './compare.ts';
+export {
+  buildChecklist,
+  buildProstheticReport,
+  causeGroups,
+  fmtNumber,
+  formatValue,
+  parseProstheticAssessment,
+  prostheticHistory,
+  summarize,
+  validateProfile,
+  CAUSE_ORDER,
+  PROSTHESIS_LEVELS,
+  PROSTHESIS_SIDES,
+  type Checklist,
+  type DeviationReport,
+  type ProstheticReport,
+} from './report.ts';
