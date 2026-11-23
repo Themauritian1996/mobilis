@@ -1,0 +1,50 @@
+# Déploiement du site LIVE sur Firebase Hosting : manuel seulement, et seulement depuis main.
+# Lancer : onglet Actions → « Site live Firebase Hosting » → Run workflow (branche main).
+# Sauté proprement si le secret FIREBASE_SERVICE_ACCOUNT_MOBILIS_6828B est absent.
+name: Site live Firebase Hosting
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hosting-live
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    name: Secret présent ?
+    runs-on: ubuntu-latest
+    outputs:
+      enabled: ${{ steps.s.outputs.enabled }}
+    steps:
+      - id: s
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_MOBILIS_6828B }}
+        run: |
+          if [ -n "$SA" ]; then echo "enabled=true" >> "$GITHUB_OUTPUT"; else echo "enabled=false" >> "$GITHUB_OUTPUT"; echo "Secret absent : déploiement live sauté."; fi
+
+  deploy:
+    name: Build + déploiement live
+    needs: gate
+    if: needs.gate.outputs.enabled == 'true' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Dépendances
+        run: npm ci --no-audit --no-fund
+      - name: Modèles MediaPipe (hors ligne)
+        run: bash scripts/fetch-model.sh
+      - name: Build web (Vite → dist)
+        run: npm run build
+      - uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_MOBILIS_6828B }}
+          projectId: mobilis-6828b
+          channelId: live

@@ -1,0 +1,57 @@
+# Aperçu privé (Firebase Hosting, canal d'aperçu) à chaque envoi sur dev-v2 et dev-v2-*.
+# - L'URL du canal n'est pas devinable et expire après 30 jours ; ce n'est PAS un site public indexé.
+# - Sauté proprement tant que le secret FIREBASE_SERVICE_ACCOUNT_MOBILIS_6828B n'existe pas (voir docs/deploy.md).
+# - Ne touche jamais au canal « live ».
+name: Aperçu Firebase Hosting
+
+on:
+  push:
+    branches: [dev-v2, 'dev-v2-*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hosting-preview-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    name: Secret présent ?
+    runs-on: ubuntu-latest
+    outputs:
+      enabled: ${{ steps.s.outputs.enabled }}
+    steps:
+      - id: s
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_MOBILIS_6828B }}
+        run: |
+          if [ -n "$SA" ]; then echo "enabled=true" >> "$GITHUB_OUTPUT"; else echo "enabled=false" >> "$GITHUB_OUTPUT"; echo "Secret FIREBASE_SERVICE_ACCOUNT_MOBILIS_6828B absent : déploiement d'aperçu sauté."; fi
+
+  deploy:
+    name: Build + canal d'aperçu
+    needs: gate
+    if: needs.gate.outputs.enabled == 'true' && github.ref != 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Dépendances
+        run: npm ci --no-audit --no-fund
+      - name: Modèles MediaPipe (hors ligne)
+        run: bash scripts/fetch-model.sh
+      - name: Build web (Vite → dist)
+        run: npm run build
+      - name: Nom du canal
+        id: ch
+        run: echo "id=$(echo "${GITHUB_REF_NAME}" | tr '/_' '--' | tr 'A-Z' 'a-z' | cut -c1-60)" >> "$GITHUB_OUTPUT"
+      - uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_MOBILIS_6828B }}
+          projectId: mobilis-6828b
+          channelId: ${{ steps.ch.outputs.id }}
+          expires: 30d

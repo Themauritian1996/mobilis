@@ -1,0 +1,69 @@
+# APK de TEST privé via Firebase App Distribution (groupe de testeurs « testeurs »).
+# - Facultatif : sauté proprement si FIREBASE_APP_ID_ANDROID ou FIREBASE_SERVICE_ACCOUNT_MOBILIS_6828B est absent.
+# - APK de debug : pour tests seulement, jamais publié sur une Release publique.
+# - Workflow séparé : ci-v2.yml reste sans aucun secret.
+name: APK de test (App Distribution)
+
+on:
+  push:
+    branches: [dev-v2, 'dev-v2-*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apk-dist-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    name: Secrets présents ?
+    runs-on: ubuntu-latest
+    outputs:
+      enabled: ${{ steps.s.outputs.enabled }}
+    steps:
+      - id: s
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_MOBILIS_6828B }}
+          APP: ${{ secrets.FIREBASE_APP_ID_ANDROID }}
+        run: |
+          if [ -n "$SA" ] && [ -n "$APP" ]; then echo "enabled=true" >> "$GITHUB_OUTPUT"; else echo "enabled=false" >> "$GITHUB_OUTPUT"; echo "Secrets absents : distribution de l'APK sautée."; fi
+
+  distribute:
+    name: Build APK debug + distribution
+    needs: gate
+    if: needs.gate.outputs.enabled == 'true' && github.ref != 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Dépendances
+        run: npm ci --no-audit --no-fund
+      - name: Modèles MediaPipe (hors ligne)
+        run: bash scripts/fetch-model.sh
+      - name: Build web
+        run: npm run build
+      - name: Projet Android
+        run: npm run android:prepare
+      - name: Synchroniser dist dans l'app
+        run: npx cap sync android
+      - name: Compiler l'APK (debug)
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+      - uses: wzieba/Firebase-Distribution-Github-Action@v1
+        with:
+          appId: ${{ secrets.FIREBASE_APP_ID_ANDROID }}
+          serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_MOBILIS_6828B }}
+          groups: testeurs
+          file: android/app/build/outputs/apk/debug/app-debug.apk
+          releaseNotes: "Branche ${{ github.ref_name }}, commit ${{ github.sha }}"

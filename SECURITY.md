@@ -26,6 +26,7 @@ Objectifs de réponse (à confirmer par le responsable) : accusé de réception 
 - **Aucun secret ne doit être versionné** : clé d'API Gemini, compte de service Firebase, jeton GitHub, mot de passe, clé de signature Android (fichier `.jks`), `google-services.json` privé.
 - Les secrets de déploiement vivent dans les secrets GitHub Actions (par exemple `FIREBASE_SERVICE_ACCOUNT`) ou dans les variables de la plateforme d'hébergement.
 - Les clés de configuration web Firebase (dans `www/js/config.js`) sont des identifiants publics de projet, et non des secrets. Leur protection repose sur les règles de sécurité Firestore et sur les restrictions de la clé dans Google Cloud (à configurer et à documenter).
+- **Clé web Firebase** : la valeur `apiKey` de la configuration web est un identifiant public, pas un secret ; elle reste dans le code. À restreindre dans Google Cloud (référents HTTP pour le web, application Android `ca.mobilis.app` + SHA-1 pour l'APK) : voir `docs/deploy.md`. Le secret de déploiement s'appelle `FIREBASE_SERVICE_ACCOUNT_MOBILIS_6828B` (et `FIREBASE_APP_ID_ANDROID` pour App Distribution).
 - Si un secret est versionné par erreur : le révoquer immédiatement, puis signaler. Le retirer du fichier ne suffit pas, car il reste dans l'historique Git.
 
 ## Données de santé
