@@ -1,7 +1,8 @@
 // Protocoles post-opératoires : sélection par le clinicien, carte d'accueil, écran « Protocole », résumé
 // (reprise de www/js/protocols-ui.js). Sans dépendance au DOM global au chargement (testable en Node) : les helpers
 // d'interface sont locaux.
-import { t, tp, tr } from '../../../www/js/i18n.js';
+import { t, tp } from '../../../www/js/i18n.js';
+import { tr } from '../components/l10n.ts';
 import {
   PROTOCOLS,
   protocolById,
@@ -32,18 +33,10 @@ interface ProtocolProfile extends Profile {
 interface RxLike {
   protocol?: ProfileProtocol | null;
 }
-interface Variant {
-  id: string;
-  name: unknown;
-}
-interface ProtoFull extends ProtoLike {
-  name: unknown;
-  surgery: unknown;
-  redFlags: unknown[];
-}
-interface ProtoLike {
-  variants?: Variant[];
-}
+/** Protocole du catalogue (data/protocols). */
+type Protocol = NonNullable<ReturnType<typeof protocolById>>;
+type ProtoLike = Protocol;
+type ProtoFull = Protocol;
 interface Phase {
   id: string;
   weeks: [number, number | null];
@@ -97,7 +90,7 @@ export function rxSectionProtocol(rx?: RxLike | null): RxSection<ProtocolRead> {
   const cur = rx?.protocol || null;
   const html = `<div class="proto-rx" id="pr-root"><h2 style="margin-top:0">${esc(t('pr_choose'))}</h2>
     <label class="field"><select class="input" id="pr-id" aria-label="${esc(t('pr_choose'))}"><option value="">${esc(t('pr_none'))}</option>
-      ${(PROTOCOLS as { id: string; name: unknown }[]).map((p) => `<option value="${p.id}" ${cur?.id === p.id ? 'selected' : ''}>${esc(tr(p.name))}</option>`).join('')}</select></label>
+      ${PROTOCOLS.map((p) => `<option value="${p.id}" ${cur?.id === p.id ? 'selected' : ''}>${esc(tr(p.name))}</option>`).join('')}</select></label>
     <div id="pr-var-wrap" ${cur ? '' : 'hidden'}></div>
     <div id="pr-detail" ${cur ? '' : 'hidden'}>
       <label class="field"><span>${esc(t('pr_date'))}</span><input class="input" type="date" id="pr-date" value="${esc(cur?.surgeryDate || '')}" max="${esc(todayStr(Date.now() + 365 * 86400000))}"></label>
@@ -124,7 +117,7 @@ export function rxSectionProtocol(rx?: RxLike | null): RxSection<ProtocolRead> {
     read(root) {
       const r = root.querySelector<HTMLElement>('#pr-root') || root;
       const id = r.querySelector<HTMLSelectElement>('#pr-id')?.value;
-      const proto: ProtoLike | null | undefined = protocolById(id);
+      const proto: ProtoLike | null | undefined = protocolById(id as string);
       if (!proto || id === undefined) return { protocol: null };
       const date = r.querySelector<HTMLInputElement>('#pr-date')?.value || '';
       if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { protocol: null, error: 'surgeryDate' };
@@ -163,7 +156,7 @@ export function rxExtrasProtocol(
 
 // ───────── Résumé pour le clinicien ─────────
 export function summaryPart(profile: unknown, now = Date.now()): { protocol?: Record<string, unknown> } {
-  const st = P.protocolStatus(profile, now);
+  const st = P.protocolStatus(profile as Profile, now);
   if (!st) return {};
   return {
     protocol: {
@@ -183,7 +176,7 @@ export function summaryPart(profile: unknown, now = Date.now()): { protocol?: Re
 
 // ───────── Carte d'accueil ─────────
 export function homeCardProtocol(prof: unknown, now = Date.now()): string {
-  const st = P.protocolStatus(prof, now);
+  const st = P.protocolStatus(prof as Profile, now);
   if (!st) return '';
   const proto = st.protocol as ProtoFull;
   const v = variantName(proto, st.variant);
@@ -205,7 +198,7 @@ export function homeCardProtocol(prof: unknown, now = Date.now()): string {
 
 // ───────── Écran « Protocole » (#/protocole) ─────────
 export function protocolViewHtml(prof: unknown, now = Date.now()): string {
-  const st = P.protocolStatus(prof, now);
+  const st = P.protocolStatus(prof as Profile, now);
   const top = `<div class="topbar"><button class="icon-btn" data-go="#/" aria-label="${esc(t('back'))}">${ICON_BACK}</button><h1>${esc(t('pr_title'))}</h1></div>`;
   if (!st) return `<section class="screen">${top}<div class="card muted">${esc(t('pr_noProtocol'))}</div></section>`;
   const proto = st.protocol as ProtoFull;
@@ -216,14 +209,14 @@ export function protocolViewHtml(prof: unknown, now = Date.now()): string {
         `<i class="${i < st.phaseIndex ? 'done' : i === st.phaseIndex ? (st.blocked ? 'blocked' : 'cur') : ''}"></i>`,
     )
     .join('');
-  const list = (arr: unknown[]): string => `<ul>${arr.map((x) => `<li>${esc(tr(x))}</li>`).join('')}</ul>`;
+  const list = (arr: readonly unknown[]): string => `<ul>${arr.map((x) => `<li>${esc(tr(x))}</li>`).join('')}</ul>`;
   const roms = (ph: Phase): string =>
     (ph.romTargets || []).length
       ? `<h3>${esc(t('pr_rom'))}</h3><ul>${(ph.romTargets ?? []).map((r) => `<li>${esc(t('pr_rom_' + r.test))} ${r.dir === 'max' ? '≤' : '≥'} ${r.deg}°</li>`).join('')}</ul>`
       : '';
   const exs = (ph: Phase): string =>
     `<h3>${esc(t('pr_exercises'))}</h3><ul>${ph.exercises
-      .map((e) => exerciseEntry(e) as { id: string })
+      .map((e) => exerciseEntry(e as Parameters<typeof exerciseEntry>[0]) as { id: string })
       .filter((e) => EXERCISES[e.id])
       .map((e) => `<li>${esc(tr(EXERCISES[e.id]!.name))}</li>`)
       .join('')}</ul>`;

@@ -10,9 +10,9 @@ const DAY = 86400000;
 
 /** Profil : champs lus par les rendez-vous et les rappels. */
 export interface ReminderProfile {
-  appointments?: Appointment[];
+  appointments?: Appointment[] | undefined;
   nextVisit?: string | null | undefined;
-  clinician?: string;
+  clinician?: string | undefined;
   remind?: { on?: boolean; time?: string } | undefined;
   [key: string]: unknown;
 }
@@ -93,9 +93,18 @@ export function planReminders(prof: ReminderProfile, now: number = Date.now()): 
 }
 
 // ---------- Rappels (APK) ----------
+/** Plugin Capacitor « notifications locales » : seuls les membres appelés ici sont décrits. */
+interface LocalNotificationsApi {
+  getPending(): Promise<{ notifications: { id: number }[] }>;
+  cancel(o: { notifications: { id: number }[] }): Promise<unknown>;
+  requestPermissions(): Promise<{ display: string }>;
+  schedule(o: { notifications: unknown[] }): Promise<unknown>;
+}
+const notificationsApi = async (): Promise<LocalNotificationsApi> =>
+  ((await store.cap()) as unknown as { LocalNotifications: LocalNotificationsApi }).LocalNotifications;
 export async function clearReminders(): Promise<boolean> {
   try {
-    const { LocalNotifications } = await store.cap();
+    const LocalNotifications = await notificationsApi();
     const pending = await LocalNotifications.getPending();
     if (pending.notifications.length)
       await LocalNotifications.cancel({
@@ -109,7 +118,7 @@ export async function clearReminders(): Promise<boolean> {
 export async function scheduleReminders(prof: ReminderProfile): Promise<boolean> {
   if (!store.isNative()) return false;
   try {
-    const { LocalNotifications } = await store.cap();
+    const LocalNotifications = await notificationsApi();
     const perm = await LocalNotifications.requestPermissions();
     if (perm.display !== 'granted') return false;
     await clearReminders();

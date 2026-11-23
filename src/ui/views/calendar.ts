@@ -1,6 +1,7 @@
 // Calendrier de suivi : séances faites / prévues / manquées, rendez-vous, rappels (APK) et export agenda (web)
 // (reprise de www/js/calendar.js). Rendez-vous et rappels : domains/rehab/calendar.ts.
-import { t, tp, tr, locale, dowNarrow } from '../../../www/js/i18n.js';
+import { t, tp, locale, dowNarrow } from '../../../www/js/i18n.js';
+import { tr } from '../components/l10n.ts';
 import * as P from '../../../www/js/program.js';
 import * as store from '../../../www/js/store.js';
 import { EXERCISES as EXERCISE_DATA } from '../../../www/js/data/exercises.js';
@@ -29,12 +30,7 @@ const { exceptionPatch } = P;
 const EXERCISES = EXERCISE_DATA as unknown as Record<string, { name: unknown } | undefined>;
 const key: (ts?: number) => string = P.todayKey;
 
-interface CalProfile extends Profile, ReminderProfile {
-  days?: number[];
-  calSkip?: string[];
-  calExtra?: string[];
-  calMoves?: Record<string, string>;
-}
+type CalProfile = Profile & ReminderProfile;
 interface DayInfo {
   k: string;
   done: boolean;
@@ -248,7 +244,7 @@ export function viewCalendar(): void {
       }),
   );
   const apply = async (op: string, to?: string): Promise<void> => {
-    await updateProfile(exceptionPatch(profile(), op, C.sel, to));
+    await updateProfile({ ...exceptionPatch(profile() ?? {}, op, C.sel as string, to) });
     if (remindOn()) await scheduleReminders(profile() as CalProfile);
     toast(t('saved'));
     viewCalendar();

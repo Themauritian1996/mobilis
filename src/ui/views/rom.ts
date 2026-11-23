@@ -5,7 +5,8 @@
 //
 // Précision : voir la `note` de chaque test. Ordre de grandeur : ± 5° (coude, genou), ± 8–10° (hanche, poignet), ± 10–15° (rotation externe
 // d'épaule, rotation cervicale). Ce n'est pas un goniomètre : sert à suivre l'évolution d'un même patient, avec la même installation.
-import { t, tp, tr, locale, aiLangInfo } from '../../../www/js/i18n.js';
+import { t, tp, locale, aiLangInfo } from '../../../www/js/i18n.js';
+import { tr } from '../components/l10n.ts';
 import { measure, planeRatio, jointIdx } from '../../../www/js/data/romtests.js';
 import type * as Coach from '../../../www/js/coach.js';
 import * as store from '../../../www/js/store.js';
@@ -311,11 +312,15 @@ export function clinicPanelRom(part: { rom?: readonly RomSummaryRow[] } | null |
 function statLine(tr_: RomTrend, T: RomTestInfo): string {
   return `<div class="rom-stats"><div><small>${esc(t('rom_last'))}</small><b>${fmtVal(tr_.last, T)}</b></div><div><small>${esc(t('rom_baseline'))}</small><b>${fmtVal(tr_.baseline, T)}</b></div><div><small>${esc(t('rom_gain'))}</small><b class="${sign(tr_.gain)}">${fmtGain(tr_.gain, T)}</b></div>${tr_.pctNormal !== null ? `<div><small>${esc(t('rom_pctNormal'))}</small><b>${tr_.pctNormal} %</b></div>` : ''}</div>`;
 }
+/** Journal des mesures d'amplitude du profil. */
+const romLogOf = (prof: { romLog?: unknown } | undefined): readonly RomLogRow[] =>
+  (prof?.romLog as RomLogRow[] | undefined) || [];
+
 export async function viewRomHistory($app: Host): Promise<void> {
   const root = hostOf($app);
   if (!/^#\/amplitude/.test(location.hash)) return;
   const prof = profile() || {};
-  const log: readonly RomLogRow[] = prof.romLog || [];
+  const log: readonly RomLogRow[] = romLogOf(prof);
   const plan = planItems(prof['romPlan']);
   const dueNow = dueForProfile({ ...prof, romPlan: prof['romPlan'] } as Parameters<typeof dueForProfile>[0]);
   const planTests = [...new Set(plan.map((p) => p.test))];
@@ -392,7 +397,7 @@ interface RomState {
   place: { gate: InstanceType<typeof PlacementGate>; t0: number; shown: string | null; timer: Timer } | null;
   luma: { mean: number; center: number; edges: number } | null;
   lumaT: number;
-  handPrev: { lm: ArrayLike<LandmarkLike>; world: unknown } | null;
+  handPrev: { lm: readonly LandmarkLike[]; world: unknown } | null;
   cur: number | null;
   hand: boolean;
   closed: boolean;
@@ -405,7 +410,7 @@ interface RomState {
     aiN: number;
     aiBusy: boolean;
     last: unknown;
-    lm: ArrayLike<LandmarkLike> | null;
+    lm: readonly LandmarkLike[] | null;
     shown: string | null;
     timer: Timer;
   } | null;
@@ -639,11 +644,11 @@ export async function viewRom(
     g.drawImage(frame, r.ox, r.oy, r.w, r.h);
     g.restore();
   }
-  const project = (lm: ArrayLike<LandmarkLike>): ReturnType<typeof projectLandmarks> =>
+  const project = (lm: readonly LandmarkLike[]): ReturnType<typeof projectLandmarks> =>
     projectLandmarks(lm, V.fw, V.fh, V.W, V.H, 'cover');
   const toScreen = (p: { x: number; y: number }): { x: number; y: number } => {
     const q = projectLandmarks([{ x: p.x / V.fw, y: p.y / V.fh }], V.fw, V.fh, V.W, V.H, 'cover')[0];
-    return { x: (S.mirror ? 1 - q.x : q.x) * V.W, y: q.y * V.H };
+    return { x: (S.mirror ? 1 - (q?.x ?? 0) : (q?.x ?? 0)) * V.W, y: (q?.y ?? 0) * V.H };
   };
   interface ArcDraw {
     c: { x: number; y: number };
@@ -838,7 +843,7 @@ export async function viewRom(
   $('[data-r="close"]').onclick = leave;
 
   // ----- écran d'introduction -----
-  const last = (): RomTrend => trend(prof.romLog, T.id, sd);
+  const last = (): RomTrend => trend(romLogOf(prof), T.id, sd);
   function introHtml(): string {
     const tr_ = last();
     return `<div class="rom-intro"><div class="row between" style="align-items:flex-start;gap:12px"><div><h2 style="margin:0 0 4px">${esc(tr(T.name))}</h2><div class="row wrap" style="gap:6px">${big ? `<span class="rom-sidechip" style="--sc:${big.color}">${esc(big.text)}</span>` : ''}<span class="chip">${esc(t(T.view === 'side' ? 'rom_viewSide' : 'rom_viewFront'))}</span>${T.lowConfidence ? `<span class="chip neg">${esc(t('rom_lowConfTag'))}</span>` : ''}</div></div>${schematic(T)}</div>
@@ -929,7 +934,6 @@ export async function viewRom(
   }
   interface PlaceIssue {
     key: string;
-    [k: string]: unknown;
   }
   function renderPlace(issue: PlaceIssue | null, kind: string): void {
     const box = $('.place');
@@ -964,7 +968,7 @@ export async function viewRom(
     beginStart();
   }
   $('[data-r="place-skip"]').onclick = () => endPlacement(false);
-  function placeStep(now: number, lm: ArrayLike<LandmarkLike> | null, hand: unknown): void {
+  function placeStep(now: number, lm: readonly LandmarkLike[] | null, hand: unknown): void {
     const P = S.place;
     if (!P) return;
     if (now - S.lumaT > 300) {
@@ -973,9 +977,9 @@ export async function viewRom(
     }
     const a = assessPlacement({
       kind: 'body',
-      plane: T.view,
+      plane: T.view as 'side' | 'front',
       side: sd,
-      scope: T.scope,
+      scope: T.scope as string,
       lm,
       frameW: V.fw,
       frameH: V.fh,
@@ -1078,7 +1082,7 @@ export async function viewRom(
     beginTrial();
   }
   $('[data-r="start-skip"]').onclick = () => endStart(false);
-  function startStep(now: number, lm: ArrayLike<LandmarkLike> | null): void {
+  function startStep(now: number, lm: readonly LandmarkLike[] | null): void {
     const A = S.start;
     if (!A) return;
     const s: StartSample | null = lm
@@ -1122,7 +1126,7 @@ export async function viewRom(
       void startAdvice(chk, s);
   }
   // Conseil IA facultatif (clé personnelle ou partagée) : une image annotée + les mesures locales → 2 phrases courtes, dites et affichées
-  function annotated(lm: ArrayLike<LandmarkLike> | null, w = 512): string | null {
+  function annotated(lm: readonly LandmarkLike[] | null, w = 512): string | null {
     try {
       const c = document.createElement('canvas');
       const k = w / V.fw;
@@ -1259,13 +1263,14 @@ export async function viewRom(
     if (S.stage === 'result') return;
     const now = performance.now();
     if (!S.pace || !S.pace.due(now) || !grab()) return;
-    let lm: ArrayLike<LandmarkLike> | null = null;
+    let lm: readonly LandmarkLike[] | null = null;
     let world: unknown = null;
-    let hand: { lm: ArrayLike<LandmarkLike>; world: unknown } | null = null;
+    let hand: { lm: readonly LandmarkLike[]; world: unknown } | null = null;
     try {
       const res = lmk?.detectForVideo(frame, now);
       lm = res && res.landmarks && res.landmarks[0] ? res.landmarks[0] : null;
-      world = res && res.worldLandmarks && res.worldLandmarks[0] ? res.worldLandmarks[0] : null;
+      const wl = (res as { worldLandmarks?: unknown[][] } | undefined)?.worldLandmarks;
+      world = wl?.[0] ? wl[0] : null;
       if (T.needsHand && S.hand)
         hand = pickHand(detectHands(frame, now), sd, S.handPrev as Parameters<typeof pickHand>[2]);
       S.handPrev = hand;
@@ -1274,7 +1279,7 @@ export async function viewRom(
     }
     S.pace.done(now, performance.now());
     const gd = guard.check(lm, now, V.fw / V.fh);
-    lm = gd.lm;
+    lm = gd.lm ?? null;
     paintFrame();
     if (lm) drawSkeleton(g, project(smooth.apply(lm, now)), V.W, V.H, new Set(), S.mirror, true);
     else smooth.reset();
@@ -1336,7 +1341,7 @@ export async function viewRom(
     $('[data-r="manual"]').hidden = true;
     g.clearRect(0, 0, canvas.width, canvas.height);
     const best = bestTrial(S.trials, { dir: T.dir ?? 1 });
-    const prev = trend(prof.romLog, T.id ?? '', sd);
+    const prev = trend(romLogOf(prof), T.id ?? '', sd);
     const list = S.trials
       .map(
         (x, i) =>
@@ -1356,7 +1361,7 @@ export async function viewRom(
     const vsBase = prev.baseline !== null ? r1(dir * (best.deg - prev.baseline)) : null;
     const vsPrev = prev.last !== null ? r1(dir * (best.deg - prev.last)) : null;
     const pct = T && !T.deficit && T.normal.ref > 0 ? Math.round((best.deg / T.normal.ref) * 100) : null;
-    const opp = sd ? seriesOf(prof.romLog, T.id ?? '', sd === 'L' ? 'R' : 'L') : [];
+    const opp = sd ? seriesOf(romLogOf(prof), T.id ?? '', sd === 'L' ? 'R' : 'L') : [];
     const oppRow = opp[opp.length - 1];
     const oppLast = oppRow ? oppRow.deg : null;
     setup(`<div class="rom-res"><small class="muted">${esc(tr(T.name))}${sd ? ' · ' + esc(sideName(sd)) : ''}</small>

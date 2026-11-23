@@ -55,7 +55,7 @@ export function viewAuth(): void {
       viewAuth();
     };
   q('[data-a="local"]').onclick = () =>
-    store.signInLocal(async (u: AuthUser) => {
+    store.signInLocal(async (u) => {
       state.user = u;
       state.data = await store.loadData();
       render();
@@ -65,7 +65,7 @@ export function viewAuth(): void {
   q<HTMLInputElement>('#rs-file').onchange = (e) => {
     const f = (e.target as HTMLInputElement).files?.[0];
     if (!f) return;
-    void store.signInLocal(async (u: AuthUser) => {
+    void store.signInLocal(async (u) => {
       state.user = u;
       try {
         await store.importData(await f.text(), { replaceProfile: true });
@@ -94,6 +94,3 @@ export function viewAuth(): void {
       .catch(err);
   };
 }
-
-/** Utilisateur renvoyé par le magasin (compte en ligne ou mode local). */
-type AuthUser = NonNullable<typeof state.user>;

@@ -14,7 +14,7 @@ export interface AdjustDose {
   sets?: number | undefined;
   reps?: number | undefined;
   hold?: number | undefined;
-  rest?: number | undefined;
+  rest?: number | null | undefined;
 }
 
 /**
@@ -31,7 +31,7 @@ export function adjustDose(dose: AdjustDose, key: AdjustKey, dir: number): Adjus
 /** Plafond de niveau d'un exercice : celui du clinicien si la phase est verrouillée, sinon 5. */
 export function levelCap(
   lockPhase: boolean | undefined,
-  maxLevel: Record<string, number> | undefined,
+  maxLevel: Record<string, number | undefined> | undefined,
   id: string,
 ): number {
   return lockPhase ? Math.max(1, maxLevel?.[id] ?? 5) : 5;

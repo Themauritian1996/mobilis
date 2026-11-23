@@ -1,7 +1,8 @@
 // Mode clinicien : préparer un programme, l'envoyer par code / QR / lien, suivre et ajuster la progression du patient
 // (reprise de www/js/clinic.js, v1.15). La logique pure (formulaire, dose, charge utile, partage, QR) est dans
 // domains/clinic/rx.ts.
-import { t, tp, tr, locale, LANGS, langInfo, dowNarrow } from '../../../www/js/i18n.js';
+import { t, tp, locale, LANGS, langInfo, dowNarrow } from '../../../www/js/i18n.js';
+import { tr } from '../components/l10n.ts';
 import { REGIONS as REGION_DATA } from '../../../www/js/data/pathologies.js';
 import { EXERCISES as EXERCISE_DATA, EQUIP as EQUIP_DATA } from '../../../www/js/data/exercises.js';
 import { EQUIP_IDS, missing, alternatives } from '../../../www/js/equip.js';
@@ -151,6 +152,9 @@ interface RxListItem extends StoredRx {
   patients?: Patient[];
   updated: number;
 }
+/** Programme tel que lu par les fonctions du magasin (rx stocké, avec ses champs libres). */
+const rxArg = (rx: StoredRx): Parameters<typeof store.deleteRx>[0] =>
+  rx as unknown as Parameters<typeof store.deleteRx>[0];
 const ptKey = (p: Patient): string => String(p.uid || p.updated);
 
 export async function viewClinic(): Promise<void> {
@@ -229,7 +233,10 @@ export async function viewClinic(): Promise<void> {
         if (!slot) return;
         slot.innerHTML = R.clinicPdfButton(p);
         const protocol = rx['protocol'] as { surgeryDate?: string } | null | undefined;
-        R.bindClinicPdf?.(slot, p, { pathology: rx.pathology, surgeryDate: protocol?.surgeryDate });
+        R.bindClinicPdf?.(slot, p as unknown as Parameters<NonNullable<typeof R.bindClinicPdf>>[1], {
+          pathology: rx.pathology,
+          surgeryDate: protocol?.surgeryDate,
+        });
       }),
     );
   });
@@ -248,7 +255,7 @@ export async function viewClinic(): Promise<void> {
   // Dupliquer / archiver / supprimer un programme
   each('[data-dup]', async (b) => {
     try {
-      await store.duplicateRx(find(dsv(b, 'dup')), ' ·2');
+      await store.duplicateRx(rxArg(find(dsv(b, 'dup'))), ' ·2');
       toast(t('rxDupDone'));
       void viewClinic();
     } catch (e) {
@@ -259,7 +266,7 @@ export async function viewClinic(): Promise<void> {
   each('[data-arc]', async (b) => {
     const rx = find(dsv(b, 'arc'));
     try {
-      await store.setRxArchived(rx, !rx.archived);
+      await store.setRxArchived(rxArg(rx), !rx.archived);
       toast(t('saved'));
       void viewClinic();
     } catch (e) {
@@ -271,7 +278,7 @@ export async function viewClinic(): Promise<void> {
     const rx = find(dsv(b, 'rmrx'));
     if (!(await confirmSheet({ title: t('rxDelAsk'), text: t('rxDelAskD'), ok: t('delete'), danger: true }))) return;
     try {
-      await store.deleteRx(rx);
+      await store.deleteRx(rxArg(rx));
       toast(t('rxDeleted'));
       void viewClinic();
     } catch (e) {
@@ -283,7 +290,9 @@ export async function viewClinic(): Promise<void> {
   each('[data-csv]', async (b) => {
     const p = list.flatMap((rx) => rx.patients || []).find((x) => ptKey(x) === dsv(b, 'csv'));
     if (!p) return;
-    const csv = patientCsv(p, { nameOf: (id: string) => tr(EXERCISES[id]?.name) || id });
+    const csv = patientCsv(p as unknown as Parameters<typeof patientCsv>[0], {
+      nameOf: (id: string) => tr(EXERCISES[id]?.name) || id,
+    });
     const nm = patientFileBase(p.name);
     try {
       await saveFile(csv, `mobilis-${nm}-${P.todayKey()}.csv`, 'text/csv', { title: 'Mobilis CSV' });
@@ -401,7 +410,9 @@ export async function viewRxEditor(code?: string | null): Promise<void> {
         ) as unknown as SectionLike,
         prom: rxSectionProm(asRx) as unknown as SectionLike,
         rom: rxSectionRom(form) as unknown as SectionLike,
-        report: R?.rxSectionReport ? (R.rxSectionReport(form) as SectionLike) : null,
+        report: R?.rxSectionReport
+          ? (R.rxSectionReport(form as unknown as Parameters<NonNullable<typeof R.rxSectionReport>>[0]) as SectionLike)
+          : null,
       }
     : null;
   const aiSec = rxSectionAI(form);
@@ -504,7 +515,7 @@ export async function viewRxEditor(code?: string | null): Promise<void> {
     <div class="list" style="margin-top:14px"><div class="toggle"><span><b>${t('autoProg')}</b><br><small class="muted">${t('autoProgD')}</small></span><button class="switch ${form.auto ? 'on' : ''}" id="auto" role="switch" aria-checked="${form.auto}"></button></div></div>
     <label class="field" style="margin-top:14px"><span>${t('notesForPatient')}</span><textarea class="input" id="nt" placeholder="${t('notesPh')}">${esc(form.notes)}</textarea></label>
     <label class="field"><span>${t('nextVisit')}</span><input class="input" type="date" id="nv" value="${esc(form.nextVisit)}"></label>
-    <label class="field"><span>${t('patientLang')}</span><select class="input" id="pl">${(LANGS as { id: string; name: string }[]).map((l) => `<option value="${l.id}" ${form.lang === l.id ? 'selected' : ''}>${l.name}</option>`).join('')}</select><small class="muted">${t('patientLangD')}</small></label>
+    <label class="field"><span>${t('patientLang')}</span><select class="input" id="pl">${LANGS.map((l) => `<option value="${l.id}" ${form.lang === l.id ? 'selected' : ''}>${l.name}</option>`).join('')}</select><small class="muted">${t('patientLangD')}</small></label>
     ${secHtml}`
         : ''
     }
@@ -691,7 +702,11 @@ export async function viewRxEditor(code?: string | null): Promise<void> {
     }
     if (form.localId) data.localId = form.localId;
     try {
-      const res = (await store.saveRx(data)) as { code?: string; link: string; keyInLink?: boolean };
+      const res = (await store.saveRx(data as unknown as Parameters<typeof store.saveRx>[0])) as {
+        code?: string;
+        link: string;
+        keyInLink?: boolean;
+      };
       if (form.clinician.trim() && form.clinician.trim() !== prof['clinicianName'])
         await store.saveProfile({ ...(profile() as Profile), clinicianName: form.clinician.trim() });
       state.clinic = null;

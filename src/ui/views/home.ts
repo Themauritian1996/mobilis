@@ -1,11 +1,13 @@
 // Écran d'accueil (reprise de www/js/app.js) : séance du jour, indicateurs, « À faire », phase suivante, éducation.
 import { firebaseEnabled } from '../../../www/js/config.js';
-import { t, tp, tr, locale } from '../../../www/js/i18n.js';
+import { t, tp, locale } from '../../../www/js/i18n.js';
+import { trList } from '../components/l10n.ts';
 import * as store from '../../../www/js/store.js';
 import * as P from '../../../www/js/program.js';
 import { programEnded } from '../../../www/js/longterm.js';
 import {
   state,
+  journal,
   render,
   go,
   profile,
@@ -15,7 +17,6 @@ import {
   nextExercise,
   syncProgress,
   navRole,
-  type JournalEntry,
 } from '../app-state.ts';
 import { esc } from '../components/html.ts';
 import { isNil } from '../util.ts';
@@ -43,6 +44,11 @@ import {
   askImageConsent,
 } from './shared.ts';
 
+/** Textes d'éducation d'une pathologie (catalogue legacy). */
+interface PathologyTexts {
+  edu?: unknown;
+  avoid?: unknown;
+}
 /** Phase suivante (sortie de `program.nextPhaseInfo`). */
 interface NextPhaseInfo {
   done?: boolean;
@@ -52,11 +58,6 @@ interface NextPhaseInfo {
   sessionsNeeded: number;
   painOk: boolean;
   painMax: number;
-}
-/** Pathologie, champs lus par l'accueil. */
-interface PathologyInfo {
-  edu?: unknown;
-  avoid?: unknown;
 }
 
 async function weeklyMaybe(): Promise<void> {
@@ -104,20 +105,21 @@ export function viewHome(): void {
     P.weeklyStats(prof, sessions()).slice(-1)[0] || {};
   const next = nextExercise();
   const today = P.todayKey();
-  const journal = (state.data?.journal || []).find((j: JournalEntry) => j.day === today);
+  const todayJournal = journal().find((j) => j.day === today);
   const flare = P.inFlare(prof);
   const appt = appointments(raw).find((a) => a.date >= today);
   const isTrainDay = P.isPlannedDay(prof, today);
   const npi = P.nextPhaseInfo(prof, sessions()) as unknown as NextPhaseInfo;
-  const path: PathologyInfo | undefined = P.pathologyById(prof.pathology);
+  const path = P.pathologyById(prof.pathology) as unknown as PathologyTexts | undefined;
   // « À faire » : questionnaire, mesure d'amplitude, rapport, semaine du protocole
   const todo = [
-    homeCardProm(raw),
-    homeCardRom(raw),
+    homeCardProm(raw as Parameters<typeof homeCardProm>[0]),
+    homeCardRom(raw as unknown as Parameters<typeof homeCardRom>[0]),
     RPT?.homeCardReport ? RPT.homeCardReport(prof) : '',
     homeCardProtocol(prof),
   ].filter(Boolean);
   const isPatientView = prof.role !== 'clinician';
+  const badgeProf = prof as unknown as Parameters<typeof homeChipBadges>[0];
 
   $app.innerHTML = `<section class="screen">${trialBar()}
     <div class="hello"><div class="avatar">${esc((prof.name || '?')[0]?.toUpperCase())}</div><div class="grow"><span class="eyebrow">${new Date().toLocaleDateString(locale(), { weekday: 'long', day: 'numeric', month: 'long' })}</span><h1 class="hello-name">${t('hello')} ${esc(prof.name)}</h1></div>
@@ -134,10 +136,10 @@ export function viewHome(): void {
       <div><b>${ws.sessions ?? 0}<small>/${P.plannedPerWeek(prof)}</small></b><span>${t('sessions')}</span></div>
       <div><b>${!isNil(ws.pain) ? ws.pain.toFixed(1) : '–'}</b><span>${t('avgPain')}</span></div>
       <div><b>${!isNil(ws.quality) ? Math.round(ws.quality * 100) + '%' : '–'}</b><span>${t('quality')}</span></div></div></div>
-    ${isPatientView && homeChipBadges(prof) ? `<div class="row wrap" style="margin-top:12px;gap:8px">${homeChipBadges(prof)}</div>` : ''}
+    ${isPatientView && homeChipBadges(badgeProf) ? `<div class="row wrap" style="margin-top:12px;gap:8px">${homeChipBadges(badgeProf)}</div>` : ''}
 
     ${
-      journal
+      todayJournal
         ? ''
         : `<div class="card" style="margin-top:12px"><div class="row between"><b>${t('dailyQ')}</b><span class="small muted tnum">0–10</span></div>
       <div class="seg" style="margin-top:10px">${[0, 2, 4, 6, 8, 10].map((n) => `<button data-jp="${n}">${n}</button>`).join('')}</div></div>`
@@ -162,13 +164,15 @@ export function viewHome(): void {
       <ul class="list-plain small">
         <li class="${npi.weeksLeft ? '' : 'pos'}">${npi.weeksLeft ? tp('weeksLeft', npi.weeksLeft) : t('weeksOk')}</li>
         <li class="${npi.sessionsNeeded ? '' : 'pos'}">${npi.sessionsNeeded ? tp('sessionsNeeded', npi.sessionsNeeded) : t('sessionsOk')}</li>
-        <li class="${npi.painOk ? 'pos' : 'neg'}">${(npi.painOk ? t('painOk') : t('painHigh')).replace('{m}', npi.painMax)}</li></ul>`
+        <li class="${npi.painOk ? 'pos' : 'neg'}">${(npi.painOk ? t('painOk') : t('painHigh')).replace('{m}', String(npi.painMax))}</li></ul>`
     }</div>
 
     ${
       path?.edu
-        ? `<h2>${t('education')}</h2><div class="card"><ul class="list-plain">${(tr(path.edu) as string[]).map((e) => `<li>${esc(e)}</li>`).join('')}</ul>
-      ${path.avoid ? `<div class="banner" style="margin-top:10px">${icon('shield', 20)}<div><b>${t('avoid')}${t('colon')}</b> ${(tr(path.avoid) as string[]).map(esc).join(' ')}</div></div>` : ''}</div>`
+        ? `<h2>${t('education')}</h2><div class="card"><ul class="list-plain">${trList(path.edu)
+            .map((e) => `<li>${esc(e)}</li>`)
+            .join('')}</ul>
+      ${path.avoid ? `<div class="banner" style="margin-top:10px">${icon('shield', 20)}<div><b>${t('avoid')}${t('colon')}</b> ${trList(path.avoid).map(esc).join(' ')}</div></div>` : ''}</div>`
         : ''
     }
   </section>${nav('home', navRole())}`;

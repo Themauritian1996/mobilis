@@ -488,11 +488,11 @@ export function rxExtrasRom(rx: object | null | undefined): {
 
 /** Profil minimal lu pour les mesures dues. */
 export interface RomProfile {
-  romLog?: readonly RomLogRow[];
+  romLog?: readonly RomLogRow[] | undefined;
   romPlan?: unknown;
-  romStart?: number;
-  joinedAt?: number;
-  startDate?: number;
+  romStart?: number | undefined;
+  joinedAt?: number | undefined;
+  startDate?: number | undefined;
 }
 const startOf = (p: RomProfile | null | undefined): number => p?.romStart || p?.joinedAt || p?.startDate || 0;
 /** Éléments dus pour ce profil (plan reçu du clinicien ou plan personnel). */

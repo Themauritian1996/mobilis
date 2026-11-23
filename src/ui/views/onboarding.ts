@@ -1,7 +1,8 @@
 // Accueil du patient : diagnostic écrit ou questions simples, point de départ, sécurité.
 // Import d'un programme préparé par un clinicien (code ou lien). Reprise de www/js/onboarding.js.
 // Le cycle onboarding ↔ calendar est cassé : les rappels viennent de domains/rehab/calendar.ts (importé statiquement).
-import { t, tr, getLang, setLang, locale, dowNarrow, isLang } from '../../../www/js/i18n.js';
+import { t, getLang, setLang, locale, dowNarrow, isLang } from '../../../www/js/i18n.js';
+import { tr } from '../components/l10n.ts';
 import {
   REGIONS as REGION_DATA,
   PATHOLOGIES as PATHOLOGY_DATA,
@@ -70,19 +71,8 @@ const EXERCISES = EXERCISE_DATA as unknown as Record<string, { name: unknown; tr
 
 /** Profil lu / écrit par l'accueil et l'import d'un programme. */
 interface ObProfile extends Profile {
-  name?: string;
-  levels?: Record<string, unknown>;
-  joinedAt?: number;
-  region?: string;
-  painBase?: number;
-  irritability?: string;
-  days?: number[];
-  perWeek?: number;
-  rxCode?: string;
-  rxVersion?: number;
-  nextVisit?: string | null;
-  clinician?: string;
-  equipment?: unknown;
+  region?: string | undefined;
+  nextVisit?: string | null | undefined;
   side?: unknown;
   remind?: { on?: boolean; time?: string } | undefined;
 }
@@ -113,6 +103,9 @@ interface Rx {
   [key: string]: unknown;
 }
 
+/** Programme du clinicien tel que lu par `store.applySharedAI` (accès IA partagé). */
+const sharedOf = (rx: Rx | null): Parameters<typeof store.applySharedAI>[0] =>
+  rx as unknown as Parameters<typeof store.applySharedAI>[0];
 const $app = (): HTMLElement => document.getElementById('app')!;
 const DAY = 86400000;
 export const layName = (id: string): string => tr(LAY[id]?.name) || tr(PATHOLOGIES.find((p) => p.id === id)?.name);
@@ -292,8 +285,10 @@ export function viewOnboard(): void {
       o.text = dx.value;
       const r: PathCandidate[] & { regions?: string[] } = matchDiagnosis(
         o.text,
-        PATHOLOGIES,
-        ['fr', 'en'].includes(getLang()) ? {} : { tr, regions: REGIONS },
+        PATHOLOGIES as unknown as Parameters<typeof matchDiagnosis>[1],
+        ['fr', 'en'].includes(getLang())
+          ? {}
+          : ({ tr, regions: REGIONS } as unknown as Parameters<typeof matchDiagnosis>[2]),
       );
       o.matches = [...r];
       o.pathology = r[0]?.id || null;
@@ -355,7 +350,7 @@ export function viewOnboard(): void {
         }),
     );
     q('[data-ob="next"]').onclick = () => {
-      const sc: PathCandidate[] = scoreAnswers(o.region, o.answers, PATHOLOGIES);
+      const sc: PathCandidate[] = scoreAnswers(o.region as string, o.answers, PATHOLOGIES);
       o.candidates = sc.filter((s) => (s.score ?? 0) > 0).slice(0, 3);
       if (!o.candidates.length) o.candidates = sc.slice(0, 3);
       o.pathology = o.candidates[0]?.id;
@@ -457,7 +452,7 @@ export function viewOnboard(): void {
     baseLevel: sp.level,
     levels: {},
   };
-  const prog: { id: string }[] = P.todaysProgram(tmp);
+  const prog: { id: string }[] = P.todaysProgram(tmp as Profile);
   shell(
     `<h1 class="ob-title">${t('ob6')}</h1><p class="muted">${t('ob6s')}</p>
     <div class="card" style="margin:14px 0"><span class="eyebrow">${t('phase')} ${sp.phase} · ${t('phaseName' + sp.phase)}</span><h3 style="margin-top:6px">${esc(layName(o.pathology ?? ''))}</h3>
@@ -758,7 +753,7 @@ export async function viewRxImport(code: string): Promise<void> {
     state.data = await store.loadData();
     state.ob = null;
     state.rxo = null;
-    if (prev?.role !== 'clinician') store.applySharedAI(rx); // accès IA du clinicien (ou retrait s'il n'en partage plus)
+    if (prev?.role !== 'clinician') store.applySharedAI(sharedOf(rx)); // accès IA du clinicien (ou retrait s'il n'en partage plus)
     toast(t('rxAdded'));
     go('#/home');
   }
@@ -773,13 +768,13 @@ export async function checkRxUpdate(): Promise<void> {
   if (Date.now() - last < 10 * 60000) return;
   sessionStorage.setItem('mobilis.rxCheck', String(Date.now()));
   try {
-    const rx: Rx | null = await store.getRx(p.rxCode);
+    const rx = (await store.getRx(p.rxCode as string)) as unknown as Rx | null;
     if (!rx) {
       if (p.role !== 'clinician' && store.settings().sharedAI?.rxCode === p.rxCode) store.applySharedAI(null);
       return;
     } // programme supprimé : l'accès IA s'arrête
     if ((rx.version || 1) <= (p.rxVersion || 1)) {
-      if (p.role !== 'clinician' && rx.ai && !store.settings().sharedAI) store.applySharedAI(rx);
+      if (p.role !== 'clinician' && rx.ai && !store.settings().sharedAI) store.applySharedAI(sharedOf(rx));
       return;
     }
     const days = rx.days?.length ? rx.days : p.days;
@@ -798,8 +793,8 @@ export async function checkRxUpdate(): Promise<void> {
       equipment: rx.equip || p.equipment || null,
       side: rx.side || p.side || null,
       ...rxExtras(rx, p),
-    } as Partial<Profile>)) as ObProfile;
-    if (np.role !== 'clinician') store.applySharedAI(rx); // ajout, changement ou retrait de l'accès IA
+    })) as ObProfile;
+    if (np.role !== 'clinician') store.applySharedAI(sharedOf(rx)); // ajout, changement ou retrait de l'accès IA
     if (np.remind?.on) {
       try {
         void scheduleReminders(np);

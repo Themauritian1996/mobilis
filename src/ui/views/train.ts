@@ -1,7 +1,8 @@
 // Séance d'un exercice : caméra (pose 2D, 2 plans) ou mode guidé, résumé, rétroaction et ajustement du niveau
 // (reprise de www/js/train.js, v1.15). La logique pure (bilan de série, séries valides, niveau) est dans
 // domains/rehab/training.ts.
-import { t, tr, aiLangInfo, CUES } from '../../../www/js/i18n.js';
+import { t, aiLangInfo, CUES } from '../../../www/js/i18n.js';
+import { tr, trList } from '../components/l10n.ts';
 import { EXERCISES as EXERCISE_DATA, UNILATERAL, EQUIP as EQUIP_DATA } from '../../../www/js/data/exercises.js';
 import * as P from '../../../www/js/program.js';
 import * as store from '../../../www/js/store.js';
@@ -138,7 +139,7 @@ interface Pt {
   x: number;
   y: number;
 }
-type Landmarks = ArrayLike<Pt & { visibility?: number }>;
+type Landmarks = readonly (Pt & { visibility?: number })[];
 type TrackerT = InstanceType<typeof Tracker>;
 type MatcherT = InstanceType<typeof MoveMatcher>;
 interface LiveCoach {
@@ -146,15 +147,16 @@ interface LiveCoach {
   event?: (name: string, data?: unknown) => void;
   review?: (frame: string | null, meas: unknown, recent?: unknown[]) => unknown;
 }
+type PlaceArgs = NonNullable<Parameters<typeof assessPlacement>[0]>;
 interface Placement {
   on: boolean;
   t0: number;
   gate: InstanceType<typeof PlacementGate>;
-  kind: string;
-  plane: string;
+  kind: NonNullable<PlaceArgs['kind']>;
+  plane: NonNullable<PlaceArgs['plane']>;
   metric: string;
   scope: Parameters<typeof guideRect>[2];
-  palm: unknown;
+  palm: PlaceArgs['palm'];
   luma: Luma | null;
   lumaT: number;
   tilt: { beta: number; gamma: number } | null;
@@ -163,7 +165,7 @@ interface Placement {
   aiBusy: boolean;
   aiN: number;
   shownKey: string | null;
-  top: unknown;
+  top: Parameters<typeof issueIcon>[0];
   last: ReturnType<typeof assessPlacement> | null;
   box: unknown;
   onOri?: ((e: DeviceOrientationEvent) => void) | null | undefined;
@@ -199,7 +201,7 @@ interface TrainState {
   wrongHandT: number;
   lastLm: Landmarks | null;
   lastHand: Landmarks | null;
-  lastFj: Set<unknown> | null;
+  lastFj: Set<number> | null;
   lastSt: StepState | null;
   handInfo: { label: unknown; score: unknown; world: boolean } | null;
   ticks: number;
@@ -270,7 +272,8 @@ export function viewTrain(id: string, cleanup: (() => void)[]): void {
   const sidesMap = prof['sides'] as Record<string, string> | undefined;
   let sideMode: string | null = uni ? sidesMap?.[id] || (prof['side'] as string | undefined) || 'both' : null;
   let totalSets = sideMode === 'both' ? baseSets * 2 : baseSets;
-  const curSide = (): string | null => (!uni ? null : sideMode === 'both' ? (T.set % 2 === 0 ? 'L' : 'R') : sideMode);
+  const curSide = (): 'L' | 'R' | null =>
+    !uni ? null : sideMode === 'both' ? (T.set % 2 === 0 ? 'L' : 'R') : (sideMode as 'L' | 'R');
   const setIdx = (): number => (sideMode === 'both' ? Math.floor(T.set / 2) : T.set);
   const T: TrainState = {
     set: 0,
@@ -612,7 +615,9 @@ export function viewTrain(id: string, cleanup: (() => void)[]): void {
     d.innerHTML = `<div class="demo-card"><div class="row between"><span class="eyebrow">${t('demoTitle')}</span><button class="icon-btn" data-t="demo-x" aria-label="${t('close')}">${icon('close', 18)}</button></div>
       <h3 style="margin:4px 0 6px">${esc(tr(ex.name))}</h3>${figureBlock(id)}
       <ul class="keylist small">${ex.keys.map((k, i) => `<li><span class="n">${i + 1}</span><span>${esc(tr(k))}</span></li>`).join('')}</ul>
-      <ol class="steplist small" style="margin:6px -16px 0">${(tr(ex.steps) as string[]).map((x) => `<li>${esc(x)}</li>`).join('')}</ol>
+      <ol class="steplist small" style="margin:6px -16px 0">${trList(ex.steps)
+        .map((x) => `<li>${esc(x)}</li>`)
+        .join('')}</ol>
       <button class="btn" data-t="demo-ok" style="margin-top:12px">${t(T.active ? 'demoBack' : 'close')}</button></div>`;
     d.hidden = false;
     mountFigs(d);
@@ -736,7 +741,7 @@ export function viewTrain(id: string, cleanup: (() => void)[]): void {
       (T.lastSt && T.lastSt.phase === 'moving') ||
       now - (T.lastRepT || 0) < 10000 ||
       (T.mode === 'guided' && (dose.type === 'hold' || !!dose.holdTop));
-    const st = T.mm.update(p, now, { progressing });
+    const st = T.mm.update(p as Parameters<NonNullable<typeof T.mm>['update']>[0], now, { progressing });
     const dtm = T.mvLastT ? Math.min(200, now - T.mvLastT) : 0;
     T.mvLastT = now;
     if (st.status === 'wrong') {
@@ -772,7 +777,7 @@ export function viewTrain(id: string, cleanup: (() => void)[]): void {
       T.live = startLiveCoach({
         video,
         mirror: isMirror(),
-        context: liveCtx(),
+        context: liveCtx() as unknown as Parameters<typeof startLiveCoach>[0]['context'],
         getState: liveState,
         frame: () => annotated(512),
         onText: (txt: string, final?: boolean | string) => aiText(txt, final),
@@ -794,10 +799,10 @@ export function viewTrain(id: string, cleanup: (() => void)[]): void {
     const c = liveCtx();
     const coach = createPreciseCoach(
       {
-        ex,
+        ex: ex as unknown as Parameters<typeof createPreciseCoach>[0]['ex'],
         exercise: c.exercise,
         condition: c.condition,
-        steps: c.steps,
+        steps: [...c.steps],
         plane,
         mode: T.mode === 'camera' ? (dose.type === 'hold' ? 'hold' : 'reps') : 'guided',
         target: c.target,
@@ -821,7 +826,7 @@ export function viewTrain(id: string, cleanup: (() => void)[]): void {
         coach.stop();
       },
       review: coach.review,
-    };
+    } as unknown as LiveCoach;
     // Maintien : un point toutes les 6 s ; guidé : toutes les 8 s (pas de mesures fines, posture seulement)
     if (T.mode === 'camera' && dose.type === 'hold')
       T.aiTimer = setInterval(() => {
@@ -836,12 +841,14 @@ export function viewTrain(id: string, cleanup: (() => void)[]): void {
           checks: st.checks,
           faults: st.faults,
           metric: null,
-        });
+        } as unknown as Parameters<typeof coach.review>[1]);
       }, 6000);
     if (T.mode === 'guided') {
       T.aiTimer = setInterval(() => {
         if (!T.paused && T.mm?.state.status !== 'wrong')
-          coach.review(annotated(), { move: T.mm?.describe(), faults: [] });
+          coach.review(annotated(), { move: T.mm?.describe(), faults: [] } as unknown as Parameters<
+            typeof coach.review
+          >[1]);
       }, 8000);
       void guidedPose();
     }
@@ -886,7 +893,7 @@ export function viewTrain(id: string, cleanup: (() => void)[]): void {
     } else if (handEx || fine === 'hand') {
       if (T.lastHand) drawHand(g2, T.lastHand, w, shot.height, mirror, { keep: true, bad: !!T.lastFj?.size });
     } else if (T.lastLm && fine !== 'foot')
-      drawSkeleton(g2, T.lastLm, w, shot.height, T.lastFj || new Set(), mirror, true);
+      drawSkeleton(g2, T.lastLm, w, shot.height, T.lastFj || new Set<number>(), mirror, true);
     if (T.lastSt?.value !== null && T.lastSt?.value !== undefined && T.mode === 'camera') {
       g2.fillStyle = 'rgba(0,0,0,.6)';
       g2.fillRect(0, 0, w, 22);
@@ -1012,7 +1019,7 @@ export function viewTrain(id: string, cleanup: (() => void)[]): void {
       t0: performance.now(),
       gate: new PlacementGate(),
       kind: handEx ? 'hand' : 'body',
-      plane: pl,
+      plane: pl as 'side' | 'front',
       metric: spec.metric,
       scope: scopeOf(spec.metric),
       palm: handEx ? palmNeed(spec.metric) : null,
@@ -1100,11 +1107,11 @@ export function viewTrain(id: string, cleanup: (() => void)[]): void {
       plane: Pl.plane,
       side: curSide(),
       metric: Pl.metric,
-      scope: Pl.scope,
-      lm: d.lm,
-      hand: d.hand,
-      wrongHand: d.wrongHand,
-      palm: Pl.palm,
+      scope: Pl.scope as string,
+      lm: d.lm ?? null,
+      hand: d.hand ?? null,
+      wrongHand: d.wrongHand as boolean,
+      palm: Pl.palm as 'side' | 'front' | null,
       frameW: V.fw,
       frameH: V.fh,
       mirror: isMirror(),
@@ -1208,7 +1215,7 @@ export function viewTrain(id: string, cleanup: (() => void)[]): void {
       if (T.paused || !pace.due(now) || !grab(now)) return;
       const gd = guard.check(detect(frame, now), now, V.fw / V.fh);
       const lm = gd.lm;
-      T.lastLm = lm;
+      T.lastLm = lm ?? null;
       pace.done(now, performance.now());
       paintFrame();
       if (!lm) {
@@ -1230,8 +1237,8 @@ export function viewTrain(id: string, cleanup: (() => void)[]): void {
       }
       if (T.selfView) {
         const proj = project(smooth.apply(lm, now));
-        T.drawn = drawSkeleton(g, proj, V.W, V.H, new Set(), isMirror(), true);
-        if (T.guides) drawGuides(g, proj, V.W, V.H, T.mm, isMirror());
+        T.drawn = drawSkeleton(g, proj, V.W, V.H, new Set<number>(), isMirror(), true);
+        if (T.guides) drawGuides(g, proj, V.W, V.H, T.mm as NonNullable<typeof T.mm>, isMirror());
       }
     };
     requestAnimationFrame(tick);
@@ -1359,7 +1366,9 @@ export function viewTrain(id: string, cleanup: (() => void)[]): void {
       $('[data-t="guided"]').hidden = false;
     } else {
       s.innerHTML = `<h3>${esc(tr(ex.name))}</h3>${sideRow()}${eqNote()}${figureBlock(id)}
-        <ol class="steplist small" style="margin:6px -16px">${(tr(ex.steps) as string[]).map((x) => `<li>${esc(x)}</li>`).join('')}</ol>
+        <ol class="steplist small" style="margin:6px -16px">${trList(ex.steps)
+          .map((x) => `<li>${esc(x)}</li>`)
+          .join('')}</ol>
         ${hasCam() ? selfRow('mirrorD') + liveRow() : ''}
         <button class="btn" data-t="go">${IC['play']?.replace('<svg', '<svg width="18" height="18"')} ${t('start')}</button>`;
       $('[data-t="guided"]').hidden = true;
@@ -1564,7 +1573,7 @@ export function viewTrain(id: string, cleanup: (() => void)[]): void {
     resetTrack();
     T.ticks = 0;
     const mkTracker = (): TrackerT =>
-      new Tracker(ex, pl, {
+      new Tracker(ex as unknown as ConstructorParameters<typeof Tracker>[0], pl, {
         side: curSide(),
         romFactor: dose.romFactor,
         onCue: (k: string) => {
@@ -1588,7 +1597,7 @@ export function viewTrain(id: string, cleanup: (() => void)[]): void {
           // répétition jugée « mauvais mouvement » seulement si le mouvement ne correspondait pas pendant ≥ 35 % de sa durée
           if ((T.mvWrongMs || 0) >= 350 * rep.dur) {
             tk.flagRep('wrongMove');
-            rep = tk.repLog[tk.repLog.length - 1];
+            rep = tk.repLog[tk.repLog.length - 1] as typeof rep;
           }
           T.mvWrongMs = 0;
           T.live?.event?.('rep', {
@@ -1715,7 +1724,7 @@ export function viewTrain(id: string, cleanup: (() => void)[]): void {
         const inFrame = handInFrame(hd.lm);
         T.drawn = drawHand(g, project(smooth.apply(hd.lm, now)), V.W, V.H, isMirror(), { keep: true, bad: !inFrame });
         T.lastHand = hd.lm;
-        T.lastFj = new Set();
+        T.lastFj = new Set<number>();
         T.handInfo = { label: hd.label, score: hd.score, world: !!hd.world };
         if (!inFrame && now - lastWarn > 4000) {
           lastWarn = now;
@@ -1743,11 +1752,11 @@ export function viewTrain(id: string, cleanup: (() => void)[]): void {
         T.wrongHandT = 0;
         // main qui sort de l'image : points extrapolés, mesures fausses → on ne compte pas ces images
         if (!handInFrame(hd.lm, 0.04)) return;
-        const st: StepState = tk.update({ hand: handPx(hd.lm, V.fw, V.fh), hand3: hd.world || undefined }, now);
+        const st: StepState = tk.update({ hand: handPx(hd.lm, V.fw, V.fh), hand3: hd.world || null }, now);
         T.lastSt = st;
         hud(st);
         // condition de l'exercice non respectée (opposition du pouce faite poing fermé) : ces mouvements ne comptent pas → on le dit
-        const gk: string | undefined = st.guard ? tk.spec.guard?.cue : undefined;
+        const gk: string | undefined = st.guard ? (tk.spec.guard as { cue?: string } | undefined)?.cue : undefined;
         if (gk && t(gk) !== gk && (st.phase === 'calibrating' || now - lastWarn > 6000)) {
           showCue(t(gk), 'bad');
           if (now - lastWarn > 6000) {
@@ -1775,8 +1784,8 @@ export function viewTrain(id: string, cleanup: (() => void)[]): void {
       const lm = gd.lm;
       tock(now);
       paintFrame();
-      const fj = new Set<unknown>();
-      const fjoints = FAULT_JOINTS as unknown as Record<string, unknown[] | undefined>;
+      const fj = new Set<number>();
+      const fjoints = FAULT_JOINTS as unknown as Record<string, number[] | undefined>;
       for (const [k, ts] of recentFaults) if (now - ts < 1500) (fjoints[k] || []).forEach((j) => fj.add(j));
       if (T.place?.on) {
         // placement : on montre le squelette, on ne compte pas encore
@@ -1786,9 +1795,9 @@ export function viewTrain(id: string, cleanup: (() => void)[]): void {
           smooth.reset();
           T.drawn = null;
         }
-        T.lastLm = lm;
+        T.lastLm = lm ?? null;
         T.lastFj = fj;
-        placeStep(now, { lm });
+        placeStep(now, { lm: lm ?? null });
         return;
       }
       if (!lm) {
@@ -1798,7 +1807,7 @@ export function viewTrain(id: string, cleanup: (() => void)[]): void {
       }
       const proj = project(smooth.apply(lm, now));
       T.drawn = drawSkeleton(g, proj, V.W, V.H, fj, isMirror(), true);
-      T.lastLm = lm;
+      T.lastLm = lm ?? null;
       T.lastFj = fj;
       if (gd.jumped) return; // quelqu'un passe derrière : on garde le squelette du patient, on ne compte pas cette image
       const p = toPx(lm, V.fw, V.fh);
@@ -1825,7 +1834,7 @@ export function viewTrain(id: string, cleanup: (() => void)[]): void {
       T.lastSt = st;
       if (tk.calibrated) {
         moveCheck(p, now, pl);
-        if (T.guides) drawGuides(g, proj, V.W, V.H, T.mm, isMirror());
+        if (T.guides) drawGuides(g, proj, V.W, V.H, T.mm as NonNullable<typeof T.mm>, isMirror());
       }
       // image clé = point le plus avancé de la répétition (dans hud)
       hud(st);
@@ -2069,7 +2078,7 @@ export function viewTrain(id: string, cleanup: (() => void)[]): void {
       level,
       dose,
       holdTarget,
-      painMax: path.painMax,
+      painMax: path.painMax as number,
       set: T.set,
       totalSets,
       moveOk,
@@ -2109,7 +2118,7 @@ export function viewTrain(id: string, cleanup: (() => void)[]): void {
       speak(local);
       bg.querySelector('#aist')?.remove();
     } else
-      void coachComment(data, store.settings().sendFrame ? T.frame : null).then(
+      void coachComment(data, store.settings().sendFrame ? (T.frame as string | null) : null).then(
         ({ text, source }: { text: string; source: string }) => {
           if (!bg.isConnected) return;
           bg.querySelector('#aist')?.remove();
@@ -2150,7 +2159,7 @@ export function viewTrain(id: string, cleanup: (() => void)[]): void {
     const needCheckin = !sess.checkin && !sess.items.length && all.length > 0;
     const painBase = (prof['painBase'] as number | undefined) ?? 2;
     const fb: { pain: number; difficulty: number; checkin: string | undefined; note: string } = {
-      pain: Math.min(painBase, path.painMax),
+      pain: Math.min(painBase, path.painMax as number),
       difficulty: 3,
       checkin: sess.checkin as string | undefined,
       note: '',
@@ -2167,7 +2176,7 @@ export function viewTrain(id: string, cleanup: (() => void)[]): void {
           ? `<span class="spinner sm"></span> ${t('micTranscribing')}`
           : `${icon('mic', 16)} ${t('micStart')}`;
     const draw = (): void => {
-      const over = fb.pain > path.painMax;
+      const over = fb.pain > (path.painMax as number);
       bg.innerHTML = `<div class="sheet"><div class="grab"></div><h3>${t('feedbackTitle')}</h3>
         ${
           needCheckin
@@ -2199,8 +2208,8 @@ export function viewTrain(id: string, cleanup: (() => void)[]): void {
         fb.pain = +r.value;
         const pv = bg.querySelector<HTMLElement>('#pv') as HTMLElement;
         pv.textContent = r.value;
-        pv.classList.toggle('neg', fb.pain > path.painMax);
-        (bg.querySelector<HTMLElement>('#pw') as HTMLElement).hidden = fb.pain <= path.painMax;
+        pv.classList.toggle('neg', fb.pain > (path.painMax as number));
+        (bg.querySelector<HTMLElement>('#pw') as HTMLElement).hidden = fb.pain <= (path.painMax as number);
       };
       const note = bg.querySelector<HTMLTextAreaElement>('#note') as HTMLTextAreaElement;
       note.oninput = () => {

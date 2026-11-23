@@ -56,11 +56,11 @@ async function boot(): Promise<void> {
   } catch {
     /* matchMedia indisponible : le thème automatique ne suit pas le système */
   }
-  await store.initAuth(async (u: typeof state.user) => {
+  await store.initAuth(async (u) => {
     state.user = u;
     state.data = u ? await store.loadData() : null;
     const lang = state.data?.profile?.['lang'];
-    if (lang && lang !== getLang()) await setLang(lang);
+    if (typeof lang === 'string' && lang && lang !== getLang()) await setLang(lang);
     render();
   });
 }
@@ -158,8 +158,9 @@ document.addEventListener('click', (e) => {
 const EXERCISES = EXERCISE_DATA as unknown as Record<string, { id?: string } | undefined>;
 const exId = (ex: { id?: string } | undefined): string | undefined =>
   ex?.id || Object.keys(EXERCISES).find((k) => EXERCISES[k] === ex);
-setPartialPolicy((ex: { id?: string } | undefined) => {
-  const id = exId(ex);
+type PolicyEx = Parameters<NonNullable<Parameters<typeof setPartialPolicy>[0]>>[0];
+setPartialPolicy((ex: PolicyEx) => {
+  const id = exId(ex as unknown as { id?: string });
   const partialEx = profile()?.['partialEx'] as Record<string, boolean> | undefined;
   return !(store.settings().countPartial === false || (id !== undefined && partialEx?.[id] === false));
 });

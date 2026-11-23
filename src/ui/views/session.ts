@@ -1,7 +1,8 @@
 // Aperçu de la séance : exercices du jour, matériel, durée, consignes générales ; réglage des séries / répétitions /
 // maintien / repos avant de commencer (pour aujourd'hui ou pour les prochaines séances), exercice à passer aujourd'hui.
 // Reprise de www/js/session.js.
-import { t, tr } from '../../../www/js/i18n.js';
+import { t } from '../../../www/js/i18n.js';
+import { tr } from '../components/l10n.ts';
 import { EXERCISES as EXERCISE_DATA, EQUIP as EQUIP_DATA } from '../../../www/js/data/exercises.js';
 import { LAY as LAY_DATA } from '../../../www/js/data/triage.js';
 import * as P from '../../../www/js/program.js';
@@ -14,15 +15,8 @@ import { toast } from '../components/toast.ts';
 import { mountFigs, figSvg } from '../components/figures.ts';
 import { equipHelpHtml, bindEquipHelp, equipChipHtml } from './equipment-help.ts';
 import { isNil } from '../util.ts';
+import type { Dose } from '../../domains/rehab/types.ts';
 
-interface Dose {
-  type?: string;
-  sets: number;
-  reps: number;
-  hold: number;
-  rest: number;
-  custom?: boolean;
-}
 interface SessionExercise {
   name: unknown;
   equip?: string[];
@@ -36,10 +30,7 @@ interface ProgramItem {
   kept?: boolean;
 }
 interface SessionProfile extends Profile {
-  phase?: number;
-  rxNotes?: string;
-  swaps?: Record<string, string>;
-  doseOver?: Record<string, unknown>;
+  rxNotes?: string | undefined;
 }
 type DoseKey = 'sets' | 'reps' | 'hold' | 'rest';
 interface Patch {
@@ -113,7 +104,7 @@ export function viewSession(): void {
   const editor = (x: ProgramItem): string => {
     const d = x.dose;
     const hold = d.type === 'hold';
-    const st = (k: string, label: string, v: number, unit?: string): string =>
+    const st = (k: string, label: string, v: number | null | undefined, unit?: string): string =>
       `<div class="toggle"><span>${label}</span><div class="stepper"><button data-st="${k}" data-dir="-1" aria-label="−">−</button><b class="tnum">${v}${unit || ''}</b><button data-st="${k}" data-dir="1" aria-label="+">+</button></div></div>`;
     return `<div class="sess-edit" data-ed="${x.id}">
       ${st('sets', t('setsLbl'), d.sets)}

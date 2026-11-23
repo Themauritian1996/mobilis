@@ -21,10 +21,10 @@ describe('app-state', () => {
   });
 
   it('un clinicien avec une pathologie est en « mode test patient »', () => {
-    state.data = { profile: { role: 'clinician', pathology: 'frozen' } };
+    state.data = { profile: { role: 'clinician', pathology: 'frozen' }, sessions: [], journal: [] };
     expect(inTrial()).toBe(true);
     expect(navRole()).toBe('patient');
-    state.data = { profile: { role: 'clinician' } };
+    state.data = { profile: { role: 'clinician' }, sessions: [], journal: [] };
     expect(navRole()).toBe('clinician');
   });
 });

@@ -3,7 +3,8 @@
 import { EXERCISES as EXERCISE_DATA } from '../../../www/js/data/exercises.js';
 import { EX_ANATOMY as ANATOMY_DATA, STRUCTURES as STRUCTURE_DATA } from '../../../www/js/data/anatomy.js';
 import { renderFigure } from '../../../www/js/figure.js';
-import { t, tr } from '../../../www/js/i18n.js';
+import { t } from '../../../www/js/i18n.js';
+import { tr, trList } from './l10n.ts';
 import * as store from '../../../www/js/store.js';
 import { esc } from './html.ts';
 import { icon } from './icons.ts';
@@ -46,10 +47,11 @@ export function mountFigs(root: ParentNode = document): void {
     if (!ex || svg.dataset['mounted']) return;
     svg.dataset['mounted'] = '1';
     const showAnatomy = svg.dataset['anat'] === '' ? false : svg.dataset['anat'] === '1';
-    const ctl: FigController = renderFigure(svg, ex.fig, {
+    type FigureOptions = NonNullable<Parameters<typeof renderFigure>[2]>;
+    const ctl: FigController = renderFigure(svg, ex.fig as Parameters<typeof renderFigure>[1], {
       static: svg.dataset['static'] === '1',
-      keys: svg.dataset['keys'] === '1' ? ex.keys : [],
-      anatomy: EX_ANATOMY[svg.dataset['fig'] ?? ''] || [],
+      keys: svg.dataset['keys'] === '1' ? (ex.keys as NonNullable<FigureOptions['keys']>) : [],
+      anatomy: (EX_ANATOMY[svg.dataset['fig'] ?? ''] || []) as unknown as NonNullable<FigureOptions['anatomy']>,
       showAnatomy,
     });
     ctlOf.set(svg, ctl);
@@ -104,7 +106,7 @@ onClick((e) => {
   if (c.hasAttribute('data-fig-say') && id && EXERCISES[id]) {
     const ex = EXERCISES[id];
     void import('../../../www/js/coach.js').then(({ speak }) =>
-      speak(`${tr(ex.name)}. ${tr(ex.steps).join(' ')} ${(ex.keys || []).map((k) => tr(k)).join('. ')}.`, {
+      speak(`${tr(ex.name)}. ${trList(ex.steps).join(' ')} ${(ex.keys || []).map((k) => tr(k)).join('. ')}.`, {
         interrupt: true,
       }),
     );

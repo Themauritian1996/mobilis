@@ -1,6 +1,7 @@
 // Éléments communs aux écrans de l'application (reprise de www/js/app.js) : racine #app, module de rapports PDF,
 // profil typé, bandeau « mode test patient », consentement d'envoi d'image, ligne d'exercice.
-import { t, tr } from '../../../www/js/i18n.js';
+import { t } from '../../../www/js/i18n.js';
+import { tr } from '../components/l10n.ts';
 import { EXERCISES as EXERCISE_DATA } from '../../../www/js/data/exercises.js';
 import * as store from '../../../www/js/store.js';
 import { profile, updateProfile, go, inTrial, type Profile } from '../app-state.ts';
@@ -21,22 +22,11 @@ export interface ExerciseInfo {
 }
 export const EXERCISES = EXERCISE_DATA as unknown as Record<string, ExerciseInfo | undefined>;
 
-/** Profil tel que lu par les écrans (le stockage en porte d'autres, cf. `Profile`). */
-export interface ProfileView {
-  name?: string;
-  role?: string;
-  pathology?: string;
-  phase?: number;
-  rxCode?: string;
-  rxNotes?: string;
-  clinician?: string;
-  shareProgress?: boolean;
-  lockPhase?: boolean;
-  maxLevel?: Record<string, number>;
-  autoEx?: Record<string, boolean>;
-  partialEx?: Record<string, boolean>;
-  levels?: Record<string, number>;
-  [key: string]: unknown;
+/** Profil tel que lu par les écrans : le profil du domaine plus les champs propres à l'interface. */
+export interface ProfileView extends Profile {
+  rxNotes?: string | undefined;
+  shareProgress?: boolean | undefined;
+  partialEx?: Record<string, boolean | undefined> | undefined;
 }
 /** Le profil courant (toujours défini une fois connecté et passé l'accueil). */
 export const prof = (): ProfileView => profile() as unknown as ProfileView;

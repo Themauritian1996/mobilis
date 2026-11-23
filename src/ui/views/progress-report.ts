@@ -1,5 +1,6 @@
 // Rapport texte du patient (copier / partager / PDF) et écran « Ajuster mon programme » (reprise de www/js/app.js).
-import { t, tr, locale } from '../../../www/js/i18n.js';
+import { t, locale } from '../../../www/js/i18n.js';
+import { tr } from '../components/l10n.ts';
 import * as store from '../../../www/js/store.js';
 import * as P from '../../../www/js/program.js';
 import { state, go, sessions, syncProgress, navRole } from '../app-state.ts';
@@ -86,13 +87,7 @@ export function viewReport(): void {
 
 // ---------- Ajuster mon programme ----------
 /** Exercice du jour dans l'éditeur de dose. */
-interface AdjustItem {
-  id: string;
-  dose: Dose & AdjustDose & { type?: string };
-  skipped?: boolean;
-  kept?: boolean;
-  rx?: unknown;
-}
+type AdjustItem = ReturnType<typeof P.todaysProgram>[number];
 /** Plan du jour du profil : réglages d'aujourd'hui (séance sans / avec adaptation). */
 interface TodayOver {
   date: string;
@@ -102,14 +97,14 @@ interface TodayOver {
 
 export function viewAdjust(): void {
   const prof = profOf();
-  const prog: AdjustItem[] = P.todaysProgram(prof, { withSkipped: true });
+  const prog = P.todaysProgram(prof, { withSkipped: true });
   const open: string | null = state.adjOpen || null;
   const capOf = (id: string) => levelCap(prof.lockPhase, prof.maxLevel, id);
   // Pourquoi le niveau a changé : dernière séance de l'exercice
   const why = (id: string) => {
-    const li: { reason?: string; change: number } | undefined = P.lastItem(sessions(), id);
+    const li = P.lastItem(sessions(), id) as { reason?: string; change?: number } | null;
     if (!li || !li.reason) return '';
-    const dir = li.change > 0 ? t('adjLvUp') : li.change < 0 ? t('adjLvDown') : t('adjLvSame');
+    const dir = (li.change ?? 0) > 0 ? t('adjLvUp') : (li.change ?? 0) < 0 ? t('adjLvDown') : t('adjLvSame');
     return `<span class="why-chip">${icon('spark', 12)} ${t('adjWhy')} : ${dir} · ${t('rsn_' + li.reason)}</span>`;
   };
   const editor = (x: AdjustItem) => {

@@ -1,6 +1,7 @@
 // Bibliothèque d'exercices et détail d'un exercice (reprise de www/js/app.js).
 import { equipHelpHtml, bindEquipHelp } from '../../../www/js/equipui.js';
-import { t, tr } from '../../../www/js/i18n.js';
+import { t } from '../../../www/js/i18n.js';
+import { tr, trList } from '../components/l10n.ts';
 import { EQUIP as EQUIP_DATA } from '../../../www/js/data/exercises.js';
 import { REGIONS, PATHOLOGIES } from '../../../www/js/data/pathologies.js';
 import * as P from '../../../www/js/program.js';
@@ -81,7 +82,9 @@ export function viewExercise(id: string): void {
       ${ex.equip.map((e) => `<span class="chip">${esc(tr(EQUIP[e]))}</span>`).join('')}</div>
     ${ex.equip.length ? equipHelpHtml(id, level, profile() as Profile) : ''}
     <h2>${t('keyPoints')}</h2><div class="list"><ul class="keylist">${ex.keys.map((k, i) => `<li><span class="n">${i + 1}</span><span>${esc(tr(k))}</span></li>`).join('')}</ul></div>
-    <h2>${t('howTo')}</h2><div class="list"><ol class="steplist">${(tr(ex.steps) as string[]).map((s) => `<li><span>${esc(s)}</span></li>`).join('')}</ol></div>
+    <h2>${t('howTo')}</h2><div class="list"><ol class="steplist">${trList(ex.steps)
+      .map((s) => `<li><span>${esc(s)}</span></li>`)
+      .join('')}</ol></div>
     <h2>${t('planes')}</h2>${ex.track?.kind === 'hand' ? `<div class="card small row">${icon('hand', 26)}<div><b>${t('planeHand')} · ${t('planeHandD')}</b><br><span class="muted">${esc(tr(ex.track.cam))}</span></div></div>` : ex.track ? `<div class="planes">${plane('side')}${plane('front')}</div>` : `<div class="card small row">${icon('timer', 22)}<div><b>${t('guided')}</b><br><span class="muted">${t('guidedD')}</span></div></div>`}
     <div style="height:96px"></div>
     ${canTrain ? `<div class="sticky-cta"><div><button class="btn" data-go="#/train/${id}">${ex.track ? icon('cam', 20) + ' ' + t('try') : IC['play']?.replace('<svg', '<svg width="16" height="16"') + ' ' + t('start')}</button></div></div>` : ''}

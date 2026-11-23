@@ -63,21 +63,25 @@ const firstTs = (list: { ts?: unknown }[] | undefined): number | null => {
   return v.length ? Math.min(...v) : null;
 };
 
+/** Profil vu par le programme (program.js) : même objet, typé par le domaine de rééducation. */
+const prog = (p: BadgeProfile): Parameters<typeof streak>[0] => p as unknown as Parameters<typeof streak>[0];
+const streakOf = (p: BadgeProfile, sessions: BadgeSession[], now: number): number =>
+  streak(prog(p), sessions as unknown as Parameters<typeof streak>[1], now);
 // Série de jours prévus réalisés (program.js) : atteinte au premier moment où elle vaut N
 const streakWhen =
   (N: number) =>
   (c: Ctx): number | null => {
-    if (streak(c.profile, c.sessions, c.now) < N) return null;
+    if (streakOf(c.profile, c.sessions, c.now) < N) return null;
     for (const s of c.sessions) {
       if (s.date > c.now) break;
       const sub = c.sessions.filter((x) => x.date <= s.date);
-      if (streak(c.profile, sub, s.date) >= N) return s.date;
+      if (streakOf(c.profile, sub, s.date) >= N) return s.date;
     }
     return c.now;
   };
 const streakProgress =
   (N: number) =>
-  (c: Ctx): BadgeProgress => ({ n: Math.min(streak(c.profile, c.sessions, c.now), N), of: N, unit: UNIT_DAYS });
+  (c: Ctx): BadgeProgress => ({ n: Math.min(streakOf(c.profile, c.sessions, c.now), N), of: N, unit: UNIT_DAYS });
 const countWhen =
   (N: number) =>
   (c: Ctx): number | null =>
@@ -100,7 +104,7 @@ function fullWeekWhen(c: Ctx): number | null {
     const planned: string[] = [];
     for (let i = 0; i < 7; i++) {
       const k = addDays(mon, i);
-      if (isPlannedDay(c.profile, k)) planned.push(k);
+      if (isPlannedDay(prog(c.profile), k)) planned.push(k);
     }
     if (planned.length && planned.every((k) => byDay.has(k))) return Math.max(...planned.map((k) => byDay.get(k) ?? 0));
   }

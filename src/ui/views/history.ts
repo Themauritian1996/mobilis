@@ -1,7 +1,8 @@
 // Historique complet : séances, journal de douleur, amplitudes et questionnaires — avec plage de dates, modification, suppression
 // (avec confirmation) et saisie d'une séance manquée (reprise de www/js/history.js).
 // La logique pure est dans longterm.js (testée dans tests/maint.test.mjs).
-import { t, tr, locale } from '../../../www/js/i18n.js';
+import { t, locale } from '../../../www/js/i18n.js';
+import { tr } from '../components/l10n.ts';
 import * as P from '../../../www/js/program.js';
 import * as store from '../../../www/js/store.js';
 import { EXERCISES as EXERCISE_DATA } from '../../../www/js/data/exercises.js';
@@ -18,6 +19,7 @@ import {
 } from '../../../www/js/longterm.js';
 import {
   state,
+  journal,
   go,
   profile,
   sessions,
@@ -28,6 +30,7 @@ import {
   type Profile,
   type SessionRecord,
 } from '../app-state.ts';
+import type { LogEntry } from '../../domains/rehab/types.ts';
 import { esc } from '../components/html.ts';
 import { icon } from '../components/icons.ts';
 import { toast } from '../components/toast.ts';
@@ -38,24 +41,21 @@ import { isNil } from '../util.ts';
 const EXERCISES = EXERCISE_DATA as unknown as Record<string, { name: unknown } | undefined>;
 const TESTS = ROM_TESTS as unknown as Record<string, { name: unknown; unit?: string } | undefined>;
 
-interface RomRow {
+interface RomRow extends LogEntry {
   test: string;
-  side?: string | null;
   deg: number;
-  ts: number;
-  method?: string;
+  method?: string | undefined;
 }
-interface PromRow {
+interface PromRow extends LogEntry {
   id: string;
-  ts: number;
-  score?: number;
+  score?: number | undefined;
 }
 type PromCustom = Parameters<typeof instrumentDef>[1];
 interface HistProfile extends Profile {
   romLog?: RomRow[];
   promLog?: PromRow[];
-  promCustom?: unknown;
-  startDate?: number;
+  promCustom?: unknown[] | undefined;
+  startDate?: number | undefined;
 }
 
 const $app = (): HTMLElement => document.getElementById('app')!;
@@ -74,7 +74,7 @@ const SHOW = 25;
 
 // Sélecteur de plage réutilisé par l'écran Progrès
 export const rangeSeg = (cur: string): string =>
-  `<div class="seg" role="group" aria-label="${t('rgLabel')}">${(RANGES as string[]).map((r) => `<button data-range="${r}" aria-pressed="${cur === r}" class="${cur === r ? 'on' : ''}">${t(RANGE_KEY[r])}</button>`).join('')}</div>`;
+  `<div class="seg" role="group" aria-label="${t('rgLabel')}">${(RANGES as string[]).map((r) => `<button data-range="${r}" aria-pressed="${cur === r}" class="${cur === r ? 'on' : ''}">${t(RANGE_KEY[r] ?? r)}</button>`).join('')}</div>`;
 export const getRange = (): string => ((RANGES as string[]).includes(state.range ?? '') ? state.range! : '3m');
 
 const romLabel = (r: RomRow): string => {
@@ -133,7 +133,7 @@ export function viewHistory(): void {
       )
       .join('');
   } else if (H.tab === 'journal') {
-    const list = (state.data?.journal || [])
+    const list = journal()
       .filter((j) => inRange(j.ts || new Date(j.day + 'T12:00').getTime(), range, now))
       .sort((a, b) => b.day.localeCompare(a.day));
     total = list.length;
@@ -221,7 +221,7 @@ export function viewHistory(): void {
       (b.onclick = () => {
         const k = b.dataset['edit'] ?? '';
         if (H.tab === 'sessions') return editSessionSheet(sessions().find((s) => s.id === k));
-        if (H.tab === 'journal') return editJournalSheet((state.data?.journal || []).find((j) => j.day === k));
+        if (H.tab === 'journal') return editJournalSheet(journal().find((j) => j.day === k));
         if (H.tab === 'rom') return editRomSheet(((profile() as HistProfile).romLog || []).find((r) => r.ts === +k));
         return editPromSheet(((profile() as HistProfile).promLog || []).find((r) => r.ts === +k));
       }),
@@ -355,12 +355,12 @@ function editPromSheet(r: PromRow | undefined): void {
 interface ProgramItem {
   id: string;
   level: number;
-  dose: { sets: number; type: string; hold?: number; reps?: number };
+  dose: { sets: number; type: string; hold?: number | undefined; reps?: number | undefined };
 }
 
 // Saisie d'une séance faite sans l'app (ou oubliée) : date passée, exercices cochés, douleur, note
 export function pastSessionSheet(defaultDay?: string, onDone?: () => unknown): void {
-  const prof = profile();
+  const prof = profile() as Profile;
   const prog: ProgramItem[] = P.todaysProgram(prof);
   const yest = new Date();
   yest.setDate(yest.getDate() - 1);

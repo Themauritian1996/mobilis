@@ -1,9 +1,10 @@
 // Écran « Progrès » (reprise de www/js/app.js) : courbes hebdomadaires, assiduité, journal, niveaux, dernières séances.
-import { t, tr, locale } from '../../../www/js/i18n.js';
+import { t, locale } from '../../../www/js/i18n.js';
+import { tr } from '../components/l10n.ts';
 import * as P from '../../../www/js/program.js';
 import { rangeWeeks, inRange } from '../../../www/js/longterm.js';
 import { coachComment, speakRich } from '../../../www/js/coach.js';
-import { state, sessions, navRole, type JournalEntry, type SessionRecord } from '../app-state.ts';
+import { state, journal, sessions, navRole, type SessionRecord } from '../app-state.ts';
 import { esc } from '../components/html.ts';
 import { isNil } from '../util.ts';
 import { icon } from '../components/icons.ts';
@@ -37,9 +38,7 @@ export function viewProgress(): void {
   const prog: { id: string; level: number }[] = P.todaysProgram(prof);
   const inR = sessions().filter((x: SessionRecord) => inRange(x.date, range));
   const hist = inR.slice(-10).reverse();
-  const j = (state.data?.journal || []).filter((e: JournalEntry) =>
-    inRange(e.ts || new Date(e.day + 'T12:00').getTime(), range),
-  );
+  const j = journal().filter((e) => inRange(e.ts || new Date(e.day + 'T12:00').getTime(), range));
   $app.innerHTML = `<section class="screen"><div class="topbar"><h1>${t('progress')}</h1><span class="chip">${t('week')} ${P.weekNumber(prof)} · ${t('phase')} ${prof.phase || 1}</span></div>
     <button class="btn ghost" data-go="#/report">${icon('doc', 18)} ${t('reportBtn')}</button>
     <div class="list linklist" style="margin-top:12px">${[
@@ -95,7 +94,7 @@ export function viewProgress(): void {
       const { text } = await coachComment({
         kind: 'week',
         condition: tr(P.pathologyById(prof.pathology)?.name),
-        week: cur.week,
+        week: cur.week as number,
         sessions: cur.sessions,
         planned: cur.planned,
         pain: cur.pain,

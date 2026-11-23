@@ -1,6 +1,7 @@
 // Aide « matériel de remplacement » : objets de maison proposés (kg + prise + sécurité) et avis sur un autre objet
 // (IA ou règle locale). Reprise de www/js/equipui.js.
-import { t, tr, getLang, aiLangInfo } from '../../../www/js/i18n.js';
+import { t, getLang, aiLangInfo } from '../../../www/js/i18n.js';
+import { tr } from '../components/l10n.ts';
 import { EXERCISES as EXERCISE_DATA, EQUIP as EQUIP_DATA } from '../../../www/js/data/exercises.js';
 import { substitutesFor, localVerdict, targetKg, missing, haveList } from '../../../www/js/equip.js';
 import { kgText } from '../../../www/js/data/substitutes.js';
@@ -40,24 +41,18 @@ export interface EquipVerdict {
   source?: string;
 }
 /** Remplaçant proposé par equip.js (substitutesFor). */
-interface Substitute {
-  equip: string;
-  match?: string;
-  kg: number | number[] | null;
-  useKg?: number;
-  sub: { id: string; name: unknown; grip: unknown; safety: unknown };
-}
+type Substitute = ReturnType<typeof substitutesFor>[number];
 
 const VERDICTS = ['ok', 'caution', 'no'];
-const kgStr = (kg: number | number[]): string => {
+type Kg = Substitute['kg'] | number;
+const kgStr = (kg: Kg): string => {
   const s: string = kgText(kg);
   return getLang() === 'fr' || /^(es|pt)$/.test(getLang()) ? s : s.replace(',', '.');
 };
-const kgOf = (x: Substitute): number | number[] =>
-  (x.useKg && Array.isArray(x.kg) ? x.useKg : x.kg) as number | number[];
+const kgOf = (x: Substitute): Kg => (x.useKg && Array.isArray(x.kg) ? x.useKg : x.kg);
 const levelOf = (ex: string, profile: unknown): number => {
   try {
-    return P.levelOf(profile || {}, ex);
+    return P.levelOf((profile || {}) as Profile, ex);
   } catch {
     return 3;
   }
@@ -192,7 +187,7 @@ export function bindEquipHelp(root: ParentNode | null | undefined, exId: string,
       const x = ranked()[+(b.dataset['eqPick'] ?? 0)];
       if (!x) return;
       await remember(exId, {
-        id: x.sub.id,
+        id: x.sub.id as string,
         name: tr(x.sub.name),
         kg: (Array.isArray(x.kg) ? x.useKg : x.kg) as number | null,
         verdict: 'ok',

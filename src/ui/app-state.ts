@@ -2,51 +2,25 @@
 // vient de la logique pure `domains/outcomes/rom.ts`, plus de rom.js (qui touche le DOM).
 import * as P from '../../www/js/program.js';
 import * as store from '../../www/js/store.js';
-import { summaryPart as romSummaryPart, type RomLogRow } from '../domains/outcomes/rom.ts';
+import { summaryPart as romSummaryPart } from '../domains/outcomes/rom.ts';
+import type {
+  JournalEntry as RehabJournalEntry,
+  Profile as RehabProfile,
+  Session as RehabSession,
+  SessionItem as RehabSessionItem,
+} from '../domains/rehab/types.ts';
 
-/** Profil patient / clinicien tel que stocké (v1.15) : champs lus par l'interface ; le stockage en porte d'autres. */
-export interface Profile {
-  role?: string;
-  pathology?: string;
-  rxCode?: string;
-  shareProgress?: boolean;
-  romLog?: RomLogRow[];
-  [key: string]: unknown;
-}
-
-/** Exercice d'une séance enregistrée. */
-export interface SessionItem {
-  id: string;
-  partial?: boolean;
-  pain?: number | null;
-  note?: string;
-  [key: string]: unknown;
-}
-
-/** Séance enregistrée (v1.15). */
-export interface SessionRecord {
-  id?: string;
-  date?: number;
-  manual?: boolean;
-  items?: SessionItem[];
-  checkin?: unknown;
-  [key: string]: unknown;
-}
-
+/** Profil patient / clinicien tel que stocké (v1.15) : les champs lus par l'interface ; le stockage en porte d'autres. */
+export type Profile = RehabProfile;
+/** Séance enregistrée (v1.15) et ses exercices. */
+export type SessionRecord = RehabSession;
+export type SessionItem = RehabSessionItem;
 /** Entrée du journal de douleur : un jour, une valeur. */
-export interface JournalEntry {
-  day: string;
-  pain: number;
-  ts?: number;
-  [key: string]: unknown;
-}
-
-export interface AppData {
-  profile?: Profile;
-  sessions?: SessionRecord[];
-  journal?: JournalEntry[];
-  [key: string]: unknown;
-}
+export type JournalEntry = RehabJournalEntry;
+/** Données renvoyées par le magasin (`store.loadData`) : profil, séances, journal. */
+export type AppData = Awaited<ReturnType<typeof store.loadData>>;
+/** Utilisateur courant : compte en ligne ou compte local. */
+export type AppUser = NonNullable<ReturnType<typeof store.currentUser>>;
 
 /** État de l'écran « Historique » (onglet courant, nombre de lignes supplémentaires). */
 export interface HistState {
@@ -84,7 +58,7 @@ export interface OnboardState {
 }
 
 export interface AppState {
-  user: { name?: string; [key: string]: unknown } | null;
+  user: AppUser | null;
   data: AppData | null;
   ob: OnboardState | null;
   obTest?: boolean;
@@ -124,8 +98,10 @@ export const go = (h: string): void => {
   if (location.hash === h) renderFn();
   else location.hash = h;
 };
-export const profile = (): Profile | undefined => state.data?.profile;
-export const sessions = (): SessionRecord[] => state.data?.sessions || [];
+export const profile = (): Profile | undefined => state.data?.profile as Profile | undefined;
+/** Journal de douleur (une valeur par jour). */
+export const journal = (): JournalEntry[] => (state.data?.journal || []) as JournalEntry[];
+export const sessions = (): SessionRecord[] => (state.data?.sessions || []) as SessionRecord[];
 
 export function todaySession(create = false): SessionRecord | undefined {
   const s = sessions().find((x) => P.todayKey(x.date) === P.todayKey());
@@ -139,8 +115,9 @@ export function nextExercise(): { id: string; [key: string]: unknown } | null {
   const done = new Set((todaySession()?.items || []).filter((i) => !i.partial).map((i) => i.id));
   return prog.find((x) => !done.has(x.id)) || null;
 }
-export async function updateProfile(patch: Partial<Profile>): Promise<Profile> {
-  const p = { ...profile(), ...patch };
+/** Enregistre un correctif du profil (champs libres : le stockage garde tout, un champ à null l'efface). */
+export async function updateProfile(patch: Record<string, unknown>): Promise<Profile> {
+  const p = { ...profile(), ...patch } as Profile;
   await store.saveProfile(p);
   state.data = await store.loadData();
   return p;
@@ -155,7 +132,7 @@ export async function syncProgress(): Promise<void> {
 export async function fullSummary(p: Profile, sess: SessionRecord[]): Promise<Record<string, unknown>> {
   const base = P.progressSummary(p, sess);
   try {
-    Object.assign(base, romSummaryPart(p));
+    Object.assign(base, romSummaryPart(p as unknown as Parameters<typeof romSummaryPart>[0]));
   } catch (e) {
     console.warn(e);
   }

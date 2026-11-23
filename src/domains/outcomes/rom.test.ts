@@ -12,6 +12,9 @@ beforeAll(async () => {
   R = await import('./rom.ts');
 });
 
+/** Test du catalogue, vu comme les fonctions de rom.ts le lisent. */
+const G = (id: string): Rom.RomTestInfo | null => R.getTest(id) as unknown as Rom.RomTestInfo | null;
+
 const log: RomLogRow[] = [
   { test: 'sh_flex', side: 'L', deg: 100, ts: 1 * DAY },
   { test: 'sh_flex', side: 'L', deg: 130, ts: 3 * DAY, method: 'manual' },
@@ -143,12 +146,12 @@ describe('rom (logique pure)', () => {
   });
 
   it('orientation : miroir et côté', () => {
-    const T = R.getTest('sh_flex');
+    const T = G('sh_flex');
     expect(R.orientation(T, 'R', false)).toMatchObject({ mode: 'near', side: 'R', seen: 'right' });
     expect(R.orientation(T, 'R', true)).toMatchObject({ mode: 'near', side: 'R', seen: 'left' });
-    expect(R.orientation(R.getTest('sh_abd'), 'R', true)).toMatchObject({ mode: 'front', scr: 'right' });
-    expect(R.orientation(R.getTest('sh_abd'), 'R', false)).toMatchObject({ mode: 'front', scr: 'left' });
-    expect(R.orientation(R.getTest('lumb_flex'), null, true)).toEqual({ mode: 'profile' });
+    expect(R.orientation(G('sh_abd'), 'R', true)).toMatchObject({ mode: 'front', scr: 'right' });
+    expect(R.orientation(G('sh_abd'), 'R', false)).toMatchObject({ mode: 'front', scr: 'left' });
+    expect(R.orientation(G('lumb_flex'), null, true)).toEqual({ mode: 'profile' });
     expect(R.orientation(null, 'L', true)).toEqual({ mode: 'none' });
     expect(R.orientText(null)).toBe('');
   });
@@ -159,7 +162,7 @@ describe('rom (logique pure)', () => {
     expect(R.nearSide({ ...base, facing: -1 })).toBe('L');
     expect(R.nearSide({ ...base, visL: 0.2, visR: 0.9 })).toBe('R');
     expect(R.nearSide(base)).toBeNull();
-    const T = R.getTest('sh_flex');
+    const T = G('sh_flex');
     expect(R.checkStart(T, 'L', null).issues).toEqual(['lost']);
     expect(R.checkStart(T, 'L', { ...base, ratio: 0.9 }).issues).toEqual(['turnSide']);
     expect(R.checkStart(T, 'L', { ...base, facing: 1 }).issues).toEqual(['wrongSide']);
@@ -191,7 +194,7 @@ describe('rom (logique pure)', () => {
 
   it('SIDE_COLOR distingue gauche et droite ; segmentAngle sans point → null', () => {
     expect(R.SIDE_COLOR.L).not.toBe(R.SIDE_COLOR.R);
-    expect(R.segmentAngle(R.getTest('sh_flex'), 'L', { lm: [], w: 1, h: 1 })).toBeNull();
+    expect(R.segmentAngle(G('sh_flex'), 'L', { lm: [], w: 1, h: 1 })).toBeNull();
     expect(R.segmentAngle(null, 'L', null)).toBeNull();
   });
 });

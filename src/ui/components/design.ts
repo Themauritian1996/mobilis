@@ -1,6 +1,7 @@
 // Textes et petits composants du design 1.14 : traductions de repli, anneau de progression, niveau, sélecteur de langue
 // (reprise de www/js/ui.js).
-import { t, tr, LANGS, getLang } from '../../../www/js/i18n.js';
+import { t, LANGS, getLang } from '../../../www/js/i18n.js';
+import { tr } from './l10n.ts';
 import { esc } from './html.ts';
 
 // Textes du design 1.14 : repli local tant que les clés ne sont pas fusionnées dans i18n.js (voir i18n-new/design.json)

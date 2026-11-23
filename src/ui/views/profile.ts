@@ -1,6 +1,7 @@
 // Écran « Profil » : réglages, accessibilité, coach IA, mode patient / clinicien, sauvegarde et effacement
 // (reprise de www/js/app.js).
-import { t, tr, getLang, locale, LANGS, setAiLang } from '../../../www/js/i18n.js';
+import { t, getLang, locale, LANGS, setAiLang } from '../../../www/js/i18n.js';
+import { tr } from '../components/l10n.ts';
 import * as store from '../../../www/js/store.js';
 import * as P from '../../../www/js/program.js';
 import { speakRich, cueText } from '../../../www/js/coach.js';
@@ -39,42 +40,14 @@ const PARTIAL_TXT: Bilingual = { fr: 'Compter les répétitions partielles', en:
     en: 'A smaller rep still counts (from ~35% of the range), marked "partial".',
   };
 
-/** Réglages enregistrés (store.settings) lus par l'écran. */
-interface Settings {
-  theme?: string;
-  voice?: string;
-  countAloud?: boolean;
-  vibrate?: boolean;
-  selfView?: boolean;
-  guides?: boolean;
-  anatomy?: boolean;
-  camera?: string;
-  voiceRate?: number | string;
-  cueLevel?: string;
-  textSize?: number | string;
-  contrast?: boolean;
-  weekStart?: number | string;
-  geminiKey?: string;
-  countPartial?: boolean;
-  sendFrame?: boolean;
-  liveAI?: boolean;
-  aiMode?: string;
-}
-/** IA partagée par le clinicien (store.sharedAIInfo). */
-interface SharedAI {
-  from?: string;
-  until?: string;
-  cap?: number;
-  used?: number;
-  capped?: boolean;
-  mode?: string;
-}
+/** Réglages enregistrés (store.settings). */
+type Settings = ReturnType<typeof store.settings>;
 
 export function viewProfile(): void {
   const prof = profOf();
   const st: Settings = store.settings();
   const u = state.user as { local?: boolean; email?: string };
-  const sh: SharedAI | null = store.sharedAIInfo();
+  const sh = store.sharedAIInfo();
   const sw = (k: string, on: unknown) =>
     `<button class="switch ${on ? 'on' : ''}" data-sw="${k}" role="switch" aria-checked="${!!on}"></button>`;
   $app.innerHTML = `<section class="screen">${trialBar()}<div class="topbar"><h1>${t('profile')}</h1></div>
@@ -116,7 +89,7 @@ export function viewProfile(): void {
       <label class="field"><span>${t('geminiKey')}</span><input class="input" id="gk" type="password" value="${esc(st.geminiKey)}" placeholder="AIza…" autocomplete="off"></label>
       <p class="note" style="margin-top:-6px">${t('geminiKeyD')}</p>
       ${sh && !st.geminiKey ? '</details>' : ''}
-      <div class="toggle" style="padding:12px 0 0"><span>${tk('aiLang', AI_LANG_TXT)}</span><select class="input lang-select" id="ailang" aria-label="${tk('aiLang', AI_LANG_TXT)}"><option value="auto" ${aiPref() === 'auto' ? 'selected' : ''}>${tk('aiLangAuto', AI_AUTO)}</option>${(LANGS as { id: string; name: string }[]).map((l) => `<option value="${l.id}" ${aiPref() === l.id ? 'selected' : ''}>${l.name}</option>`).join('')}</select></div>
+      <div class="toggle" style="padding:12px 0 0"><span>${tk('aiLang', AI_LANG_TXT)}</span><select class="input lang-select" id="ailang" aria-label="${tk('aiLang', AI_LANG_TXT)}"><option value="auto" ${aiPref() === 'auto' ? 'selected' : ''}>${tk('aiLangAuto', AI_AUTO)}</option>${LANGS.map((l) => `<option value="${l.id}" ${aiPref() === l.id ? 'selected' : ''}>${l.name}</option>`).join('')}</select></div>
       <div class="toggle" style="padding:12px 0 0"><span><span>${tk('countPartial', PARTIAL_TXT)}</span><br><small class="muted">${tk('countPartialD', PARTIAL_D)}</small></span>${sw('countPartial', st.countPartial !== false)}</div>
       <div class="toggle" style="padding:12px 0 0"><span><span>${t('consentSetting')}</span><br><small class="muted">${t('consentSettingD')}</small></span>${sw('imageConsent', store.imageConsent(st))}</div>
       ${st.geminiKey ? `<button class="btn sm ghost danger" data-a="purgeKey" style="margin-top:12px">${t('purgeKey')}</button>` : ''}
@@ -142,7 +115,7 @@ export function viewProfile(): void {
   $app.querySelectorAll<HTMLElement>('[data-theme-set]').forEach(
     (b) =>
       (b.onclick = () => {
-        store.saveSettings({ theme: b.dataset['themeSet'] });
+        store.saveSettings({ theme: b.dataset['themeSet'] ?? 'auto' });
         applyTheme();
         viewProfile();
       }),
@@ -151,14 +124,14 @@ export function viewProfile(): void {
     (b) =>
       (b.onclick = async () => {
         if (b.dataset['aimode'] === 'live' && !store.imageConsent() && !(await askImageConsent())) return viewProfile();
-        store.saveSettings({ aiMode: b.dataset['aimode'] });
+        store.saveSettings({ aiMode: b.dataset['aimode'] ?? 'precise' });
         viewProfile();
       }),
   );
   $app.querySelectorAll<HTMLElement>('[data-voice]').forEach(
     (b) =>
       (b.onclick = () => {
-        store.saveSettings({ voice: b.dataset['voice'] });
+        store.saveSettings({ voice: b.dataset['voice'] ?? 'local' });
         viewProfile();
         if (b.dataset['voice'] !== 'off') speakRich(cueText('good'), { lang: getLang() });
       }),
@@ -168,7 +141,7 @@ export function viewProfile(): void {
     (b) =>
       (b.onclick = async () => {
         const k = b.dataset['sw'] ?? '',
-          cur: Settings & Record<string, unknown> = store.settings();
+          cur: Settings = store.settings();
         if (k === 'imageConsent') {
           if (store.imageConsent(cur)) store.setImageConsent(false);
           else await askImageConsent();
@@ -189,14 +162,14 @@ export function viewProfile(): void {
   $app.querySelectorAll<HTMLElement>('[data-cam]').forEach(
     (b) =>
       (b.onclick = () => {
-        store.saveSettings({ camera: b.dataset['cam'] });
+        store.saveSettings({ camera: b.dataset['cam'] ?? 'user' });
         viewProfile();
       }),
   );
   $app.querySelectorAll<HTMLElement>('[data-cue]').forEach(
     (b) =>
       (b.onclick = () => {
-        store.saveSettings({ cueLevel: b.dataset['cue'] });
+        store.saveSettings({ cueLevel: b.dataset['cue'] ?? 'all' });
         viewProfile();
       }),
   );

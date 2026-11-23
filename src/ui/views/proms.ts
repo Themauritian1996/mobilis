@@ -2,10 +2,12 @@
 // La logique pure (scores, échéances, tendance) est dans data/proms.js (migré par la tranche T1).
 // Licences : le texte des questionnaires protégés est importé par le clinicien (JSON) et gardé dans les réglages de l'appareil
 // (store.settings().promLicenses = { instrumentId: { items:[{fr,en}], options:[{fr,en}]|null, importedAt } }) ; jamais dans le code ni dans la prescription.
-import { t, tr, locale } from '../../../www/js/i18n.js';
+import { t, locale } from '../../../www/js/i18n.js';
+import { tr } from '../components/l10n.ts';
 import * as store from '../../../www/js/store.js';
 import * as M from '../../../www/js/data/proms.js';
 import { profile, updateProfile, syncProgress, type Profile } from '../app-state.ts';
+import type { LogEntry } from '../../domains/rehab/types.ts';
 import { esc } from '../components/html.ts';
 import { icon } from '../components/icons.ts';
 import { toast } from '../components/toast.ts';
@@ -23,27 +25,7 @@ export {
   customToDef,
 } from '../../../www/js/data/proms.js';
 
-interface PromOptions {
-  min: number;
-  max: number;
-  step?: number;
-  labels?: unknown[];
-  ends?: [unknown, unknown];
-}
-interface PromDef {
-  id: string;
-  kind?: string;
-  name: unknown;
-  items: { text: unknown }[];
-  options: PromOptions;
-  stem?: unknown;
-  dynamicItems?: { min: number; max: number };
-  available?: boolean;
-  range: [number, number];
-  higherIsBetter?: boolean;
-  noBaseline?: boolean;
-  mcid?: { value: number };
-}
+type PromDef = NonNullable<ReturnType<typeof M.instrumentDef>>;
 interface PromTrend {
   n: number;
   delta: number | null;
@@ -65,23 +47,20 @@ interface CustomProm {
   higherIsBetter: boolean;
   [key: string]: unknown;
 }
-interface PromLogEntry {
+interface PromLogEntry extends LogEntry {
   id: string;
-  ts: number;
-  answers?: (number | null)[];
-  score?: number;
-  sub?: Record<string, unknown>;
-  acts?: string[];
+  answers?: (number | null)[] | undefined;
+  score?: number | null;
+  sub?: Record<string, unknown> | undefined;
+  acts?: string[] | undefined;
 }
 interface PromProfile extends Profile {
-  promPlan?: PromPlanItem[];
-  promLog?: PromLogEntry[];
-  promActivities?: string[];
-  promCustom?: CustomProm[];
+  promPlan?: PromPlanItem[] | undefined;
+  promLog?: PromLogEntry[] | undefined;
+  promActivities?: string[] | undefined;
+  promCustom?: CustomProm[] | undefined;
   promTexts?: unknown;
-  joinedAt?: number;
-  startDate?: number;
-  region?: string;
+  region?: string | undefined;
 }
 interface PromCtx {
   custom: CustomProm[];
@@ -120,7 +99,7 @@ const num = (x: number | null | undefined): string =>
   isNil(x) ? '–' : new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 }).format(x);
 const licenses = (): Record<string, unknown> => {
   try {
-    return store.settings().promLicenses || {};
+    return (store.settings()['promLicenses'] as Record<string, unknown> | undefined) || {};
   } catch {
     return {};
   }
@@ -134,10 +113,13 @@ const ctxOf = (
   licenses: mergeLic(prof.promTexts),
   activities: prof.promActivities || [],
 });
-const nameOf = (def: { name: unknown }): string => tr(def.name);
+const nameOf = (def: { name: unknown } | null | undefined): string => tr(def?.name);
 /** Textes sous licence : ceux embarqués dans la prescription, complétés par ceux de l'appareil. */
 const mergeLic = (embedded: unknown): Record<string, unknown> =>
-  M.mergeLicenses(embedded, licenses()) as Record<string, unknown>;
+  M.mergeLicenses(
+    embedded as Parameters<typeof M.mergeLicenses>[0],
+    licenses() as Parameters<typeof M.mergeLicenses>[1],
+  ) as Record<string, unknown>;
 const resolveDef = (id: string, ctx: PromCtx): PromDef | null | undefined =>
   M.resolveDef(id, ctx as Parameters<typeof M.resolveDef>[1]) as PromDef | null | undefined;
 const isAvail = (id: string, ctx: Partial<PromCtx>): boolean =>
@@ -235,7 +217,7 @@ export function homeCardProm(prof?: PromProfile | null): string {
   if (!list.length) return '';
   const ctx = ctxOf(prof);
   return `<div class="card prom-card" data-prom-card><div class="row between"><span class="eyebrow">${t('pmDueTitle')}</span><span class="chip sm">${list.length}</span></div>
-    ${list.map((d) => `<button class="prom-due" data-prom-go="${esc(d.id)}"><span class="grow"><b>${esc(nameOf(M.instrumentDef(d.id, ctx.custom)))}</b><small class="muted">${t('pmTakes', { n: Math.max(1, Math.round(M.nItemsOf(M.instrumentDef(d.id, ctx.custom)) * 0.25)) })}</small></span>${icon('play', 18)}</button>`).join('')}</div>`;
+    ${list.map((d) => `<button class="prom-due" data-prom-go="${esc(d.id)}"><span class="grow"><b>${esc(nameOf(M.instrumentDef(d.id, ctx.custom)))}</b><small class="muted">${t('pmTakes', { n: Math.max(1, Math.round(M.nItemsOf(M.instrumentDef(d.id, ctx.custom) as PromDef) * 0.25)) })}</small></span>${icon('play', 18)}</button>`).join('')}</div>`;
 }
 export function bindHomeCardProm(root: ParentNode, go: (hash: string) => unknown): void {
   root.querySelectorAll<HTMLElement>('[data-prom-go]').forEach((b) => {
@@ -520,7 +502,10 @@ export function viewPromHistory($app: Host): void {
       return d && (d.dynamicItems || isAvail(id, ctx));
     });
   const todo = [
-    ...new Set([...planned, ...(M.suggestFor(prof.region).general as string[]).filter((id) => !planned.includes(id))]),
+    ...new Set([
+      ...planned,
+      ...(M.suggestFor(prof.region as string).general as string[]).filter((id) => !planned.includes(id)),
+    ]),
   ];
   const rows = ids
     .map((id) => {
@@ -534,7 +519,7 @@ export function viewPromHistory($app: Host): void {
       return `<div class="card prom-hist"><div class="row between"><b>${esc(nameOf(def))}</b>${tn.mcidReached ? `<span class="chip pos sm">${icon('check', 12)} ${t('pmMcidBadge')}</span>` : ''}</div>
       <div class="row" style="gap:18px;margin:8px 0"><div><div class="small muted">${t('pmLast')}</div><div class="prom-mid tnum">${num(tn.last)}</div></div>
         ${!isNil(tn.delta) ? `<div><div class="small muted">${t('pmVsStart')}</div><div class="prom-mid tnum ${(tn.improvement ?? 0) > 0 ? 'pos' : (tn.improvement ?? 0) < 0 ? 'neg' : ''}">${tn.delta > 0 ? '+' : ''}${num(tn.delta)}</div></div>` : ''}</div>
-      <div class="chart">${lineSvg(series, def, { label: nameOf(def) })}</div>
+      <div class="chart">${lineSvg(series, def as unknown as Parameters<typeof lineSvg>[1], { label: nameOf(def) })}</div>
       <div class="small muted">${series
         .map(
           (p) =>
@@ -600,7 +585,7 @@ export function rxSectionProm(rx: PromRx = {}): {
   const body = (plan: PromPlanItem[], custom: CustomProm[]): string => {
     const ctx = { custom, licenses: mergeLic(rx.promTexts), activities: [] as string[] };
     const taken = new Set(plan.map((p) => p.id));
-    const sug: { general: string[]; region: string[] } = M.suggestFor(region);
+    const sug: { general: string[]; region: string[] } = M.suggestFor(region as string);
     const pill = (id: string): string => {
       const def = defOf(id, custom)!;
       const ok = def.kind !== 'licensed' || isAvail(id, ctx);

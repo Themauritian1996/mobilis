@@ -164,10 +164,10 @@ export function newRxForm(
 export const rxRef = (rx: Pick<StoredRx, 'code' | 'localId'>): string => rx.code || rx.localId || '';
 /** Lien d'import d'un programme. */
 export const linkOf = (rx: Pick<StoredRx, 'code' | 'packed' | 'lang'>): string =>
-  store.rxLink(rx.code || rx.packed, rx.lang);
+  store.rxLink((rx.code || rx.packed) as string, rx.lang);
 /** Message de partage : le code (formaté) ou, sans code, le lien. */
 export const shareMessage = (code: string | null | undefined): string =>
-  code ? t('shareMsgCode').replace('{code}', store.fmtCode(code)) : t('shareMsgLink');
+  code ? t('shareMsgCode').replace('{code}', store.fmtCode(code) ?? '') : t('shareMsgLink');
 
 /** QR du lien d'import (SVG en ligne) ; chaîne vide si le générateur est indisponible. */
 export async function qrSvg(link: string): Promise<string> {
