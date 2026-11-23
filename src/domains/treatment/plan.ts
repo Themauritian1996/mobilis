@@ -6,14 +6,7 @@
 import type { IsoDate, IsoDateTime } from '../../core/types/common.ts';
 import type { AssessmentId, PatientId, Plan, PlanId } from '../../core/types/clinical.ts';
 import { audienceOf, PATIENT_KINDS } from './propose.ts';
-import type {
-  DeviceKind,
-  ExerciseCatalogue,
-  Side,
-  TreatmentAction,
-  TreatmentGoal,
-  TreatmentPlan,
-} from './types.ts';
+import type { DeviceKind, ExerciseCatalogue, Side, TreatmentAction, TreatmentGoal, TreatmentPlan } from './types.ts';
 
 export const planIdOf = (patientId: string, revision: number): PlanId => `plan_${patientId}_r${revision}` as PlanId;
 const iso = (now: Date): IsoDateTime => now.toISOString() as IsoDateTime;
@@ -155,16 +148,21 @@ export function removeGoal(p: TreatmentPlan, id: string, now: Date): TreatmentPl
   return isEditable(p) ? touch(p, now, { goals: p.goals.filter((g) => g.id !== id) }) : p;
 }
 
+/** Copie sans la clé facultative `key` (exactOptionalPropertyTypes : on retire la clé plutôt que la mettre à undefined). */
+function without<K extends keyof TreatmentPlan>(p: TreatmentPlan, key: K): TreatmentPlan {
+  const copy: Record<string, unknown> = { ...p };
+  Reflect.deleteProperty(copy, key);
+  return copy as unknown as TreatmentPlan;
+}
+
 export function setDuration(p: TreatmentPlan, weeks: number | undefined, now: Date): TreatmentPlan {
-  const { durationWeeks: _d, ...rest } = p;
-  return isEditable(p)
-    ? touch(rest as TreatmentPlan, now, weeks && weeks > 0 ? { durationWeeks: Math.round(weeks) } : {})
-    : p;
+  if (!isEditable(p)) return p;
+  return touch(without(p, 'durationWeeks'), now, weeks && weeks > 0 ? { durationWeeks: Math.round(weeks) } : {});
 }
 
 export function setNotes(p: TreatmentPlan, notes: string, now: Date): TreatmentPlan {
-  const { notes: _n, ...rest } = p;
-  return isEditable(p) ? touch(rest as TreatmentPlan, now, notes.trim() ? { notes: notes.trim() } : {}) : p;
+  if (!isEditable(p)) return p;
+  return touch(without(p, 'notes'), now, notes.trim() ? { notes: notes.trim() } : {});
 }
 
 /** Un plan ne s'active qu'avec au moins une action validée. */

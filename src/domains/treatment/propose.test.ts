@@ -8,7 +8,12 @@ import type { PlanDeterminant, PlanFinding, PlanMetric, PlanSource, Side } from 
 const CAT = defaultCatalogues();
 const EX = defaultExerciseCatalogue();
 
-const finding = (id: string, side: Side, status: PlanFinding['status'], kind: 'gait' | 'prosthetic' = 'gait'): PlanFinding => ({
+const finding = (
+  id: string,
+  side: Side,
+  status: PlanFinding['status'],
+  kind: 'gait' | 'prosthetic' = 'gait',
+): PlanFinding => ({
   id,
   kind,
   name_fr: CAT.findings[id]?.name_fr ?? id,
@@ -19,7 +24,11 @@ const finding = (id: string, side: Side, status: PlanFinding['status'], kind: 'g
   references: [],
   unvalidatedThresholds: [{ criterion: 'x', type: 'proposed_heuristic' }],
 });
-const det = (id: PlanDeterminant['id'], status: PlanDeterminant['status'], linked: PlanDeterminant['linkedFindings'] = []): PlanDeterminant => ({
+const det = (
+  id: PlanDeterminant['id'],
+  status: PlanDeterminant['status'],
+  linked: PlanDeterminant['linkedFindings'] = [],
+): PlanDeterminant => ({
   id,
   status,
   linkedFindings: linked,
@@ -229,7 +238,8 @@ describe('intégrité des données sourcées', () => {
 
   it('tout exercice cité existe dans la bibliothèque', () => {
     for (const e of Object.values(CAT.plan))
-      for (const l of e.exercises) if (l.exerciseId) expect(EX[l.exerciseId], `${e.findingId}/${l.exerciseId}`).toBeDefined();
+      for (const l of e.exercises)
+        if (l.exerciseId) expect(EX[l.exerciseId], `${e.findingId}/${l.exerciseId}`).toBeDefined();
     for (const e of Object.values(CAT.determinantPlan))
       for (const x of e?.exercises ?? []) expect(EX[x.exerciseId], x.exerciseId).toBeDefined();
   });
@@ -237,7 +247,13 @@ describe('intégrité des données sourcées', () => {
   it('toute référence citée existe dans references.json', () => {
     const cited: string[] = [];
     for (const e of Object.values(CAT.plan)) {
-      for (const t of [e.gaitTraining, e.injection, ...(e.orthosis ?? []), ...(e.referral ?? []), ...(e.prosthetic ?? [])])
+      for (const t of [
+        e.gaitTraining,
+        e.injection,
+        ...(e.orthosis ?? []),
+        ...(e.referral ?? []),
+        ...(e.prosthetic ?? []),
+      ])
         cited.push(...(t?.refs ?? []));
       cited.push(...(e.device?.refs ?? []));
     }

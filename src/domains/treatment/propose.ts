@@ -155,7 +155,7 @@ function proposeGoals(
       const metric = lastMetric(tpl.metricId, global ? undefined : s);
       const target = resolveTarget(tpl, metric);
       if (!target) continue;
-      if (metric?.value != null && meets(metric.value, tpl.comparator, target.value)) continue; // déjà atteint
+      if (metric && metric.value !== null && meets(metric.value, tpl.comparator, target.value)) continue; // déjà atteint
       const key = `${tpl.id}|${global ? '' : s}`;
       if (out.has(key)) continue;
       out.set(key, {
