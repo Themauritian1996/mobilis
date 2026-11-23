@@ -52,3 +52,4 @@
 .rs .rs-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: var(--fs-sm); }
 .rs .rs-legend i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
 .rs textarea.input { min-height: 96px; resize: vertical; }
+.rs .rs-table td.small { min-width: 8.5em; }

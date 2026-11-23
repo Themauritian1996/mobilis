@@ -162,7 +162,7 @@ function summaryTable(cells: readonly CellSummary[], tps: readonly Timepoint[]):
 export async function viewStudy(root: HTMLElement, studyId: string | undefined): Promise<void> {
   ensureCss();
   root.innerHTML = `<section class="screen rs"><div class="card muted">${esc(t('rs_loading'))}</div></section>`;
-  let bundle: StudyBundle | null = null;
+  let bundle: StudyBundle | null;
   try {
     bundle = studyId ? await loadStudyBundle(db(), studyId) : null;
   } catch (e) {

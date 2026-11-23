@@ -309,7 +309,13 @@ function mountNewFollowUp(
     mountEditor();
   };
   mountEditor();
-  $<HTMLSelectElement>('#rs-tpl').onchange = (e) => applyTemplate((e.target as HTMLSelectElement).value);
+  $<HTMLSelectElement>('#rs-tpl').onchange = (e) => {
+    const id = (e.target as HTMLSelectElement).value;
+    applyTemplate(id);
+    const tpl = templateById(id);
+    if (tpl && $<HTMLSelectElement>('#rs-anchor-iv').value === '__new')
+      $<HTMLSelectElement>('#rs-iv-type').value = tpl.interventionType;
+  };
   $<HTMLSelectElement>('#rs-iv-type').onchange = (e) => {
     const tpl = templateForIntervention((e.target as HTMLSelectElement).value as Intervention['type']);
     if (tpl) applyTemplate(tpl.id);
