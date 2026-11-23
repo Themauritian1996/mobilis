@@ -29,7 +29,10 @@ export function fpsLevel(fps: number): FpsLevel {
 /** Mesure de la fréquence d'images réelle (trames traitées par seconde) sur une fenêtre glissante. */
 export class FpsMeter {
   private readonly times: number[] = [];
-  constructor(private readonly windowMs = 2000) {}
+  private readonly windowMs: number;
+  constructor(windowMs = 2000) {
+    this.windowMs = windowMs;
+  }
   push(tMs: number): void {
     this.times.push(tMs);
     while (this.times.length > 2 && tMs - (this.times[0] as number) > this.windowMs) this.times.shift();
@@ -201,10 +204,12 @@ export class StillnessDetector {
   private t0: number | null = null;
   private min: number[] = [];
   private max: number[] = [];
-  constructor(
-    private readonly windowMs = 2000,
-    private readonly maxRange = 0.08,
-  ) {}
+  private readonly windowMs: number;
+  private readonly maxRange: number;
+  constructor(windowMs = 2000, maxRange = 0.08) {
+    this.windowMs = windowMs;
+    this.maxRange = maxRange;
+  }
 
   reset(): void {
     this.t0 = null;
@@ -317,7 +322,10 @@ export function rebase(frames: readonly GaitPoseFrame[]): GaitPoseFrame[] {
 /** Tampon glissant (pré-enregistrement) : garde les trames des `keepMs` dernières millisecondes. */
 export class PreRoll {
   private readonly frames: GaitPoseFrame[] = [];
-  constructor(private readonly keepMs = 3000) {}
+  private readonly keepMs: number;
+  constructor(keepMs = 3000) {
+    this.keepMs = keepMs;
+  }
   push(f: GaitPoseFrame): void {
     this.frames.push(f);
     while (this.frames.length > 1 && f.t - (this.frames[0] as GaitPoseFrame).t > this.keepMs) this.frames.shift();
@@ -395,10 +403,12 @@ export function stopDecision(i: StopInput): StopReason | null {
 export class CueGate {
   private readonly last = new Map<string, number>();
   private lastAny = -Infinity;
-  constructor(
-    private readonly sameKeyMs = 7000,
-    private readonly anyMs = 2200,
-  ) {}
+  private readonly sameKeyMs: number;
+  private readonly anyMs: number;
+  constructor(sameKeyMs = 7000, anyMs = 2200) {
+    this.sameKeyMs = sameKeyMs;
+    this.anyMs = anyMs;
+  }
   offer(key: string, nowMs: number): boolean {
     if (nowMs - this.lastAny < this.anyMs) return false;
     if (nowMs - (this.last.get(key) ?? -Infinity) < this.sameKeyMs) return false;
@@ -419,10 +429,12 @@ export class CueGate {
 export class HoldGate {
   private since: number | null = null;
   private lastTrue = -Infinity;
-  constructor(
-    private readonly holdMs = 1000,
-    private readonly graceMs = 300,
-  ) {}
+  private readonly holdMs: number;
+  private readonly graceMs: number;
+  constructor(holdMs = 1000, graceMs = 300) {
+    this.holdMs = holdMs;
+    this.graceMs = graceMs;
+  }
   push(ok: boolean, nowMs: number): { progress: number; stable: boolean } {
     if (ok) {
       this.lastTrue = nowMs;
