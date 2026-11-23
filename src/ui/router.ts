@@ -26,6 +26,11 @@ import { viewProgress } from './views/progress.ts';
 import { viewReport, viewAdjust } from './views/progress-report.ts';
 import { viewProfile } from './views/profile.ts';
 import { $app, getReport, setReport, type ReportModule } from './views/shared.ts';
+import { findRoute } from './features/index.ts';
+import { loadFeatureFlags, createBrowserKeyValueStore } from '../platform/index.ts';
+
+/** Drapeaux de fonctionnalité (défauts ← réglage enregistré ← ?flags=gait). Relus à chaque route. */
+export const featureFlags = () => loadFeatureFlags(createBrowserKeyValueStore(), location.search);
 
 let cleanup: (() => void)[] = [];
 
@@ -140,6 +145,8 @@ function route(): unknown {
   if (name === 'progress') return viewProgress();
   if (name === 'report') return viewReport();
   if (name === 'adjust') return viewAdjust();
+  const feature = name ? findRoute(name, featureFlags(), prof.role) : undefined;
+  if (feature) return feature.render({ arg, arg2, root: $app, cleanup });
   return viewHome();
 }
 
