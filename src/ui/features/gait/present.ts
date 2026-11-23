@@ -565,7 +565,8 @@ export function deltaRows(cmp: GaitComparison, locale = 'fr-CA'): DeltaRow[] {
       a: fmtNum(m.a, d, locale),
       b: fmtNum(m.b, d, locale),
       delta: fmtSigned(m.delta, d, locale),
-      margin: `± ${fmtNum(m.margin, d, locale)}`,
+      // Marge inconnue (indices de symétrie, CV) : « — » plutôt que « ± 0 » ; le changement n’est jamais dit significatif.
+      margin: m.margin > 0 ? `± ${fmtNum(m.margin, d, locale)}` : '—',
       marginSource: m.marginSource,
       significant: m.significant,
       towardNorm: m.towardNorm,
