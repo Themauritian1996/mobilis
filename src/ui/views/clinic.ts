@@ -400,6 +400,9 @@ export async function viewRxEditor(code?: string | null): Promise<void> {
   }
   const form = f;
   const path = pathologyOf(form.pathology);
+  // Exercices déposés par un autre écran (plan de traitement) sans pathologie : la liste reste visible et modifiable.
+  // Parcours habituel inchangé : choisir une région efface les exercices, donc sans pathologie la liste est vide.
+  const showEx = !!path || form.ids.length > 0;
   const regionEx = regionExercises(form.region);
   const others = regionEx.filter((id) => !form.ids.includes(id));
   // Sections ajoutées (protocole, questionnaires, amplitude, rapport) : lues dans le DOM avant chaque nouveau dessin
@@ -492,9 +495,9 @@ export async function viewRxEditor(code?: string | null): Promise<void> {
       )
       .join('')}
     ${
-      path
+      showEx
         ? `
-    <h2>${t('phase')}</h2><div class="seg">${[1, 2, 3].map((n) => `<button data-ph="${n}" class="${form.phase === n ? 'on' : ''}">${n} · ${t('phaseName' + n)}</button>`).join('')}</div>
+    ${path ? `<h2>${t('phase')}</h2><div class="seg">${[1, 2, 3].map((n) => `<button data-ph="${n}" class="${form.phase === n ? 'on' : ''}">${n} · ${t('phaseName' + n)}</button>`).join('')}</div>` : ''}
     <h2>${t('exercises')} (${form.ids.length})</h2>
     <div class="list">${
       form.ids
@@ -522,7 +525,7 @@ export async function viewRxEditor(code?: string | null): Promise<void> {
         : ''
     }
     <div style="height:96px"></div>
-    <div class="sticky-cta"><div class="row"><button class="btn ghost" id="try" style="flex:0 0 auto;width:auto;padding-inline:16px" ${path && form.ids.length ? '' : 'disabled'}>${icon('play', 14)} ${t('testRx')}</button><button class="btn grow" id="save" ${path && form.ids.length ? '' : 'disabled'}>${code ? t('saveChanges') : t('createSend')}</button></div></div></section>
+    <div class="sticky-cta"><div class="row"><button class="btn ghost" id="try" style="flex:0 0 auto;width:auto;padding-inline:16px" ${showEx && form.ids.length ? '' : 'disabled'}>${icon('play', 14)} ${t('testRx')}</button><button class="btn grow" id="save" ${showEx && form.ids.length ? '' : 'disabled'}>${code ? t('saveChanges') : t('createSend')}</button></div></div></section>
     <div class="desk-only">${nav('clinic', prof['role'] as string | undefined)}</div>`;
   mountFigs($app());
   if (secs) {
@@ -712,6 +715,22 @@ export async function viewRxEditor(code?: string | null): Promise<void> {
       if (form.clinician.trim() && form.clinician.trim() !== prof['clinicianName'])
         await store.saveProfile({ ...(profile() as Profile), clinicianName: form.clinician.trim() });
       state.clinic = null;
+      // Point d'extension (volet plan de traitement) : le formulaire déposé peut porter `fromPlanId` ;
+      // l'écouteur de « mobilis:rx-saved » relie alors le programme au plan (plan.rxCode). Aucun import du volet.
+      const fromPlanId = (form as RxForm & { fromPlanId?: string | null }).fromPlanId;
+      try {
+        window.dispatchEvent(
+          new CustomEvent('mobilis:rx-saved', {
+            detail: {
+              code: res.code ?? null,
+              localId: (res as { data?: { localId?: string | null } }).data?.localId ?? form.localId ?? null,
+              planId: fromPlanId ?? null,
+            },
+          }),
+        );
+      } catch (e) {
+        console.warn(e);
+      }
       if (code && res.code) {
         toast(t('rxSaved'));
         go('#/clinic');
