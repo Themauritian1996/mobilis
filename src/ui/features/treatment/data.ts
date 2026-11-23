@@ -64,7 +64,8 @@ export const currentPlan = (plans: readonly TreatmentPlan[]): TreatmentPlan | un
 
 /** Identifiant unique d'un nouveau document (évaluation, etc.). */
 export function newId(prefix: string): string {
-  const u = typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : String(Math.random()).slice(2);
+  const u =
+    typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : String(Math.random()).slice(2);
   return `${prefix}_${u}`;
 }
 

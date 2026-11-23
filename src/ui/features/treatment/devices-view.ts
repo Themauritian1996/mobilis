@@ -40,7 +40,17 @@ import { toast } from '../../components/toast.ts';
 import type { FeatureRouteContext } from '../registry.ts';
 import { makeT } from '../i18n.ts';
 import { ensureCss } from './css.ts';
-import { currentPlan, currentUid, listPatients, loadPatient, loadPlans, newId, saveAssessment, savePlan, selfPatientId } from './data.ts';
+import {
+  currentPlan,
+  currentUid,
+  listPatients,
+  loadPatient,
+  loadPlans,
+  newId,
+  saveAssessment,
+  savePlan,
+  selfPatientId,
+} from './data.ts';
 import { STRINGS } from './strings.ts';
 
 const t = makeT(STRINGS);
@@ -141,9 +151,13 @@ function html(S: State, canSave: boolean): string {
     <div class="tx-banner" role="note">${icon('shield', 18)} <span>${esc(BANNER)}</span></div>
     <section class="card tx-card"><h2>${t('adChoose')}</h2>
       <div class="pills" role="group" aria-label="${t('adChoose')}">${DEVICE_KINDS.map((d) => `<button class="pill ${S.device === d ? 'on' : ''}" data-dev="${d}" aria-pressed="${S.device === d}">${esc(DEVICE_LABEL[d][lang()])}</button>`).join('')}</div>
-      <label class="field"><span>${t('adAffected')}</span><select class="input" id="ad-aff">${(['left', 'right', 'bilateral', 'none'] as const)
+      <label class="field"><span>${t('adAffected')}</span><select class="input" id="ad-aff">${(
+        ['left', 'right', 'bilateral', 'none'] as const
+      )
         .map((v) => `<option value="${v}" ${S.affected === v ? 'selected' : ''}>${t(`aff_${v}`)}</option>`)
-        .join('')}<option value="" ${S.affected === undefined ? 'selected' : ''}>${t('aff_unknown')}</option></select></label></section>
+        .join(
+          '',
+        )}<option value="" ${S.affected === undefined ? 'selected' : ''}>${t('aff_unknown')}</option></select></label></section>
     ${guideHtml(S)}
     <section class="card tx-card" aria-labelledby="ad-cam-h"><h2 id="ad-cam-h">${t('adCamera')}</h2>
       <p class="small">${t('adCameraIntro', { min: ELBOW_TARGET.min, max: ELBOW_TARGET.max })}</p>
@@ -315,7 +329,12 @@ export async function renderDevices(ctx: FeatureRouteContext): Promise<void> {
       const est = sampler.estimate();
       if (est && !est.stable) cue('still', t('cueStill'), 8000);
       if (est?.stable && viewOf(frame) !== 'frontal') {
-        finish({ flexionDeg: est.flexionDeg, confidence: Math.min(0.9, est.visibility), source: 'camera', sdDeg: est.sdDeg });
+        finish({
+          flexionDeg: est.flexionDeg,
+          confidence: Math.min(0.9, est.visibility),
+          source: 'camera',
+          sdDeg: est.sdDeg,
+        });
       }
     };
     raf = requestAnimationFrame(loop);

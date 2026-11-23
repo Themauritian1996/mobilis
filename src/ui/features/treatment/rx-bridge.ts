@@ -65,7 +65,9 @@ export async function openRxEditor(
   let rx: StoredRx | null = null;
   if (opts.rxRef) {
     try {
-      rx = (opts.rxRef.startsWith('L') ? store.getLocalRx(opts.rxRef) : await store.getRx(opts.rxRef)) as StoredRx | null;
+      rx = (
+        opts.rxRef.startsWith('L') ? store.getLocalRx(opts.rxRef) : await store.getRx(opts.rxRef)
+      ) as StoredRx | null;
     } catch {
       rx = null;
     }

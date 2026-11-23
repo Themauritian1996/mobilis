@@ -22,7 +22,16 @@ describe('textes du volet traitement', () => {
 
   it('familles dynamiques complètes', () => {
     const fam: Record<string, string[]> = {
-      kind_: ['exercise', 'gait_training', 'assistive_device', 'orthosis', 'prosthetic_adjustment', 'referral', 'injection_evaluation', 'other'],
+      kind_: [
+        'exercise',
+        'gait_training',
+        'assistive_device',
+        'orthosis',
+        'prosthetic_adjustment',
+        'referral',
+        'injection_evaluation',
+        'other',
+      ],
       prio_: ['high', 'medium', 'low'],
       goal_: ['achieved', 'in_progress', 'not_achieved', 'no_data'],
       status_: ['draft', 'active', 'closed'],

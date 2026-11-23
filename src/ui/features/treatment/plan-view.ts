@@ -54,7 +54,16 @@ import { icon } from '../../components/icons.ts';
 import { toast } from '../../components/toast.ts';
 import { makeT } from '../i18n.ts';
 import { ensureCss } from './css.ts';
-import { currentPlan, currentUid, listPatients, loadAssessments, loadPatient, loadPlans, savePlan, selfPatientId } from './data.ts';
+import {
+  currentPlan,
+  currentUid,
+  listPatients,
+  loadAssessments,
+  loadPatient,
+  loadPlans,
+  savePlan,
+  selfPatientId,
+} from './data.ts';
 import { listPrograms, openRxEditor, pathologiesOf, prefillOf, type ProgramRef } from './rx-bridge.ts';
 import { STRINGS } from './strings.ts';
 
@@ -167,7 +176,9 @@ function suggestionRow(a: TreatmentAction, checked: boolean): string {
 
 function goalRow(g: TreatmentGoal, checked: boolean | null): string {
   const check =
-    checked === null ? '' : `<input type="checkbox" data-sg="${esc(g.id)}" ${checked ? 'checked' : ''} aria-label="${esc(g.label)}">`;
+    checked === null
+      ? ''
+      : `<input type="checkbox" data-sg="${esc(g.id)}" ${checked ? 'checked' : ''} aria-label="${esc(g.label)}">`;
   const finding = g.fromFindingId ? CAT.findings[g.fromFindingId]?.name_fr : undefined;
   return `<li class="tx-sug"><label class="tx-check">${check}<span class="tx-sug-body"><b>${esc(g.label)}</b>
     <span class="tx-chips">${chip(`${g.metricId} ${g.comparator} ${num(g.target)} ${g.unit}`, 'mono')}
@@ -252,7 +263,12 @@ function actionsCard(S: State, plan: TreatmentPlan): string {
   return `<section class="card tx-card" aria-labelledby="tx-act-h"><h2 id="tx-act-h">${t('planActions')} (${plan.actions.length})</h2>
     ${
       groups.length
-        ? groups.map((g) => `<h3>${t(`kind_${g.k}`)}</h3><ul class="tx-list">${g.list.map((a) => actionRow(a, editable, S.patientId)).join('')}</ul>`).join('')
+        ? groups
+            .map(
+              (g) =>
+                `<h3>${t(`kind_${g.k}`)}</h3><ul class="tx-list">${g.list.map((a) => actionRow(a, editable, S.patientId)).join('')}</ul>`,
+            )
+            .join('')
         : `<p class="muted">${t('noActions')}</p>`
     }${add}</section>`;
 }
@@ -261,9 +277,12 @@ function goalsCard(plan: TreatmentPlan): string {
   const editable = isEditable(plan);
   const rows = plan.goals
     .map(
-      (g) => `<li class="tx-goal" data-gid="${esc(g.id)}">${goalRow(g, null)}${
-        editable ? `<button class="icon-btn" data-act="rm-goal" aria-label="${t('remove')}">${icon('close', 18)}</button>` : ''
-      }</li>`,
+      (g) =>
+        `<li class="tx-goal" data-gid="${esc(g.id)}">${goalRow(g, null)}${
+          editable
+            ? `<button class="icon-btn" data-act="rm-goal" aria-label="${t('remove')}">${icon('close', 18)}</button>`
+            : ''
+        }</li>`,
     )
     .join('');
   const add = editable
@@ -298,7 +317,10 @@ function trackingCard(S: State, plan: TreatmentPlan): string {
       const p = tracked[i]!;
       const unit = g.unit;
       const series = p.points
-        .map((x) => `<li><span>${esc(dateFr(x.performedAt))}</span><b class="tnum">${num(x.value)} ${esc(unit)}</b>${x.estimate ? ` <small class="muted">${t('estimate')}</small>` : ''}</li>`)
+        .map(
+          (x) =>
+            `<li><span>${esc(dateFr(x.performedAt))}</span><b class="tnum">${num(x.value)} ${esc(unit)}</b>${x.estimate ? ` <small class="muted">${t('estimate')}</small>` : ''}</li>`,
+        )
         .join('');
       const margin =
         p.error !== null
@@ -325,7 +347,10 @@ function rxCard(S: State, plan: TreatmentPlan): string {
   const pre = prefillOf(plan);
   const paths = pathologiesOf(pre.region);
   const progOpts = S.programs
-    .map((p) => `<option value="${esc(p.ref)}" ${plan.rxCode === p.ref ? 'selected' : ''}>${esc(p.label)} (${esc(p.ref)})</option>`)
+    .map(
+      (p) =>
+        `<option value="${esc(p.ref)}" ${plan.rxCode === p.ref ? 'selected' : ''}>${esc(p.label)} (${esc(p.ref)})</option>`,
+    )
     .join('');
   return `<section class="card tx-card" aria-labelledby="tx-rx-h"><h2 id="tx-rx-h">${t('rxTitle')}</h2>
     <p class="small">${pre.ids.length ? t('rxCount', { n: pre.ids.length }) : t('rxNone')}</p>
@@ -334,7 +359,9 @@ function rxCard(S: State, plan: TreatmentPlan): string {
     ${
       paths.length
         ? `<label class="field"><span>${t('rxPathology')}</span><select class="input" id="tx-rx-path"><option value="">${t('rxPathologyNone')}</option>${paths
-            .map((p) => `<option value="${esc(p.id)}" ${S.rxPathology === p.id ? 'selected' : ''}>${esc(p.name)}</option>`)
+            .map(
+              (p) => `<option value="${esc(p.id)}" ${S.rxPathology === p.id ? 'selected' : ''}>${esc(p.name)}</option>`,
+            )
             .join('')}</select><small class="muted">${t('rxPathologyHint')}</small></label>`
         : ''
     }
@@ -401,7 +428,11 @@ function patientHtml(plan: TreatmentPlan | undefined, patientId: string, preview
   const rows = items
     .map((a) => {
       const isEx = a.kind === 'exercise';
-      const title = isEx ? exName(a.exerciseId, a.label) : a.deviceKind ? DEVICE_LABEL[a.deviceKind as DeviceKind][lang()] : a.label;
+      const title = isEx
+        ? exName(a.exerciseId, a.label)
+        : a.deviceKind
+          ? DEVICE_LABEL[a.deviceKind as DeviceKind][lang()]
+          : a.label;
       return `<li class="tx-act"><div class="tx-act-head"><b>${esc(title)}</b>${chip(t(isEx ? 'kind_exercise' : 'kind_assistive_device'), `k-${a.kind}`)}</div>
         ${a.side ? `<p class="small">${t('side')} ${sideName(a.side)}</p>` : ''}${a.detail ? `<p class="small">${esc(a.detail)}</p>` : ''}
         ${isEx && a.exerciseId ? `<a class="btn sm ghost" href="#/ex/${esc(a.exerciseId)}">${t('seeExercise')}</a>` : ''}
@@ -435,7 +466,9 @@ function patientChooser(list: readonly Patient[], route: string): string {
     )
     .join('');
   return shell(
-    rows ? `<section class="card tx-card"><h2>${t('choosePatient')}</h2><ul class="tx-list">${rows}</ul></section>` : `<section class="card tx-card"><p class="muted">${t('noPatients')}</p></section>`,
+    rows
+      ? `<section class="card tx-card"><h2>${t('choosePatient')}</h2><ul class="tx-list">${rows}</ul></section>`
+      : `<section class="card tx-card"><p class="muted">${t('noPatients')}</p></section>`,
     t('title'),
     '#/clinic',
   );
@@ -556,7 +589,8 @@ export async function renderPlan(ctx: FeatureRouteContext): Promise<void> {
         const detail = q<HTMLInputElement>('#tx-new-detail').value.trim();
         let label = q<HTMLInputElement>('#tx-new-label').value.trim();
         const exerciseId = kind === 'exercise' ? q<HTMLSelectElement>('#tx-new-ex').value : undefined;
-        const deviceKind = kind === 'assistive_device' ? (q<HTMLSelectElement>('#tx-new-dev').value as DeviceKind) : undefined;
+        const deviceKind =
+          kind === 'assistive_device' ? (q<HTMLSelectElement>('#tx-new-dev').value as DeviceKind) : undefined;
         if (exerciseId) label = exName(exerciseId, exerciseId);
         else if (deviceKind) label = DEVICE_LABEL[deviceKind].fr;
         if (!label) return void toast(t('labelRequired'));
@@ -580,7 +614,8 @@ export async function renderPlan(ctx: FeatureRouteContext): Promise<void> {
         const q = <T extends HTMLElement>(sel: string): T => el().querySelector<T>(sel)!;
         const m = METRICS.find((x) => x.id === q<HTMLSelectElement>('#tx-g-metric').value);
         const target = Number(q<HTMLInputElement>('#tx-g-target').value);
-        if (!m || q<HTMLInputElement>('#tx-g-target').value === '' || !Number.isFinite(target)) return void toast(t('targetRequired'));
+        if (!m || q<HTMLInputElement>('#tx-g-target').value === '' || !Number.isFinite(target))
+          return void toast(t('targetRequired'));
         const side = q<HTMLSelectElement>('#tx-g-side').value as Side | '';
         const due = q<HTMLInputElement>('#tx-g-due').value;
         const cmp = q<HTMLSelectElement>('#tx-g-cmp').value as TreatmentGoal['comparator'];
@@ -625,7 +660,8 @@ export async function renderPlan(ctx: FeatureRouteContext): Promise<void> {
         if (!plan) return;
         const ref = (el().querySelector<HTMLSelectElement>('#tx-rx-ref')?.value ?? '') || undefined;
         const path = el().querySelector<HTMLSelectElement>('#tx-rx-path')?.value || undefined;
-        if (ref && plan.rxCode !== ref) await mutate((p) => ({ ...p, rxCode: ref, updatedAt: now.toISOString() as typeof p.updatedAt }), false);
+        if (ref && plan.rxCode !== ref)
+          await mutate((p) => ({ ...p, rxCode: ref, updatedAt: now.toISOString() as typeof p.updatedAt }), false);
         const ok = await openRxEditor(current(S) ?? plan, { rxRef: ref, pathology: path });
         if (!ok) toast(t('rxFailed'));
         break;
@@ -678,10 +714,14 @@ export async function renderPlan(ctx: FeatureRouteContext): Promise<void> {
     const row = el0.closest<HTMLElement>('[data-aid]');
     if (row && el0.dataset['f']) {
       const id = row.dataset['aid']!;
-      if (el0.dataset['f'] === 'detail') await mutate((p) => editAction(p, id, { detail: el0.value.trim() }, now), false);
+      if (el0.dataset['f'] === 'detail')
+        await mutate((p) => editAction(p, id, { detail: el0.value.trim() }, now), false);
       if (el0.dataset['f'] === 'weeks') {
         const v = Number(el0.value);
-        await mutate((p) => editAction(p, id, { durationWeeks: Number.isFinite(v) && v > 0 ? Math.round(v) : 0 }, now), false);
+        await mutate(
+          (p) => editAction(p, id, { durationWeeks: Number.isFinite(v) && v > 0 ? Math.round(v) : 0 }, now),
+          false,
+        );
       }
     }
   };
@@ -695,4 +735,3 @@ export async function renderPlan(ctx: FeatureRouteContext): Promise<void> {
   });
   draw();
 }
-
