@@ -6,11 +6,11 @@
  */
 import type { Assessment } from '../../../core/types/clinical.ts';
 import type { FeatureRouteContext } from '../registry.ts';
-import { go, navRole } from '../../app-state.ts';
+import { go, profile } from '../../app-state.ts';
 import { esc } from '../../components/html.ts';
 import { icon } from '../../components/icons.ts';
 import { toast } from '../../components/toast.ts';
-import { readStoredResult, type StoredResult } from './model.ts';
+import { patientSafeDoc, patientSafeResult, readStoredResult, viewerRole, type StoredResult } from './model.ts';
 import {
   dateLabel,
   determinantViews,
@@ -79,12 +79,14 @@ export async function renderResults(ctx: FeatureRouteContext): Promise<void> {
     root.innerHTML = errorCard(t('res_title'), t('res_notFound'));
     return;
   }
-  const role = navRole() === 'clinician' ? 'clinician' : 'patient';
+  const role = viewerRole(profile()?.role);
   if (role === 'patient' && a.patientId !== currentUid()) {
     root.innerHTML = errorCard(t('res_title'), t('res_denied'), '#/home');
     return;
   }
-  const r: StoredResult | null = readStoredResult(a);
+  const stored: StoredResult | null = readStoredResult(a);
+  // Vue patient : ni évaluation prothétique, ni toxine, chirurgie, orthèse ou ajustement de prothèse (spec §10.8, §10.10).
+  const r: StoredResult | null = stored && role === 'patient' ? patientSafeResult(stored) : stored;
   if (!r) {
     root.innerHTML = errorCard(t('res_title'), t('res_notGait'), `#/patient/${a.patientId}`);
     return;
@@ -171,5 +173,6 @@ export async function renderResults(ctx: FeatureRouteContext): Promise<void> {
       }
     };
   const js = $<HTMLButtonElement>('json');
-  if (js) js.onclick = () => void exportJson(a, `mobilis-marche-${a.id}.json`);
+  if (js)
+    js.onclick = () => void exportJson(role === 'patient' ? patientSafeDoc(a, r) : a, `mobilis-marche-${a.id}.json`);
 }

@@ -7,10 +7,10 @@
 import { compareAssessments, GAIT_FINDINGS, DETERMINANTS } from '../../../domains/gait/index.ts';
 import type { Assessment } from '../../../core/types/clinical.ts';
 import type { FeatureRouteContext } from '../registry.ts';
-import { navRole } from '../../app-state.ts';
+import { profile } from '../../app-state.ts';
 import { esc } from '../../components/html.ts';
 import { icon } from '../../components/icons.ts';
-import { readStoredResult, type StoredResult } from './model.ts';
+import { readStoredResult, viewerRole, type StoredResult } from './model.ts';
 import { dateLabel, deltaRows, determinantChanges, findingChanges, overlayCharts } from './present.ts';
 import { changesSection, deltaSection, overlaySection } from './sections.ts';
 import { mountAnnotations } from '../patients/annotations-ui.ts';
@@ -57,7 +57,7 @@ export async function renderCompare(ctx: FeatureRouteContext): Promise<void> {
     root.innerHTML = errorCard(t('cmp_title'), t('res_notFound'));
     return;
   }
-  const role = navRole() === 'clinician' ? 'clinician' : 'patient';
+  const role = viewerRole(profile()?.role);
   if (role === 'patient' && (A.patientId !== currentUid() || B.patientId !== currentUid())) {
     root.innerHTML = errorCard(t('cmp_title'), t('res_denied'), '#/home');
     return;

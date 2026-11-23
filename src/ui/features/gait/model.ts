@@ -28,6 +28,7 @@ import type {
 import { STUDY_CONDITION_KEY } from '../../../core/types/clinical.ts';
 import type { IsoDateTime, MeasuredValue } from '../../../core/types/common.ts';
 import type { ProstheticAssessment } from '../../../domains/prosthetics/index.ts';
+import { GAIT_FINDINGS, restorationGoals } from '../../../domains/gait/index.ts';
 
 export const ENGINE_VERSION = 'gait-1';
 
@@ -455,4 +456,35 @@ export function readStoredResult(a: Pick<Assessment, 'result' | 'kind'>): Stored
   const r = a.result as Partial<StoredResult> | undefined;
   if (!r || !Array.isArray(r.analyses) || !Array.isArray(r.determinants) || !Array.isArray(r.findings)) return null;
   return r as StoredResult;
+}
+
+// ---------------------------------------------------------------------------------------------------- Vue patient
+/** Rôle d'affichage des écrans de marche : le rôle du profil, comme le registre des routes (`findRoute`). */
+export const viewerRole = (profileRole: string | undefined): 'clinician' | 'patient' =>
+  profileRole === 'clinician' ? 'clinician' : 'patient';
+
+/**
+ * Résultat montré au PATIENT (spec §10.8 et §10.10) : sans l'évaluation prothétique (clinicien et prothésiste), sans
+ * défaut réservé au clinicien, et des suggestions limitées aux buts de restauration des déterminants (pas de toxine,
+ * chirurgie, orthèse, ajustement de prothèse ni examen : ces options de la littérature restent dans la vue clinicien).
+ */
+export function patientSafeResult(r: StoredResult): StoredResult {
+  const { prosthetic, ...rest } = r;
+  void prosthetic;
+  return {
+    ...rest,
+    findings: r.findings
+      .filter((f) => f.audience !== 'clinician')
+      .map((f) => ({ ...f, suggestions: restorationGoals(f.determinants) })),
+  };
+}
+
+/** Document exporté par le patient (JSON) : même filtrage que l'écran. */
+export function patientSafeDoc(a: Assessment, r: StoredResult): Assessment {
+  const shown = new Set(GAIT_FINDINGS.filter((f) => f.audience !== 'clinician').map((f) => f.id));
+  return {
+    ...a,
+    ...(a.findings ? { findings: a.findings.filter((f) => shown.has(f.findingId)) } : {}),
+    result: patientSafeResult(r),
+  };
 }
