@@ -12,7 +12,9 @@
 .gc-kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px 16px; margin: 8px 0 0; }
 .gc-kv dt { font-size: var(--fs-xs); color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .03em; }
 .gc-kv dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
-.gc-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+/* position: relative : les .sr-only (position absolue) des cellules restent dans la zone défilante (sinon la page déborde à 390 px). */
+/* position: relative : les .sr-only (absolus) des cellules restent dans la zone défilante, sinon la page déborde. */
+.gc-scroll { position: relative; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .gc-table { width: 100%; border-collapse: collapse; font-size: var(--fs-md); }
 .gc-table th, .gc-table td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: start; vertical-align: top; }
 .gc-table thead th { font-size: var(--fs-sm); color: var(--ink-2); background: var(--surface-2); position: sticky; top: 0; }
