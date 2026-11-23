@@ -25,8 +25,10 @@ export interface FeatureRoute {
 
 export interface FeatureNavItem {
   id: string;
-  /** Clé i18n du libellé */
+  /** Clé i18n du libellé (dictionnaire global t()) — ou `label` pour un texte propre au volet */
   labelKey: string;
+  /** Libellé traduit par le volet (prioritaire sur labelKey), ex. () => tp('nav') */
+  label?: () => string;
   /** Hash cible, ex. '#/marche' */
   href: string;
   flag?: FlagName;
